@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "rsmc:block/cpu_4k"
+    }
+  }
+}

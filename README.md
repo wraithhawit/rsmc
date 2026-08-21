@@ -7,8 +7,8 @@ hundred blocks.
 
 Minecraft 1.21.1, NeoForge. Requires Refined Storage 2.0.9+.
 
-> **Status: early.** The shape rules and the throughput model are implemented and tested; the
-> blocks, the pattern GUI and the network node are not written yet. See
+> **Status: early.** The blocks exist and the structure rules work against a real level; the
+> network node and the pattern GUI are not written yet. See
 > [What works today](#what-works-today).
 
 ## Why this can exist without patching Refined Storage
@@ -93,22 +93,25 @@ You cannot parallelise a furnace by building a bigger cube.
 
 - [x] Structure detection and validation — flood fill, bounding box, per-position roles, size limits
 - [x] Throughput model — CPU tiers, weight summing
-- [x] Headless test suite for both, 24 cases (`./gradlew shapeCheck`)
-- [ ] Blocks, block entities, models, textures
-- [ ] The network node — `PatternProvider` with the structure's `StepBehavior`
-- [ ] Pattern GUI
-- [ ] Recipes
+- [x] **The seven blocks** — Frame, Casing, four CPU tiers, Pattern Storage, with items, creative
+      tab, loot tables and block entities where they are needed
+- [x] Headless suites, run on every `build` — 24 shape cases, 50 asset checks
+- [x] Gametests against a real level — 3, run by `runGameTestServer`
+- [ ] The network node — `PatternProvider` with the structure's `StepBehavior` (#2)
+- [ ] Structure lifecycle: form, break, tell the player why (#3)
+- [ ] Pattern GUI (#4)
+- [ ] Recipes (#5)
+- [ ] Real textures — the ones in the repo are Reborn Storage's placeholders (#1)
 
 ## Building
 
 ```
-./gradlew build          # compiles, and runs the shape checks
-./gradlew shapeCheck     # just the shape checks, no Minecraft launch
-./gradlew runClient      # dev client, with Refined Storage staged into run/client/mods
+./gradlew build              # compiles, and runs both headless suites
+./gradlew shapeCheck         # structure rules, no Minecraft launch
+./gradlew assetCheck         # every block has its models, loot table and lang
+./gradlew runGameTestServer  # structure rules against a real level
+./gradlew runClient          # dev client, with Refined Storage staged into run/client/mods
 ```
-
-Refined Storage's jar is not in this repository — a jar is a build input, not source. See
-[SETUP.md](SETUP.md) for the one file you need to copy in.
 
 ## Prior art, stated plainly
 

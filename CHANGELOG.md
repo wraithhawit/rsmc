@@ -6,6 +6,63 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.4.0
+
+**The blocks exist.** (Issue #1.) Seven of them — Frame, Casing, four CPU tiers, Pattern Storage —
+with items, a creative tab, loot tables, models and block entities. The mod now boots into a real
+level with the structure rules working against real blocks.
+
+**Two blocks carry a block entity and five do not**, which is worth writing down because the
+tempting version gives one to everything.
+
+- **Frame and Casing share one type.** They differ in exactly one thing — which position of the box
+  they may occupy — and that is a value, not behaviour. They also make up the shell, which is the
+  part that touches the outside world: what reaches the RS network (#2) and what a player clicks
+  (#4).
+- **Pattern Storage has its own**, because it carries the patterns. Where those live is the whole
+  reliability argument: a pattern is in a block, the block is in the world, and breaking the
+  structure moves nothing.
+- **The CPUs have none at all.** A CPU's only state is its tier, and its tier is which block it is.
+  The interior of a formed structure is sealed, so it never needs to reach the network or be
+  clicked. At the top end that is the difference between 2,168 block entities for a 16³ and 4,096.
+
+The shell entity is documented as staying stateless about the structure, with a note saying that
+caching the formed structure there is the mistake this design exists to avoid.
+
+**`LevelBlockSource`**, the one place the level and the shape code meet. Two details:
+
+- **A block counts only if it implements `StructureBlock`.** Not a tag, not a list held elsewhere —
+  a block that is part of the structure knows which role it fills, and a lookup table kept in step
+  with the block registry is a second source of truth waiting to disagree. There is a gametest for
+  an iron block failing to complete a structure, because that `instanceof` is the single line
+  between "reads the world correctly" and "any block finishes your multiblock".
+- **An unloaded chunk reads as absent, and is never loaded to find out.** `getChunk(x, z, FULL,
+  false)` — both convenience helpers for the question are deprecated, and the `false` is the point:
+  a structure check must not be the thing that drags a chunk into memory. Without it a structure
+  across a chunk border would find a hole in itself, form differently depending on load order, and
+  change shape underneath itself later.
+
+**A second headless suite: `assetCheck`, 50 checks.** A block missing its loot table looks fine
+until someone breaks it and it drops nothing; a block missing its model is a purple cube nobody
+sees until they open the creative tab. Neither is a compile error and neither shows up in any test
+that does not launch the game and look — which is exactly the kind of bug that ships. It also
+checks each loot table names *its own* block, the one failure that survives every "the file is
+there" check and still drops the wrong thing.
+
+`BlockNames` is Minecraft-free so the registry and the check read the same list, and the check
+cannot be checking a different set of blocks than the one being registered.
+
+**Three gametests**, deliberately not re-testing the geometry that `shapeCheck` already covers far
+better. What only a real level proves: the blocks are registered and carry the role they claim,
+`LevelBlockSource` reads them back, and the two halves agree. The 8×8×8 template is rstweaks'
+1×1×1 with its size ints patched — the smallest legal structure is 3×3×4 and there was nowhere to
+build one.
+
+**Compiler deprecation warnings are now shown in full**, not summarised as "uses a deprecated API".
+A deprecated call usually means Mojang moved a method rather than dropped the idea, and silently
+keeping the old one is how a mod breaks on the next version bump. It caught the chunk check above
+twice over.
+
 ## 0.3.0
 
 **Reliability decided as an architecture, not as a to-do.** Plus the first placeholder textures, so

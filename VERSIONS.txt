@@ -8,6 +8,15 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.4.0
+-----
+  The seven blocks exist (#1): Frame, Casing, four CPU tiers, Pattern Storage, with items,
+  creative tab, loot tables and models. Block entities only where needed - shell (network +
+  clicks) and Pattern Storage (holds the patterns); CPUs have none, which saves ~2000 of them
+  in a 16^3. LevelBlockSource is the one level/shape adapter: a block counts only via the
+  StructureBlock interface, and an unloaded chunk reads as absent without being loaded. New
+  assetCheck suite (50) catches missing models and loot tables; 3 gametests pass in-level.
+
 0.3.0
 -----
   Reliability settled as architecture: NO controller object, no assembly state machine, no

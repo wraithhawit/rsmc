@@ -26,8 +26,17 @@ tasks.register('shapeCheck', JavaExec) {
     mainClass = 'com.wraithhawit.rsmc.test.HeadlessShapeCheck'
 }
 
+tasks.register('assetCheck', JavaExec) {
+    group = 'verification'
+    description = 'Proves every registered block has its blockstate, models, loot table and lang.'
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
+    mainClass = 'com.wraithhawit.rsmc.test.HeadlessAssetCheck'
+    // Reads src/main/resources by relative path, so it must run from the project root.
+    workingDir = projectDir
+}
+
 tasks.named('check').configure {
-    dependsOn 'shapeCheck'
+    dependsOn 'shapeCheck', 'assetCheck'
 }
 
 // Refined Storage is compileOnly, so nothing puts it on a run's classpath and a dev
@@ -130,4 +139,12 @@ tasks.withType(ProcessResources).configureEach {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+// Deprecation detail, not just the "uses a deprecated API" note. A deprecated call in a
+// mod usually means Mojang moved the method rather than removed the idea, and knowing
+// which one it is matters -- silently using the old one is how a mod breaks on the next
+// version bump.
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xlint:deprecation'
 }

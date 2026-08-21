@@ -2,9 +2,16 @@ package com.wraithhawit.rsmc;
 
 import com.mojang.logging.LogUtils;
 
+import com.wraithhawit.rsmc.content.RsmcBlockEntities;
+import com.wraithhawit.rsmc.content.RsmcBlocks;
+import com.wraithhawit.rsmc.content.RsmcCreativeTab;
+import com.wraithhawit.rsmc.content.RsmcItems;
+import com.wraithhawit.rsmc.test.StructureGameTests;
+
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 
 import org.slf4j.Logger;
 
@@ -51,6 +58,18 @@ public class RSMC {
 
     public RSMC(final IEventBus modEventBus, final ModContainer modContainer) {
         version = modContainer.getModInfo().getVersion().toString();
+        // Order matters here, and only in one place: RsmcItems and RsmcBlockEntities both read
+        // RsmcBlocks' fields while their own static initialisers run, so blocks must be the first
+        // of the three touched. Registering them in this order is what guarantees that -- the
+        // class loads when it is first referenced.
+        RsmcBlocks.BLOCKS.register(modEventBus);
+        RsmcItems.ITEMS.register(modEventBus);
+        RsmcBlockEntities.BLOCK_ENTITIES.register(modEventBus);
+        RsmcCreativeTab.TABS.register(modEventBus);
+        // Only fires when -Dneoforge.enabledGameTestNamespaces includes this mod, which the
+        // runGameTestServer run configuration sets.
+        modEventBus.addListener(RegisterGameTestsEvent.class,
+            event -> event.register(StructureGameTests.class));
         LOGGER.info("[rsmc] v{} loaded", version);
     }
 }
