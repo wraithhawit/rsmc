@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.6
+-----
+  Controller screen has three states - grey unformed, dark formed-but-unplugged, blue live -
+  as a layered cutout model over RS's grid textures, no image editing. Adds the mod's only
+  ticker, one per structure, once a second. Plus /rsmc info: look at any rsmc block and it
+  explains the structure, or names the failure, its position and what that position wanted.
+  Both exist because "nothing happened" was indistinguishable from "built it wrong".
+
 0.0.5
 -----
   Cable to any face again. The per-tick cost 0.0.4 was avoiding does not exist: RS ticks nodes

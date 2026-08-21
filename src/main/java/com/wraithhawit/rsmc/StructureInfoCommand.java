@@ -1,0 +1,145 @@
+package com.wraithhawit.rsmc;
+
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+
+import com.wraithhawit.rsmc.structure.LevelBlockSource;
+import com.wraithhawit.rsmc.structure.MultiblockShape;
+import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
+import com.wraithhawit.rsmc.structure.StructureBlock;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+
+/**
+ * {@code /rsmc info} -- explain the structure the player is looking at.
+ *
+ * <p>Exists because "I built it and nothing happened" has at least four causes that look identical
+ * from inside the game: the box is wrong somewhere, the box is right but the interior is missing
+ * something, the box is right and the feature simply is not written yet, or you are looking at a
+ * different structure than you think. Without this, telling them apart means guessing.
+ *
+ * <p>Everything it prints comes from {@link MultiblockShape#find} -- the same call the mod itself
+ * uses, not a reimplementation. A diagnostic that computes the answer a second way tells you about
+ * itself rather than about the thing it is diagnosing.
+ *
+ * <p>Available to any player, no permission level: it reads the world and writes to one chat
+ * window, and a tool that needs op to answer "why is my machine not working" is not a tool most
+ * people will ever get to use.
+ */
+public final class StructureInfoCommand {
+    /** How far to look for a block. Matches creative reach, which is the longest a player has. */
+    private static final double REACH = 6.0;
+
+    private StructureInfoCommand() {
+    }
+
+    @SubscribeEvent
+    public static void onRegisterCommands(final RegisterCommandsEvent event) {
+        final LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal(RSMC.MODID)
+            .then(Commands.literal("info").executes(context -> {
+                info(context.getSource());
+                return 1;
+            }));
+        event.getDispatcher().register(root);
+    }
+
+    private static void info(final CommandSourceStack source) {
+        final ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("Run this as a player -- it reads what you look at."));
+            return;
+        }
+        final HitResult hit = player.pick(REACH, 0.0F, false);
+        if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
+            source.sendFailure(Component.literal("Look at a block first."));
+            return;
+        }
+        final BlockPos pos = blockHit.getBlockPos();
+        if (!(player.level().getBlockState(pos).getBlock() instanceof StructureBlock)) {
+            source.sendFailure(Component.literal(
+                "That is not an rsmc block. Look at a Frame, Casing, Controller, CPU or Pattern "
+                    + "Storage."));
+            return;
+        }
+        final Result result = MultiblockShape.find(
+            new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ());
+        if (result.formed()) {
+            reportFormed(source, result);
+        } else {
+            reportFailure(source, result);
+        }
+    }
+
+    private static void reportFormed(final CommandSourceStack source, final Result result) {
+        line(source, ChatFormatting.GREEN, "Structure formed.");
+        line(source, ChatFormatting.GRAY, "  size      "
+            + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ()
+            + "  (" + result.volume() + " blocks)");
+        line(source, ChatFormatting.GRAY, "  corner    "
+            + result.minX() + ", " + result.minY() + ", " + result.minZ());
+        final int[] controller = result.controllerPos();
+        if (controller != null) {
+            line(source, ChatFormatting.GRAY, "  controller "
+                + controller[0] + ", " + controller[1] + ", " + controller[2]);
+        }
+        line(source, ChatFormatting.GRAY, "  CPUs      " + result.cpus()
+            + "   pattern storage " + result.patternStorages());
+        line(source, ChatFormatting.AQUA, "  speed     " + result.stepsPerTick()
+            + " steps/tick  (a fully upgraded RS autocrafter is 2.5)");
+        // Said plainly, because a formed structure that does nothing is the single most confusing
+        // state this mod can be in, and it is where the mod currently stops.
+        line(source, ChatFormatting.YELLOW,
+            "  It will not craft yet -- the pattern provider is not implemented (issue #2).");
+        line(source, ChatFormatting.YELLOW,
+            "  Connecting a cable to any face does work.");
+    }
+
+    private static void reportFailure(final CommandSourceStack source, final Result result) {
+        line(source, ChatFormatting.RED, "No structure: " + describe(result));
+        final int[] pos = result.failurePos();
+        if (pos != null) {
+            line(source, ChatFormatting.GRAY,
+                "  at " + pos[0] + ", " + pos[1] + ", " + pos[2]
+                    + (result.expected() == null ? "" : "  (wants " + wanted(result) + ")"));
+        }
+    }
+
+    private static String describe(final Result result) {
+        if (result.failure() == null) {
+            return "unknown";
+        }
+        return switch (result.failure()) {
+            case NOT_SOLID -> "there is a gap in the box";
+            case TOO_LARGE -> "bigger than " + MultiblockShape.MAX_EDGE + " blocks on some axis";
+            case WRONG_BLOCK -> "wrong block for that position";
+            case NO_CPU -> "no Crafting CPU inside";
+            case NO_PATTERN_STORAGE -> "no Pattern Storage inside";
+            case NO_CONTROLLER -> "no Controller -- swap one wall Casing for one";
+            case TOO_MANY_CONTROLLERS -> "more than one Controller; remove this one";
+        };
+    }
+
+    private static String wanted(final Result result) {
+        if (result.expected() == null) {
+            return "";
+        }
+        return switch (result.expected()) {
+            case EDGE -> "a Frame -- this is an edge or corner";
+            case WALL -> "a Casing, or the one Controller";
+            case INTERIOR -> "a CPU or Pattern Storage";
+        };
+    }
+
+    private static void line(final CommandSourceStack source, final ChatFormatting colour,
+                             final String text) {
+        source.sendSuccess(() -> Component.literal(text).withStyle(colour), false);
+    }
+}

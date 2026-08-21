@@ -12,10 +12,14 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 
 /**
  * The structure's single point of contact with the world.
@@ -40,17 +44,27 @@ public class ControllerBlock extends Block implements EntityBlock, StructureBloc
      */
     public static final DirectionProperty FACING = net.minecraft.world.level.block.HorizontalDirectionalBlock.FACING;
 
+    /**
+     * What the screen shows. Purely cosmetic -- the shape rules never look at it, and it is
+     * recomputed from the world rather than being a thing the block remembers and can be wrong
+     * about.
+     */
+    public static final EnumProperty<ControllerState> STATE =
+        EnumProperty.create("state", ControllerState.class);
+
     private static final MultiblockShape.Component COMPONENT =
         MultiblockShape.Component.of(BlockKind.CONTROLLER);
 
     public ControllerBlock(final Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.NORTH));
+        this.registerDefaultState(this.stateDefinition.any()
+            .setValue(FACING, Direction.NORTH)
+            .setValue(STATE, ControllerState.UNFORMED));
     }
 
     @Override
     protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, STATE);
     }
 
     @Nullable
@@ -70,5 +84,27 @@ public class ControllerBlock extends Block implements EntityBlock, StructureBloc
     @Override
     public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
         return RsmcBlockEntities.CONTROLLER.get().create(pos, state);
+    }
+
+    /**
+     * The only ticker in the mod, and only one per structure.
+     *
+     * <p>It exists to keep the screen honest. The shell blocks deliberately have none -- see
+     * {@link ShellBlockEntity} -- and this one runs once a second rather than every tick, because
+     * all it does is re-read the structure to decide which of three pictures to show.
+     */
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(final Level level,
+                                                                 final BlockState state,
+                                                                 final BlockEntityType<T> type) {
+        if (level.isClientSide()) {
+            return null;
+        }
+        return (tickLevel, pos, tickState, blockEntity) -> {
+            if (blockEntity instanceof ControllerBlockEntity controller) {
+                controller.refreshStateOccasionally();
+            }
+        };
     }
 }

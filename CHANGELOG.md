@@ -6,6 +6,45 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.6
+
+**You can now tell why nothing is happening.** Two answers to the same complaint: a Controller
+screen with three states, and a command.
+
+### The screen
+
+| state | look | means |
+|---|---|---|
+| unformed | bare grey panel | the box is not a valid structure |
+| inactive | dark screen | valid structure, not attached to a network |
+| active | blue screen | valid and attached |
+
+Three because there are exactly three things worth telling apart, and until now they looked
+identical -- "I built it and nothing happened" was indistinguishable from "I built it wrong".
+
+Built as a layered model rather than composited art: the base cube plus a second element on the
+front face carrying RS's grid cutout, `render_type: minecraft:cutout`. No image was edited.
+
+This adds **the only ticker in the mod**, one per structure, running once a second rather than
+every tick -- all it decides is which of three pictures to show, and re-reading the structure
+walks up to 4,096 positions. The shell blocks still have none. Polling at all is a placeholder:
+#3 replaces it with updates driven by the block changes that can actually change the answer.
+
+### `/rsmc info`
+
+Look at any rsmc block and it explains the structure that block is part of: size, corner,
+controller position, CPU and pattern storage counts, and steps/tick against the 2.5 an RS
+autocrafter tops out at. When it does not form, it names the failure, the exact position, and
+what that position wanted instead.
+
+It calls `MultiblockShape.find` -- the same call the mod uses, not a reimplementation. A
+diagnostic that computes the answer a second way tells you about itself rather than about the
+thing it is diagnosing. No permission level either: a tool that needs op to answer "why is my
+machine not working" is not a tool most people will get to use.
+
+It also says plainly that a formed structure **will not craft yet**, because that is the single
+most confusing state this mod can currently be in.
+
 ## 0.0.5
 
 **Cable to any face again.** 0.0.4 traded connect-anywhere for one block entity; it turns out that

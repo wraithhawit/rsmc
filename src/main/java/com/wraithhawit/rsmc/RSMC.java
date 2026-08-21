@@ -13,6 +13,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 
 import org.slf4j.Logger;
@@ -68,6 +69,7 @@ public class RSMC {
         RsmcItems.ITEMS.register(modEventBus);
         RsmcBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         RsmcCreativeTab.TABS.register(modEventBus);
+        NeoForge.EVENT_BUS.register(StructureInfoCommand.class);
         // Only fires when -Dneoforge.enabledGameTestNamespaces includes this mod, which the
         // runGameTestServer run configuration sets.
         modEventBus.addListener(RegisterCapabilitiesEvent.class, RsmcCapabilities::register);

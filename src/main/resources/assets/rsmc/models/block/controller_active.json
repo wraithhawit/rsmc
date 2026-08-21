@@ -1,0 +1,6 @@
+{
+  "parent": "rsmc:block/controller_screen",
+  "textures": {
+    "screen": "rsmc:block/controller_screen_on"
+  }
+}
