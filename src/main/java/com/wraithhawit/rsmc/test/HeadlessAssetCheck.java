@@ -40,7 +40,7 @@ public final class HeadlessAssetCheck {
             // and this tag is the only thing that keeps it: with the block absent from every
             // mineable tag, NO tool is the correct one, so the block drops nothing when mined --
             // with any tool, forever. It is silent, it is not a compile error, and the loot table
-            // is perfectly valid the whole time. It shipped in 0.4.0 exactly this way.
+            // is perfectly valid the whole time. It was written exactly this way and nearly shipped.
             contains("in the pickaxe mineable tag", pickaxe, "\"rsmc:" + block + "\"");
             exists("blockstate", RESOURCES.resolve("assets/rsmc/blockstates/" + block + ".json"));
             exists("block model", RESOURCES.resolve("assets/rsmc/models/block/" + block + ".json"));

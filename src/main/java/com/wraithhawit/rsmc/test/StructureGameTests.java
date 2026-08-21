@@ -114,7 +114,7 @@ public final class StructureGameTests {
      * {@code requiresCorrectToolForDrops}, and the only thing that makes any tool the correct one
      * is membership of a {@code minecraft:mineable/*} tag. Miss the tag and the block drops nothing
      * with any tool, forever -- while the loot table stays perfectly valid, nothing errors, and no
-     * check that merely looks for missing files notices. 0.4.0 shipped exactly that way.
+     * check that merely looks for missing files notices. That is exactly what happened here.
      *
      * <p><strong>The tool check has to be {@code isCorrectToolForDrops}, not {@code getDrops}.</strong>
      * The first version of this test asked {@link Block#getDrops} for the drops while passing a

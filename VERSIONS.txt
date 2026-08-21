@@ -8,44 +8,16 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
-0.4.1
+0.0.1
 -----
-  All seven blocks dropped NOTHING when mined - requiresCorrectToolForDrops with no
-  minecraft:mineable tag means no tool is correct. Added the pickaxe tag. Guarded by
-  assetCheck (57) and a gametest - whose first version was vacuous, because Block.getDrops
-  never sees the tool requirement; the gate is in ServerPlayerGameMode. Confirmed to fail
-  with the bug reinstated.
+  The whole of the first day. Originally numbered 0.1.0 - 0.4.1 (five versions in an
+  afternoon); renumbered because nothing had been published and the number overstated a
+  scaffold with no working crafter. CHANGELOG.md has the five stages in order.
 
-0.4.0
------
-  The seven blocks exist (#1): Frame, Casing, four CPU tiers, Pattern Storage, with items,
-  creative tab, loot tables and models. Block entities only where needed - shell (network +
-  clicks) and Pattern Storage (holds the patterns); CPUs have none, which saves ~2000 of them
-  in a 16^3. LevelBlockSource is the one level/shape adapter: a block counts only via the
-  StructureBlock interface, and an unloaded chunk reads as absent without being loaded. New
-  assetCheck suite (50) catches missing models and loot tables; 3 gametests pass in-level.
+  Structure detection and the throughput model, both free of Minecraft types. Shell-and-core
+  shape following Reborn Storage: Frame edges, Casing walls, CPU + Pattern Storage interior,
+  3x3x4 minimum DERIVED from the interior requirement. No controller object and no assembly
+  state machine - the structure is derived from the world, patterns live in the blocks. Seven
+  blocks with items, creative tab, loot tables, models and the mineable tag. shapeCheck (24)
+  + assetCheck (57) headless, 4 gametests.
 
-0.3.0
------
-  Reliability settled as architecture: NO controller object, no assembly state machine, no
-  registry, no merge. The structure is derived from the world every time instead of
-  remembered, and patterns live in the Pattern Storage block entities instead of on a
-  controller -- which is where Reborn Storage's unreliability comes from. GUI opens from any
-  block (#4). #6 closed: the Frame blocks ARE the outline. Placeholder textures added.
-
-0.2.0
------
-  Structure reshaped to Reborn Storage's shell-and-core: four blocks, not two. Edges are
-  Frames, walls are Casing, the interior is CPUs and Pattern Storage with at least one of
-  each. A position's role is how many of its coordinates sit at an extreme of the box. The
-  3x3x4 minimum is DERIVED from the interior requirement, not declared anywhere. Confirmed
-  against the real Reborn Storage 5.0.7 jar. 24 headless cases, still no blocks.
-
-0.1.0
------
-  Project set up. Structure detection and the throughput model, both pure logic with no
-  Minecraft types, plus a headless suite of 25 cases behind ./gradlew shapeCheck. The
-  load-bearing finding: RS's StepBehavior (canStep/getSteps, @API STABLE) is the whole of
-  its speed ladder - 0.1 steps/tick bare to 2.5 fully upgraded - so a multiblock crafter
-  needs no task engine and no mixins, only a network node answering those two methods.
-  No blocks yet.
