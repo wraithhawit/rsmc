@@ -2,12 +2,12 @@ package com.wraithhawit.rsmc.content;
 
 import com.refinedmods.refinedstorage.neoforge.api.RefinedStorageNeoForgeApi;
 
-import com.wraithhawit.rsmc.block.ShellBlockEntity;
+import com.wraithhawit.rsmc.block.ControllerBlockEntity;
 
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 /**
- * Exposes the shell block entities to Refined Storage.
+ * Exposes the Controller to Refined Storage.
  *
  * <p>RS finds the node containers at a position through a NeoForge block capability --
  * {@code PlatformImpl.getContainerProviderSafely} resolves
@@ -22,7 +22,7 @@ public final class RsmcCapabilities {
     public static void register(final RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(
             RefinedStorageNeoForgeApi.INSTANCE.getNetworkNodeContainerProviderCapability(),
-            RsmcBlockEntities.SHELL.get(),
-            (blockEntity, direction) -> ((ShellBlockEntity) blockEntity).containerProvider());
+            RsmcBlockEntities.CONTROLLER.get(),
+            (blockEntity, direction) -> ((ControllerBlockEntity) blockEntity).containerProvider());
     }
 }

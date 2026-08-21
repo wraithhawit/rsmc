@@ -164,7 +164,7 @@ public final class StructureGameTests {
     }
 
     /**
-     * Refined Storage can actually see a shell block.
+     * Refined Storage can actually see the Controller.
      *
      * <p>The payoff test for the connectivity work, and it asks the question the way RS asks it:
      * resolve the network node container provider capability at the position. That is literally
@@ -172,12 +172,13 @@ public final class StructureGameTests {
      * a null here means a cable touching the structure joins nothing -- while every block still
      * places, renders and breaks perfectly, and nothing logs a word.
      *
-     * <p>Checks a Casing as well as a Frame, because the two share one block entity type and one
-     * capability registration; if that were ever split per block, this is where it would show.
+ *
+     * <p>Only the Controller, because after the controller redesign it is the only block in the mod
+     * that has a network node at all -- Frame, Casing and the CPUs are plain blocks now.
      */
     @GameTest(template = "empty8", timeoutTicks = 100)
-    public static void refinedStorageSeesTheShell(final GameTestHelper helper) {
-        for (final Block block : List.of(RsmcBlocks.FRAME.get(), RsmcBlocks.CASING.get())) {
+    public static void refinedStorageSeesTheController(final GameTestHelper helper) {
+        for (final Block block : List.of(RsmcBlocks.CONTROLLER.get())) {
             final BlockPos pos = new BlockPos(0, 0, 0);
             helper.setBlock(pos, block);
             final NetworkNodeContainerProvider provider = helper.getLevel().getCapability(
@@ -208,6 +209,7 @@ public final class StructureGameTests {
      * statement of the shape, and the two could disagree.
      */
     private static void buildShell(final GameTestHelper helper) {
+        final boolean[] controllerPlaced = {false};
         for (int x = 0; x <= 2; x++) {
             for (int y = 0; y <= 2; y++) {
                 for (int z = 0; z <= 3; z++) {
@@ -221,8 +223,17 @@ public final class StructureGameTests {
                     if (z == 0 || z == 3) {
                         extremes++;
                     }
-                    final Block block = extremes >= 2 ? RsmcBlocks.FRAME.get()
-                        : extremes == 1 ? RsmcBlocks.CASING.get() : null;
+                    final Block block;
+                    if (extremes >= 2) {
+                        block = RsmcBlocks.FRAME.get();
+                    } else if (extremes == 1) {
+                        // First wall slot found becomes the Controller, so the shell is legal.
+                        block = controllerPlaced[0] ? RsmcBlocks.CASING.get()
+                            : RsmcBlocks.CONTROLLER.get();
+                        controllerPlaced[0] = true;
+                    } else {
+                        block = null;
+                    }
                     if (block != null) {
                         helper.setBlock(new BlockPos(x, y, z), block);
                     }

@@ -21,6 +21,7 @@ import com.wraithhawit.rsmc.structure.CpuTier;
 public final class BlockNames {
     public static final String FRAME = "frame";
     public static final String CASING = "casing";
+    public static final String CONTROLLER = "controller";
     public static final String PATTERN_STORAGE = "pattern_storage";
 
     private BlockNames() {
@@ -31,6 +32,7 @@ public final class BlockNames {
         final List<String> names = new ArrayList<>();
         names.add(FRAME);
         names.add(CASING);
+        names.add(CONTROLLER);
         for (final CpuTier tier : CpuTier.values()) {
             names.add(tier.blockName());
         }
@@ -47,6 +49,11 @@ public final class BlockNames {
      * {@code cpu.png} is intended rather than a typo.
      */
     public static String textureOf(final String blockName) {
-        return blockName.startsWith("cpu_") ? "cpu" : blockName;
+        if (blockName.startsWith("cpu_")) {
+            return "cpu";
+        }
+        // The Controller is a Casing with a grid face on the front, built as a model with per-face
+        // textures rather than a composited image -- so its own texture file is just the face.
+        return CONTROLLER.equals(blockName) ? "controller_front" : blockName;
     }
 }

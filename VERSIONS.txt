@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.4
+-----
+  Controller block: replaces one Casing on a wall, exactly one, never an edge. It is now the
+  ONLY block with a block entity or a network node - 2,168 of each down to 1 on a 16^3, since
+  the shell only needed them to be reachable by cable. Trade: the cable must touch the
+  Controller. Result.controllerPos is the derived host. New failures NO_CONTROLLER and
+  TOO_MANY_CONTROLLERS (reports the second one). 30 shape checks, 65 asset checks.
+
 0.0.3
 -----
   The structure joins an RS network (#2, step 1/4). Every shell block hosts a node container,

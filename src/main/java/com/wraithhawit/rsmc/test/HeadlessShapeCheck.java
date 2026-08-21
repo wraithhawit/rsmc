@@ -42,6 +42,10 @@ public final class HeadlessShapeCheck {
         seventeenLongIsTooLarge();
         aSeedOnNothingFails();
         maximumStructure();
+        aStructureNeedsAController();
+        twoControllersIsAnError();
+        aControllerOnAnEdgeIsWrong();
+        theControllerPositionIsReported();
 
         System.out.println("shape checks: " + checks);
         if (failures > 0) {
@@ -185,6 +189,50 @@ public final class HeadlessShapeCheck {
         expect("max steps/tick", (14 * 14 * 14 - 1) * 64, result.stepsPerTick());
     }
 
+    private static void aStructureNeedsAController() {
+        // Every wall a plain Casing: a perfectly built box with no way to reach a network.
+        final World world = shellWithoutController(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        expectFailure("no controller", world.find(0, 0, 0), Failure.NO_CONTROLLER);
+    }
+
+    private static void twoControllersIsAnError() {
+        final World world = shell(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        // shell() already placed one on the first wall slot it found; add a second elsewhere.
+        world.put(1, 2, 1, BlockKind.CONTROLLER);
+        final Result result = world.find(0, 0, 0);
+        expectFailure("two controllers", result, Failure.TOO_MANY_CONTROLLERS);
+        // The SECOND one is reported, not the first -- the first is likely the one to keep.
+        expectPos("second controller reported", result, 1, 2, 1);
+    }
+
+    private static void aControllerOnAnEdgeIsWrong() {
+        final World world = shell(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        world.put(0, 0, 1, BlockKind.CONTROLLER);
+        expectFailure("controller on an edge", world.find(0, 0, 0), Failure.WRONG_BLOCK);
+    }
+
+    private static void theControllerPositionIsReported() {
+        final World world = shellWithoutController(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        world.put(1, 0, 1, BlockKind.CONTROLLER);
+        final Result result = world.find(0, 0, 0);
+        expectFormed("controller position", result);
+        final int[] pos = result.controllerPos();
+        checks++;
+        if (pos == null || pos[0] != 1 || pos[1] != 0 || pos[2] != 1) {
+            failures++;
+            System.out.println("FAILED controller position: got "
+                + (pos == null ? "null" : pos[0] + "," + pos[1] + "," + pos[2]));
+        }
+    }
+
     // ---- harness ----
 
     /**
@@ -195,7 +243,20 @@ public final class HeadlessShapeCheck {
      */
     private static World shell(final int x0, final int y0, final int z0,
                                final int x1, final int y1, final int z1) {
+        return build(x0, y0, z0, x1, y1, z1, true);
+    }
+
+    /** Same, but every wall slot is a plain Casing -- for the cases that supply their own. */
+    private static World shellWithoutController(final int x0, final int y0, final int z0,
+                                                final int x1, final int y1, final int z1) {
+        return build(x0, y0, z0, x1, y1, z1, false);
+    }
+
+    private static World build(final int x0, final int y0, final int z0,
+                               final int x1, final int y1, final int z1,
+                               final boolean withController) {
         final World world = new World();
+        final boolean[] controllerPlaced = {false};
         for (int x = x0; x <= x1; x++) {
             for (int y = y0; y <= y1; y++) {
                 for (int z = z0; z <= z1; z++) {
@@ -212,7 +273,11 @@ public final class HeadlessShapeCheck {
                     if (extremes >= 2) {
                         world.put(x, y, z, BlockKind.FRAME);
                     } else if (extremes == 1) {
-                        world.put(x, y, z, BlockKind.CASING);
+                        // The first wall slot found becomes the Controller, so every shell this
+                        // builds is a legal one. Cases that want it missing or doubled say so.
+                        final boolean here = withController && !controllerPlaced[0];
+                        world.put(x, y, z, here ? BlockKind.CONTROLLER : BlockKind.CASING);
+                        controllerPlaced[0] |= here;
                     }
                 }
             }

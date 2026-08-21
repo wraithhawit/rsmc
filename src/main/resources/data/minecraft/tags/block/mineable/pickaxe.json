@@ -2,6 +2,7 @@
   "values": [
     "rsmc:frame",
     "rsmc:casing",
+    "rsmc:controller",
     "rsmc:cpu_1k",
     "rsmc:cpu_4k",
     "rsmc:cpu_16k",

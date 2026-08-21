@@ -4,6 +4,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import com.wraithhawit.rsmc.RSMC;
+import com.wraithhawit.rsmc.block.ControllerBlock;
 import com.wraithhawit.rsmc.block.CpuBlock;
 import com.wraithhawit.rsmc.block.PatternStorageBlock;
 import com.wraithhawit.rsmc.block.ShellBlock;
@@ -26,6 +27,9 @@ public final class RsmcBlocks {
 
     public static final DeferredBlock<ShellBlock> CASING =
         BLOCKS.register(BlockNames.CASING, () -> new ShellBlock(properties(), BlockKind.CASING));
+
+    public static final DeferredBlock<ControllerBlock> CONTROLLER =
+        BLOCKS.register(BlockNames.CONTROLLER, () -> new ControllerBlock(properties()));
 
     public static final DeferredBlock<PatternStorageBlock> PATTERN_STORAGE =
         BLOCKS.register(BlockNames.PATTERN_STORAGE, () -> new PatternStorageBlock(properties()));
@@ -65,6 +69,7 @@ public final class RsmcBlocks {
         final java.util.List<DeferredBlock<? extends Block>> blocks = new java.util.ArrayList<>();
         blocks.add(FRAME);
         blocks.add(CASING);
+        blocks.add(CONTROLLER);
         for (final CpuTier tier : CpuTier.values()) {
             blocks.add(CPUS.get(tier));
         }

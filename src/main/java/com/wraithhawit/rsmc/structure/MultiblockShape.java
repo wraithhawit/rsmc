@@ -93,6 +93,13 @@ public final class MultiblockShape {
         FRAME,
         /** The flat wall panels between the edges. */
         CASING,
+        /**
+         * Takes the place of one wall panel. Exactly one per structure, never on an edge.
+         *
+         * <p>The structure's single point of contact with the world: the only block that carries a
+         * network node, and the position everything else is derived around.
+         */
+        CONTROLLER,
         /** Interior. Adds crafting speed. Tiered. */
         CPU,
         /** Interior. Holds patterns. One tier only. */
@@ -108,7 +115,7 @@ public final class MultiblockShape {
     public enum Role {
         /** Two or more coordinates at an extreme. Wants a {@link BlockKind#FRAME}. */
         EDGE,
-        /** Exactly one coordinate at an extreme. Wants a {@link BlockKind#CASING}. */
+        /** Exactly one coordinate at an extreme. Wants a {@link BlockKind#CASING} or the CONTROLLER. */
         WALL,
         /** No coordinate at an extreme. Wants a CPU or a pattern storage. */
         INTERIOR
@@ -128,7 +135,14 @@ public final class MultiblockShape {
          */
         NO_CPU,
         /** The interior holds no pattern storage, so there is nowhere to put a pattern. */
-        NO_PATTERN_STORAGE
+        NO_PATTERN_STORAGE,
+        /** No Controller anywhere on the walls, so the structure has no way to reach a network. */
+        NO_CONTROLLER,
+        /**
+         * More than one Controller. {@link Result#failurePos} is the second one found, which is the
+         * one to take out -- not the first, which is very likely the one the player meant to keep.
+         */
+        TOO_MANY_CONTROLLERS
     }
 
     /**
@@ -142,6 +156,10 @@ public final class MultiblockShape {
      * @param cpus            how many CPU blocks the core holds, of any tier
      * @param stepsPerTick    the sum of those CPUs' tier weights -- the structure's crafting rate
      * @param patternStorages how many pattern storage blocks the core holds
+     * @param controllerPos   where the Controller is, as {x, y, z}; null unless formed. This is the
+     *                        structure's host -- the one block that carries a network node -- and it
+     *                        is a position found in the world rather than a rule like "the minimum
+     *                        corner", so the player chooses it by building it.
      */
     public record Result(boolean formed,
                          @Nullable Failure failure,
@@ -151,7 +169,8 @@ public final class MultiblockShape {
                          int maxX, int maxY, int maxZ,
                          int cpus,
                          int stepsPerTick,
-                         int patternStorages) {
+                         int patternStorages,
+                         @Nullable int[] controllerPos) {
         public int volume() {
             return this.sizeX() * this.sizeY() * this.sizeZ();
         }
@@ -171,7 +190,7 @@ public final class MultiblockShape {
         static Result failed(final Failure failure, @Nullable final Role expected,
                              final int x, final int y, final int z) {
             return new Result(false, failure, new int[] {x, y, z}, expected,
-                0, 0, 0, 0, 0, 0, 0, 0, 0);
+                0, 0, 0, 0, 0, 0, 0, 0, 0, null);
         }
     }
 
@@ -196,6 +215,7 @@ public final class MultiblockShape {
         int cpus = 0;
         int stepsPerTick = 0;
         int patternStorages = 0;
+        int[] controllerPos = null;
         for (int x = flood.minX; x <= flood.maxX; x++) {
             for (int y = flood.minY; y <= flood.maxY; y++) {
                 for (int z = flood.minZ; z <= flood.maxZ; z++) {
@@ -212,6 +232,13 @@ public final class MultiblockShape {
                         stepsPerTick += component.tier().stepsPerTick();
                     } else if (component.kind() == BlockKind.PATTERN_STORAGE) {
                         patternStorages++;
+                    } else if (component.kind() == BlockKind.CONTROLLER) {
+                        if (controllerPos != null) {
+                            // The SECOND one is reported, not the first: the first is very likely
+                            // the one the player meant to keep.
+                            return Result.failed(Failure.TOO_MANY_CONTROLLERS, Role.WALL, x, y, z);
+                        }
+                        controllerPos = new int[] {x, y, z};
                     }
                 }
             }
@@ -228,10 +255,16 @@ public final class MultiblockShape {
         if (patternStorages == 0) {
             return Result.failed(Failure.NO_PATTERN_STORAGE, Role.INTERIOR, midX, midY, midZ);
         }
+        if (controllerPos == null) {
+            // Reported against the middle of a wall rather than the middle of the box, because the
+            // fix is to swap a Casing for a Controller and the box centre is not a place a player
+            // can put one.
+            return Result.failed(Failure.NO_CONTROLLER, Role.WALL, midX, flood.minY, midZ);
+        }
         return new Result(true, null, null, null,
             flood.minX, flood.minY, flood.minZ,
             flood.maxX, flood.maxY, flood.maxZ,
-            cpus, stepsPerTick, patternStorages);
+            cpus, stepsPerTick, patternStorages, controllerPos);
     }
 
     /**
@@ -260,7 +293,7 @@ public final class MultiblockShape {
     private static boolean fits(final Role role, final BlockKind kind) {
         return switch (role) {
             case EDGE -> kind == BlockKind.FRAME;
-            case WALL -> kind == BlockKind.CASING;
+            case WALL -> kind == BlockKind.CASING || kind == BlockKind.CONTROLLER;
             case INTERIOR -> kind.isInterior();
         };
     }

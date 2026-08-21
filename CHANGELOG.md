@@ -6,6 +6,44 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.4
+
+**A Controller block, and the connectivity tax goes away.** Wraith's call: give the structure a
+central block that does the talking, the way most multiblocks work.
+
+It replaces one **Casing** on a wall -- never an edge, so the Frame outline stays unbroken -- and
+there must be exactly one. Temporary texture is a Casing with Refined Storage's grid face on the
+front, built as an `orientable` model with per-face textures rather than a composited image, so
+no art was edited to get it.
+
+**What it actually buys is not ticking.** Nothing here ticks -- RS drives the node -- and the host
+position was already derived. What it removes is the cost of being reachable: because RS walks its
+graph outgoing-only, a cable only finds the structure where a container physically lives, so
+every shell block needed a block entity *and* a network node purely so any face could be cabled.
+
+| structure | block entities before | after |
+|---|---|---|
+| 5x5x5 | 98 | 1 |
+| 16x16x16 | 2,168 | 1 |
+
+Frame and Casing are plain blocks again, as the CPUs already were. `ShellBlockEntity` is deleted.
+
+**The trade is that a cable must touch the Controller specifically**, rather than any face. That
+is the normal bargain for a multiblock with a controller, and the player picks where by choosing
+which Casing to replace.
+
+**It does not cost the click-anywhere GUI** (#4): a block can handle a right-click without a block
+entity, derive the structure, and open the Controller's menu.
+
+`Result.controllerPos` is now the structure's host -- found by looking for the block rather than
+computed from a rule like "the minimum corner", so the host is something the player built. Two
+new failures: `NO_CONTROLLER`, and `TOO_MANY_CONTROLLERS`, which reports the **second** one found
+because the first is very likely the one they meant to keep. Six new shape cases, 30 total.
+
+A note on the risk this takes on: a controller *block* is not the same mistake as a controller
+*object that remembers*, but it is the thing that invites it. `ControllerBlockEntity` says so in
+as many words.
+
 ## 0.0.3
 
 **The structure connects to a Refined Storage network.** (Issue #2, step 1 of 4.) Shell block
