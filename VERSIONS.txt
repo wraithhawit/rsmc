@@ -8,6 +8,11 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.2
+-----
+  Creative tab pinned immediately after Refined Storage's via withTabsAfter, instead of being
+  appended to the end of ~28 pages of tabs. Tab id read from RefinedStorageApi, not hardcoded.
+
 0.0.1
 -----
   The whole of the first day. Originally numbered 0.1.0 - 0.4.1 (five versions in an

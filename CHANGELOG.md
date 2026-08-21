@@ -6,6 +6,17 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.2
+
+**The creative tab sits next to Refined Storage's now** instead of wherever registration order
+dropped it. In a pack the size of ATM10 the creative menu runs to about 28 pages, and a tab
+appended to the end is a tab nobody finds -- next to RS is where someone looking for an RS addon
+actually looks.
+
+`withTabsAfter`, with the id asked of `RefinedStorageApi` rather than written as a literal so it
+cannot drift if they rename it. Safe at registry time because rsmc declares `ordering="AFTER"`
+on refinedstorage, so RS's constructor has already installed the API delegate.
+
 ## 0.0.1
 
 The whole of the first day, in the order it happened. Originally numbered 0.1.0 through
