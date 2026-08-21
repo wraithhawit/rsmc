@@ -6,6 +6,53 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.3.0
+
+**Reliability decided as an architecture, not as a to-do.** Plus the first placeholder textures, so
+there is something to look at.
+
+Wraith's brief: follow Reborn Storage's *concept* — clicking any block in the structure opens the
+GUI, and so on — but **recode it completely**, because the original was buggy and unreliable even
+before it was poorly ported forward.
+
+Reading their jar shows where that came from, and it is structural rather than a collection of
+mistakes. Reborn Storage's multiblock is a persistent controller object with an assembly state
+machine (`AssemblyState { Disassembled, Assembled, Paused }`), a per-world controller registry,
+controllers that merge with one another (`onAssimilate`), and the pattern inventories held **on the
+controller** (`public Map<Integer, ItemStackHandler> invs`). It is the Big Reactors-derived
+framework.
+
+The failure mode is built into that shape: **the controller's belief about the structure can
+disagree with the world.** Chunks load in an order nobody controls, parts attach before or after
+their neighbours, two controllers meet and one swallows the other. When the object that can drift
+is also the one holding your patterns, a desync is data loss rather than a visual glitch.
+
+So rsmc has **no controller object, no assembly state, no registry and no merge**:
+
+- **The structure is derived, never remembered.** `MultiblockShape.find` recomputes it from the
+  blocks that are actually there. There is no stored belief that can be wrong because there is no
+  stored belief. Bounded at 4096 positions, run on change rather than per tick.
+- **Patterns live in the Pattern Storage block entities.** Break the structure and they are still
+  in the blocks, because they never left. Nothing owns them that can fail to exist.
+
+Written up on #3, which also gains the test that matters: build, save, reload the chunk, assert it
+still works — the case the controller design makes hard and this one should make trivial.
+
+**#4 settled:** clicking anywhere on the structure opens the GUI, which is a view over the pattern
+storage blocks rather than a container that owns anything.
+
+**#6 closed, not needed.** It existed to draw a border that wrapped the formed structure, because
+under the old solid-box shape nothing in the world marked the outline. Under the shell shape the
+Frame blocks *are* the outline. And if the formed/unformed distinction is ever wanted, Reborn
+already shows the cheap way: `multiblock_frame_ctm.png` and `multiblock_heat_ctm.png` are
+connected-texture tiles it swaps to on assembly — a texture and a blockstate boolean, not
+`IDynamicBakedModel` with tint handlers and rotated UVs. Both are kept as placeholders with the
+reasoning beside them.
+
+**Placeholder textures added**, Reborn Storage's, copied unchanged and marked as such in
+`assets/rsmc/textures/block/PLACEHOLDERS.md`. MIT permits it and `ATTRIBUTION.md` carries the
+notice. No Reborn Storage code is used, and none will be.
+
 ## 0.2.0
 
 **The structure became a shell with a core**, following Reborn Storage's multiblock crafter rather

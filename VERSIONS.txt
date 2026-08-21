@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.3.0
+-----
+  Reliability settled as architecture: NO controller object, no assembly state machine, no
+  registry, no merge. The structure is derived from the world every time instead of
+  remembered, and patterns live in the Pattern Storage block entities instead of on a
+  controller -- which is where Reborn Storage's unreliability comes from. GUI opens from any
+  block (#4). #6 closed: the Frame blocks ARE the outline. Placeholder textures added.
+
 0.2.0
 -----
   Structure reshaped to Reborn Storage's shell-and-core: four blocks, not two. Edges are

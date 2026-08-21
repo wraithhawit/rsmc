@@ -112,17 +112,38 @@ Refined Storage's jar is not in this repository — a jar is a build input, not 
 
 ## Prior art, stated plainly
 
-The structure follows **[Reborn Storage](https://github.com/modmuss50/RebornStorage)**'s multiblock
-crafter — the shell of frames and casing around a core of CPUs and pattern storage. Reborn Storage
-was itself openly inspired by **Applied Energistics'** crafting CPU, so the whole family looks
-alike. That is the genre.
+The structure and much of the feel follow **[Reborn Storage](https://github.com/modmuss50/RebornStorage)**'s
+multiblock crafter — the shell of frames and casing around a core of CPUs and pattern storage, and
+behaviours like *clicking any block in the structure opens the GUI*. Reborn Storage was itself
+openly inspired by **Applied Energistics'** crafting CPU, so the whole family looks alike. That is
+the genre.
 
-What is *not* shared: **no code and no assets**. This is written from scratch against Refined
-Storage 2's `StepBehavior` API — Reborn Storage is an RS1 addon with its own multiblock framework,
-and none of it is here. Textures are drawn for this mod. See [ATTRIBUTION.md](ATTRIBUTION.md) for
-what the art derives from and the licences that permit it.
+**This is a recode, not a port.** No Reborn Storage code is here and none will be. The block
+textures currently in the repo *are* theirs, as temporary placeholders, marked as such in
+`assets/rsmc/textures/block/PLACEHOLDERS.md` and tracked by issue #1.
 
-Reborn Storage is MIT, as are Refined Storage and Cable Tiers.
+### And the recode is the point
+
+Reborn Storage's multiblock is a persistent controller object with an assembly state machine
+(`Disassembled` / `Assembled` / `Paused`), a per-world controller registry, controllers that merge
+with each other, and — the part that matters — **the pattern inventories stored on the controller**.
+
+That shape has a failure mode built in: the controller's belief about the structure can disagree
+with the world. Chunks load in an order nobody controls, parts attach out of order, two controllers
+meet and one swallows the other. When the object that can drift is also the one holding your
+patterns, a desync is data loss.
+
+rsmc has **no controller object, no assembly state, no registry and no merge**:
+
+- the structure is **derived from the world** every time it is needed, never remembered, so there is
+  no stored belief that can be wrong
+- patterns live in the **Pattern Storage block entities**, so breaking the structure cannot lose
+  them — they never left the blocks
+
+The cost is recomputation, bounded at 4096 positions and run on change rather than per tick.
+
+Refined Storage, Cable Tiers and Reborn Storage are all MIT. See
+[ATTRIBUTION.md](ATTRIBUTION.md).
 
 ## Licence
 

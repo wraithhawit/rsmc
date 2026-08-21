@@ -53,3 +53,9 @@ GigaBit101 and ProspectorDev.
 A game mechanic is an idea rather than a work, so this needs no licence grant — it is here because
 credit is owed regardless. Reborn Storage is MIT in any case, and was itself openly inspired by
 Applied Energistics' crafting CPU.
+
+**Placeholder textures.** The block textures currently in
+`src/main/resources/assets/rsmc/textures/block/` are Reborn Storage's, copied unchanged as
+temporary placeholders while the mod is built. MIT permits this; the condition is that the notice
+travels with them, which this file satisfies. They are marked as placeholders in
+`PLACEHOLDERS.md` beside them and are tracked by issue #1. No Reborn Storage *code* is used.
