@@ -1,0 +1,49 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+issueTrackerURL="https://github.com/wraithhawit/rsmc/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+description='''
+A crafting structure for Refined Storage. Build a solid box of CPU and pattern
+storage blocks, anywhere from 1x1x1 to 16x16x16, and it crafts as one machine --
+far faster than a wall of autocrafters, and in one shape instead of a hundred
+blocks. Accelerates crafting patterns; processing patterns still want an ordinary
+pattern provider beside the machine.
+'''
+
+# No [[mixins]] entries, and that is the point. Refined Storage models crafting speed
+# as a public interface (StepBehavior, @API STABLE), so rsmc registers a network node
+# through the documented API rather than patching anything. An RS update should not be
+# able to break this the way a mixin can.
+
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neo_version},)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+# Refined Storage is the whole point -- hard requirement, and we load AFTER it so our
+# node registers against a fully-built RS.
+#
+# The range is wider than rstweaks pins its own, deliberately. rstweaks matches exact
+# method descriptors and a refactor upstream is a hard failure, so it pins tight. rsmc
+# compiles against @API-annotated interfaces, which RS does not break inside a minor
+# line, so pinning tight here would refuse to load for no reason.
+[[dependencies.${mod_id}]]
+    modId="refinedstorage"
+    type="required"
+    versionRange="[2.0.9,3.0.0)"
+    ordering="AFTER"
+    side="BOTH"

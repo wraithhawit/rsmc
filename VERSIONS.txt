@@ -1,0 +1,18 @@
+RSMC - WHAT EACH VERSION DID
+============================
+
+One or two lines per version, newest first. This file is the short form; CHANGELOG.md is
+the detailed history and carries the reasoning. BOTH ARE MAINTAINED - every version bump
+gets an entry in each.
+
+The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
+through 0.2.46 of that mod were never written down and the detail is unrecoverable.
+
+0.1.0
+-----
+  Project set up. Structure detection and the throughput model, both pure logic with no
+  Minecraft types, plus a headless suite of 25 cases behind ./gradlew shapeCheck. The
+  load-bearing finding: RS's StepBehavior (canStep/getSteps, @API STABLE) is the whole of
+  its speed ladder - 0.1 steps/tick bare to 2.5 fully upgraded - so a multiblock crafter
+  needs no task engine and no mixins, only a network node answering those two methods.
+  No blocks yet.

@@ -1,0 +1,41 @@
+# Build output
+build/
+.gradle/
+run/
+runs/
+out/
+*.jar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.classpath
+.project
+bin/
+
+# Decompiled Refined Storage sources, kept locally for reference.
+#
+# NOT ignored because it is big -- it is ignored because it is somebody else's source
+# code, recovered from their jar. Committing it to a public repository would redistribute
+# Refined Storage's code under our name. Regenerate it locally; see SETUP.md.
+decompiled/
+
+# libs/ holds Refined Storage's jar, taken from a Minecraft instance. Same reasoning:
+# it is not ours to redistribute. A fresh clone has none of it -- SETUP.md says what to
+# copy in.
+libs/
+
+# Dev-run leftovers, listed explicitly because these are the ones that would quietly turn
+# a small repository into a huge one.
+worlds/
+saves/
+logs/
+*.hprof
+*.log
+
+# ...but the Gradle wrapper jar must be committed, or a fresh clone cannot build.
+!gradle/wrapper/gradle-wrapper.jar

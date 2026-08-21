@@ -1,0 +1,133 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.gradle.userdev' version '7.1.38'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+// Mojang ships Java 21 for 1.21.1.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenCentral()
+}
+
+// Structure detection is pure geometry with no Minecraft types in it, so it can be
+// checked without launching the game. Wired into `check`, so `build` runs it.
+tasks.register('shapeCheck', JavaExec) {
+    group = 'verification'
+    description = 'Runs the multiblock shape self-tests headlessly.'
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
+    mainClass = 'com.wraithhawit.rsmc.test.HeadlessShapeCheck'
+}
+
+tasks.named('check').configure {
+    dependsOn 'shapeCheck'
+}
+
+// Refined Storage is compileOnly, so nothing puts it on a run's classpath and a dev
+// launch would come up without the mod this one is an addon for. FML's mods-folder
+// locator reads <runDirectory>/mods in dev exactly as it does in a real instance, so
+// staging the jar there is all that is needed.
+//
+// libs/ is gitignored -- it is somebody else's code and this repository is public, so a
+// fresh clone has none of it. Checked in a task of its own rather than in the Sync
+// below: Gradle skips a copy task whose source is empty as NO-SOURCE, so a doFirst on it
+// never runs, and the launch would proceed without Refined Storage and fail with a wall
+// of FML output about a missing dependency that says nothing about what to do next.
+tasks.register('requireRefinedStorageJar') {
+    group = 'build setup'
+    description = 'Fails with something readable when libs/ has no Refined Storage.'
+    doLast {
+        if (fileTree(dir: 'libs', include: ['refinedstorage-neoforge-*.jar']).empty) {
+            throw new GradleException(
+                "No refinedstorage-neoforge-*.jar in libs/, so this run would start "
+                    + "without the mod rsmc is an addon for.\n"
+                    + "Copy Refined Storage ${refined_storage_version} out of a Minecraft "
+                    + "instance's mods folder into ${projectDir}/libs/ and try again. "
+                    + "See SETUP.md.")
+        }
+    }
+}
+
+def stageMods(final String runName) {
+    return tasks.register("stage${runName.capitalize()}Mods", Sync) {
+        group = 'build setup'
+        description = "Puts Refined Storage in the ${runName} run's mods folder."
+        // By name, not by the task provider: this is a Groovy script method, and a
+        // script-level `def` variable is not in scope inside one.
+        dependsOn 'requireRefinedStorageJar'
+        from fileTree(dir: 'libs', include: ['refinedstorage-neoforge-*.jar'])
+        into layout.projectDirectory.dir("run/${runName}/mods")
+    }
+}
+
+runs {
+    configureEach {
+        systemProperty 'forge.logging.markers', 'REGISTRIES'
+        systemProperty 'forge.logging.console.level', 'debug'
+        workingDirectory project.layout.projectDirectory.dir('run').dir(name)
+        modSource project.sourceSets.main
+    }
+
+    client {}
+    server { argument '--nogui' }
+
+    // ./gradlew runGameTestServer -- boots a dedicated server, runs every @GameTest in
+    // the rsmc namespace and exits non-zero if any fail. Structure detection is the part
+    // of this mod most worth testing without a human: it is pure geometry over a real
+    // level, which a gametest can build and tear down in a tick.
+    gameTestServer {
+        systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        systemProperty 'forge.logging.console.level', 'info'
+    }
+}
+
+// tasks.matching rather than tasks.named: NeoGradle creates the run tasks during its
+// own afterEvaluate, so they do not exist yet at this point in the script.
+['client', 'server', 'gameTestServer'].each { runName ->
+    final stage = stageMods(runName)
+    tasks.matching { it.name == "run${runName.capitalize()}" }.configureEach {
+        dependsOn stage
+    }
+}
+
+dependencies {
+    implementation "net.neoforged:neoforge:${neo_version}"
+
+    // Refined Storage, taken byte-for-byte from the ATM10 instance this is developed
+    // against. compileOnly because the pack supplies it at runtime; we must never bundle
+    // or shade it.
+    //
+    // Unlike rstweaks, nothing here is matched against exact bytecode -- rsmc mixins into
+    // nothing and talks to RS through published, @API-annotated interfaces. A 2.0.x
+    // update should compile unchanged.
+    compileOnly fileTree(dir: 'libs', include: ['*.jar'])
+}
+
+tasks.withType(ProcessResources).configureEach {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+    ]
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
