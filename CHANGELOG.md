@@ -6,6 +6,31 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.13
+
+**`StructurePatterns`: every pattern slot in one structure, as a single container.** The screen will
+be a view over this, and the provider node will read patterns out of it.
+
+It is a view, not an owner -- the patterns stay in the Pattern Storage blocks the whole time. What
+lives here is the arithmetic mapping a screen slot onto "which block, which slot inside it", in
+one place rather than scattered across the menu and the node.
+
+**Ordered by position, not by discovery order.** A player's patterns must not move around in the
+screen because a chunk reloaded, and "which slot is slot 79" has to mean the same thing on the
+server and the client -- which agree on nothing except the world. Sorting by coordinates is the
+only ordering both can compute.
+
+It scans the **interior only**. A Pattern Storage cannot be anywhere else, and skipping the shell
+avoids 1,352 positions on a 16x16x16 that can never contain one.
+
+The test drives the two slots either side of a storage boundary -- the last of the first block and
+the first of the second -- because that is where the arithmetic goes wrong if it is going to, and
+an off-by-one there looks completely normal until someone breaks a block and the wrong patterns
+fall out.
+
+Also worth recording: two large multi-line `perl -0pi` edits corrupted a Java file this session.
+Structured edits for Java from here.
+
 ## 0.0.12
 
 **Pattern Storage blocks actually hold patterns now** -- 78 each, saved with the block and dropped

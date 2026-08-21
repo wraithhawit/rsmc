@@ -12,7 +12,9 @@ import com.wraithhawit.rsmc.block.ControllerBlock;
 import com.wraithhawit.rsmc.block.ControllerState;
 import com.wraithhawit.rsmc.block.PatternStorageBlockEntity;
 import com.wraithhawit.rsmc.content.RsmcBlocks;
+import com.wraithhawit.rsmc.menu.StructurePatterns;
 import com.wraithhawit.rsmc.structure.CpuTier;
+import com.wraithhawit.rsmc.structure.StructurePower;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Failure;
@@ -372,6 +374,63 @@ public final class StructureGameTests {
         return BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("refinedstorage", name));
     }
 
+    /**
+     * The structure's pattern view spans every Pattern Storage block, in a stable order.
+     *
+     * <p>The arithmetic that maps a screen slot onto "which block, which slot inside it" is the
+     * part most likely to be quietly wrong: an off-by-one lands a pattern in the wrong block, which
+     * looks completely normal until someone breaks that block and the wrong patterns fall out.
+     *
+     * <p>Order matters as much as the count. Slots are sorted by position rather than by the order
+     * the scan found them, because a player's patterns must not move around in the screen because a
+     * chunk reloaded -- and because "which slot is slot 79" has to mean the same thing on the server
+     * and the client, which agree on nothing except the world.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void theViewSpansEveryPatternStorage(final GameTestHelper helper) {
+        // 3x3x6 gives an interior of 1x1x4: room for two storages with CPUs between them.
+        buildShellSized(helper, 2, 2, 5);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+
+        final int perStorage = StructurePower.PATTERNS_PER_STORAGE;
+        final StructurePatterns view =
+            StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));
+        if (view.storageCount() != 2) {
+            helper.fail("expected 2 Pattern Storage blocks in the view, got " + view.storageCount());
+            return;
+        }
+        if (view.getContainerSize() != perStorage * 2) {
+            helper.fail("expected " + (perStorage * 2) + " slots, got " + view.getContainerSize());
+            return;
+        }
+
+        // The last slot of the first block and the first slot of the second: the two either side of
+        // the boundary, which is where the arithmetic goes wrong if it is going to.
+        final ItemStack pattern = new ItemStack(rsItem("pattern"));
+        view.setItem(perStorage - 1, pattern.copy());
+        view.setItem(perStorage, pattern.copy());
+
+        final BlockPos first = helper.absolutePos(new BlockPos(1, 1, 1));
+        final BlockPos second = helper.absolutePos(new BlockPos(1, 1, 3));
+        if (!(helper.getLevel().getBlockEntity(first) instanceof PatternStorageBlockEntity a)
+            || !(helper.getLevel().getBlockEntity(second) instanceof PatternStorageBlockEntity b)) {
+            helper.fail("lost a Pattern Storage block entity");
+            return;
+        }
+        if (a.patterns().getItem(perStorage - 1).isEmpty()) {
+            helper.fail("slot " + (perStorage - 1) + " did not land in the first storage block");
+            return;
+        }
+        if (b.patterns().getItem(0).isEmpty()) {
+            helper.fail("slot " + perStorage + " did not land in the second storage block");
+            return;
+        }
+        helper.succeed();
+    }
+
     // ---- helpers ----
 
     /**
@@ -393,18 +452,29 @@ public final class StructureGameTests {
      * template has no negative coordinates.
      */
     private static void buildShell(final GameTestHelper helper, final int originX) {
+        buildShellSized(helper, originX, originX + 2, 2, 3);
+    }
+
+    /** A shell of any size anchored at the origin, for tests that need a bigger interior. */
+    private static void buildShellSized(final GameTestHelper helper,
+                                        final int maxX, final int maxY, final int maxZ) {
+        buildShellSized(helper, 0, maxX, maxY, maxZ);
+    }
+
+    private static void buildShellSized(final GameTestHelper helper, final int originX,
+                                        final int maxX, final int maxY, final int maxZ) {
         final boolean[] controllerPlaced = {false};
-        for (int x = originX; x <= originX + 2; x++) {
-            for (int y = 0; y <= 2; y++) {
-                for (int z = 0; z <= 3; z++) {
+        for (int x = originX; x <= maxX; x++) {
+            for (int y = 0; y <= maxY; y++) {
+                for (int z = 0; z <= maxZ; z++) {
                     int extremes = 0;
-                    if (x == originX || x == originX + 2) {
+                    if (x == originX || x == maxX) {
                         extremes++;
                     }
-                    if (y == 0 || y == 2) {
+                    if (y == 0 || y == maxY) {
                         extremes++;
                     }
-                    if (z == 0 || z == 3) {
+                    if (z == 0 || z == maxZ) {
                         extremes++;
                     }
                     final Block block;
