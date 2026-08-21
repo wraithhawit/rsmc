@@ -6,6 +6,20 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.7
+
+**The active screen is light blue**, the colour a Refined Storage Grid ships with, rather than the
+saturated blue dye colour. One texture swap -- `grid/cutouts/light_blue.png` instead of
+`blue.png`.
+
+Filed #8 for the rest of RS's colour system, with the finding that decides it: **RS colours are
+not cosmetic.** `ColoredConnectionStrategy.canAcceptIncomingConnection` refuses a connection
+between differently-coloured blocks -- that is how players build isolated sub-networks with
+coloured cable. So adopting it means choosing whether an rsmc Controller's colour is paint or
+wiring, and that is a decision rather than a freebie.
+
+We currently use the default connection strategy, so all six faces connect and colour is ignored.
+
 ## 0.0.6
 
 **You can now tell why nothing is happening.** Two answers to the same complaint: a Controller

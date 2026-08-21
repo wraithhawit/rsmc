@@ -8,6 +8,12 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.7
+-----
+  Active screen uses RS's default light blue rather than the blue dye colour. Filed #8 for the
+  full colour system, which is NOT cosmetic in RS - ColoredConnectionStrategy refuses
+  connections between differently-coloured blocks.
+
 0.0.6
 -----
   Controller screen has three states - grey unformed, dark formed-but-unplugged, blue live -
