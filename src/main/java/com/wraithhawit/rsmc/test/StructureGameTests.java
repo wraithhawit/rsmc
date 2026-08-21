@@ -234,8 +234,13 @@ public final class StructureGameTests {
         // Let the poll run at least once so the screen has caught up with the finished structure.
         helper.runAfterDelay(45L, () -> {
             final ControllerState formed = stateAt(helper, controller);
-            if (formed == ControllerState.UNFORMED) {
-                helper.fail("a complete structure still reads as UNFORMED after 45 ticks");
+            // INACTIVE exactly, not merely "not UNFORMED". There is no RS controller in this test
+            // level, so the structure is formed and unpowered -- and an earlier version read
+            // ACTIVE here, because it asked getNetwork() != null, which RS answers yes to for a
+            // lone node it made a network for. The looser assertion passed that bug happily.
+            if (formed != ControllerState.INACTIVE) {
+                helper.fail("a complete but unpowered structure reads " + formed
+                    + ", expected INACTIVE");
                 return;
             }
             // Break a chunk of it, one of every type at once -- matching the report, which was

@@ -6,6 +6,31 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.10
+
+**The screen lit up whether or not the structure was connected to anything.**
+
+The cause is an assumption that reads as obvious and is simply false: **"has a network" is not a
+test of anything.** RS's `NetworkBuilderImpl` creates a network for a lone container when there
+is nothing to merge with, so `node.getNetwork() != null` is true the moment the Controller
+initialises -- cabled or not. Every Controller ever placed was, by that measure, connected.
+
+Now it asks RS's own question, the one `calculateActive` asks of every RS machine: is energy
+required at all, and if so does the network hold at least what this structure draws. A one-node
+network of our own making stores nothing, so it fails that on its own -- there is no special case
+for "not really connected", because a network with nothing in it cannot power anything.
+
+**Which is why the node's energy draw had to become real in the same change.** With a draw of
+zero, `stored >= usage` is true of an empty network too and the bug returns intact. So
+`StructurePower.energyUsage` is now wired in: 8 for the Controller, 1 per shell block, 4 per
+Pattern Storage, and **each CPU costs exactly its tier weight** -- the same number it contributes
+to steps/tick. Energy tracks throughput rather than volume, and the tier ladder stays
+energy-neutral: four 1K CPUs and one 4K cost the same and do the same.
+
+The gametest that should have caught this only asserted "not UNFORMED", which the bug satisfied.
+It now asserts **INACTIVE exactly** for a formed, unpowered structure, and was confirmed by
+restoring the old check and watching it fail. A loose assertion is how a bug passes review twice.
+
 ## 0.0.9
 
 **The Controller has its own face.** Three of them, generated from the Casing texture: a dead grey

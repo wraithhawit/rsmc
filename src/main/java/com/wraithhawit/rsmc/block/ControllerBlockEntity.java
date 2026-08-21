@@ -3,6 +3,8 @@ package com.wraithhawit.rsmc.block;
 import javax.annotation.Nullable;
 
 import com.refinedmods.refinedstorage.api.network.impl.node.SimpleNetworkNode;
+import com.refinedmods.refinedstorage.api.network.Network;
+import com.refinedmods.refinedstorage.api.network.energy.EnergyNetworkComponent;
 import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
@@ -11,6 +13,7 @@ import com.wraithhawit.rsmc.content.RsmcBlockEntities;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
+import com.wraithhawit.rsmc.structure.StructurePower;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -43,9 +46,13 @@ public class ControllerBlockEntity extends BlockEntity {
     private static final int REFRESH_INTERVAL_TICKS = 20;
 
     /**
-     * Zero for now. The whole structure's draw gets charged here once the block counts feed into it
-     * -- the interior blocks have no block entity of their own, so there is nowhere else it could
-     * go, and that is deliberate rather than a limitation.
+     * Starts at zero and is set from the structure on every refresh -- see
+     * {@link com.wraithhawit.rsmc.structure.StructurePower}. The whole structure is charged here
+     * because the interior blocks have no block entity of their own, so there is nowhere else it
+     * could go.
+     *
+     * <p>It is not only a cost: it is what makes "is this thing actually powered" answerable at
+     * all. A node that draws nothing is satisfied by a network that holds nothing.
      */
     private final SimpleNetworkNode node = new SimpleNetworkNode(0L);
 
@@ -108,16 +115,45 @@ public class ControllerBlockEntity extends BlockEntity {
         }
     }
 
+    /**
+     * Whether the structure is formed, and whether it is actually running.
+     *
+     * <p><strong>"Has a network" is not a test of anything.</strong> RS's {@code NetworkBuilderImpl}
+     * creates a network for a lone container when there is nothing to merge with, so
+     * {@code getNetwork() != null} is true the moment this block initialises, cabled or not. An
+     * earlier version used it and the screen lit up for every Controller ever placed.
+     *
+     * <p>So this asks RS's own question instead, the one {@code calculateActive} asks of every RS
+     * machine: is energy required at all, and if so does the network hold at least what this
+     * structure draws. A one-node network of our own making stores nothing, so it fails that on its
+     * own -- no special case needed for "not really connected", because a network with nothing in
+     * it cannot power anything.
+     *
+     * <p>Which is also why the node's energy usage has to be real. With a draw of zero, "stored >=
+     * usage" is true of an empty network too, and the bug comes straight back.
+     */
     private ControllerState computeState(final Level currentLevel) {
         final Result result = MultiblockShape.find(new LevelBlockSource(currentLevel),
             this.worldPosition.getX(), this.worldPosition.getY(), this.worldPosition.getZ());
         if (!result.formed()) {
             return ControllerState.UNFORMED;
         }
-        // Formed but unplugged is a real and common state, and the one a player is most likely to
-        // be confused by -- so it gets its own picture rather than being lumped in with either
-        // neighbour.
-        return this.node.getNetwork() == null ? ControllerState.INACTIVE : ControllerState.ACTIVE;
+        this.node.setEnergyUsage(StructurePower.energyUsage(result));
+        return this.hasEnergy() ? ControllerState.ACTIVE : ControllerState.INACTIVE;
+    }
+
+    private boolean hasEnergy() {
+        if (!RefinedStorageApi.INSTANCE.isEnergyRequired()) {
+            // A pack with energy switched off: every RS machine runs regardless, and ours should
+            // behave the same way rather than being the one block that still refuses.
+            return true;
+        }
+        final Network network = this.node.getNetwork();
+        if (network == null) {
+            return false;
+        }
+        return network.getComponent(EnergyNetworkComponent.class).getStored()
+            >= this.node.getEnergyUsage();
     }
 
     @Override

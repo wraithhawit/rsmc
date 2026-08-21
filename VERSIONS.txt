@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.10
+-----
+  Screen lit regardless of being connected: RS makes a network for a LONE container, so
+  getNetwork() != null tests nothing. Now uses RS's own rule - energy required, and network
+  stored >= this structure's draw - which forced the energy model to become real
+  (StructurePower wired in; a CPU costs exactly its tier weight). Gametest tightened from
+  "not UNFORMED" to "INACTIVE exactly" and confirmed against the old code.
+
 0.0.9
 -----
   Controller gets its own three faces, generated from casing.png by
