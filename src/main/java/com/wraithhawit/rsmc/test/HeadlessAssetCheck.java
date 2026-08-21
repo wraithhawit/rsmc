@@ -59,6 +59,18 @@ public final class HeadlessAssetCheck {
         }
         translated("itemGroup", lang, "itemGroup.rsmc");
 
+        // The Controller has one face per screen state and a model for each. textureOf() only
+        // names the unformed one, so without this the other two could be deleted or renamed and
+        // nothing would notice until a structure formed in game and the face went missing.
+        for (final String state : new String[] {"unformed", "inactive", "active"}) {
+            exists("controller " + state + " face",
+                RESOURCES.resolve("assets/rsmc/textures/block/controller_front_" + state + ".png"));
+        }
+        for (final String model : new String[] {"controller", "controller_inactive", "controller_active"}) {
+            exists("controller model " + model,
+                RESOURCES.resolve("assets/rsmc/models/block/" + model + ".json"));
+        }
+
         System.out.println("asset checks: " + checks + " (" + BlockNames.all().size() + " blocks)");
         if (failures > 0) {
             System.out.println("FAIL (" + failures + ")");

@@ -32,3 +32,18 @@ blockstate property, no model code at all.
 Four CPU tiers are needed (`cpu_1k`, `cpu_4k`, `cpu_16k`, `cpu_64k`), not the single `cpu.png` here.
 Reference material from Cable Tiers and Refined Storage is unpacked in `texture-refs/` at the repo
 root.
+
+## The Controller faces are no longer anybody else's
+
+`controller_front_unformed.png`, `controller_front_inactive.png` and `controller_front_active.png`
+are generated from `casing.png` by `tools/GenerateControllerTextures.java` — run
+`java tools/GenerateControllerTextures.java` from the repo root.
+
+The first attempt used Refined Storage's actual `grid/front.png`, which made an rsmc Controller look
+enough like a Grid to be mistaken for one: a bug report about a crafter screen staying lit turned
+out to be a Refined Storage Grid, which was behaving perfectly. Looking like our own block is a
+correctness property, not a decoration.
+
+Generated rather than drawn because all three are the Casing texture with one inset screen, and the
+only difference is what the screen is doing. Three near-identical hand-edited 16x16 images is how
+they drift apart.

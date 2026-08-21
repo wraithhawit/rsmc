@@ -52,8 +52,9 @@ public final class BlockNames {
         if (blockName.startsWith("cpu_")) {
             return "cpu";
         }
-        // The Controller is a Casing with a grid face on the front, built as a model with per-face
-        // textures rather than a composited image -- so its own texture file is just the face.
-        return CONTROLLER.equals(blockName) ? "controller_front" : blockName;
+        // The Controller has three faces, one per screen state, generated from the Casing texture
+        // by tools/GenerateControllerTextures.java. The asset check tracks the unformed one; the
+        // other two are named after it and land in the same commit.
+        return CONTROLLER.equals(blockName) ? "controller_front_unformed" : blockName;
     }
 }

@@ -1,6 +1,8 @@
 {
-  "parent": "rsmc:block/controller_screen",
+  "parent": "minecraft:block/orientable",
   "textures": {
-    "screen": "rsmc:block/controller_screen_on"
+    "top": "rsmc:block/casing",
+    "front": "rsmc:block/controller_front_active",
+    "side": "rsmc:block/casing"
   }
 }
