@@ -10,9 +10,13 @@ import com.wraithhawit.rsmc.structure.StructureBlock;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import com.wraithhawit.rsmc.block.ControllerBlock;
+import com.wraithhawit.rsmc.block.ControllerState;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -71,11 +75,46 @@ public final class StructureInfoCommand {
         }
         final Result result = MultiblockShape.find(
             new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ());
+        reportScreen(source, player, pos, result);
         if (result.formed()) {
             reportFormed(source, result);
         } else {
             reportFailure(source, result);
         }
+    }
+
+    /**
+     * What the server believes the Controller's screen says, next to what the structure actually is.
+     *
+     * <p>Added because of a report where a broken structure kept a lit screen. The two halves fail
+     * differently and look identical from inside the game: if these two disagree, the server is
+     * right and the client is drawing a stale model; if they agree and the screen still looks wrong,
+     * the client did not get the update at all. Without printing both, telling those apart takes a
+     * round trip per guess.
+     */
+    private static void reportScreen(final CommandSourceStack source, final ServerPlayer player,
+                                     final BlockPos lookingAt, final Result result) {
+        // The looked-at block first, because when the structure does NOT form there is no
+        // controllerPos to fall back on -- and not forming is exactly the case this line exists
+        // for. Looking at the Controller is what a player reporting a stuck screen would do.
+        final int[] controller = result.controllerPos();
+        final BlockPos controllerPos =
+            player.level().getBlockState(lookingAt).getBlock() instanceof ControllerBlock
+                ? lookingAt
+                : controller == null ? null : new BlockPos(controller[0], controller[1], controller[2]);
+        if (controllerPos == null) {
+            return;
+        }
+        final BlockState state = player.level().getBlockState(controllerPos);
+        if (!state.hasProperty(ControllerBlock.STATE)) {
+            return;
+        }
+        final ControllerState screen = state.getValue(ControllerBlock.STATE);
+        final boolean disagrees = !result.formed() && screen != ControllerState.UNFORMED;
+        line(source, disagrees ? ChatFormatting.RED : ChatFormatting.DARK_GRAY,
+            "  screen (server) " + screen.getSerializedName()
+                + (disagrees ? "  <-- server disagrees with the structure; your client is stale"
+                    : ""));
     }
 
     private static void reportFormed(final CommandSourceStack source, final Result result) {

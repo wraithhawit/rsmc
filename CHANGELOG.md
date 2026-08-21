@@ -6,6 +6,25 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.8
+
+**`/rsmc info` now prints the server's own view of the Controller screen**, and prints it even when
+the structure does not form -- which is exactly when it is wanted.
+
+Prompted by a report that breaking blocks out of a finished crafter left the screen lit while
+breaking the cable correctly turned it off. A gametest was written to reproduce it -- build,
+settle, break a CPU, a Pattern Storage, a Casing and a Frame at once, wait out the poll -- and it
+**passed**, proving the server-side path correct for exactly those steps.
+
+That test reads `helper.getBlockState`, which is the *server* level, so it is blind to a client
+drawing a stale model. Rather than guess which half was wrong, the command now reports both: what
+`MultiblockShape.find` says, and what the block state actually is. If they disagree the client is
+stale; if they agree and the screen still looks wrong, the update never arrived.
+
+The gametest is kept. It reproduces nothing today, but it pins the behaviour: if the refresh ever
+regresses -- and #3 is going to rewrite it from a poll into change-driven updates -- this is the
+case that catches it.
+
 ## 0.0.7
 
 **The active screen is light blue**, the colour a Refined Storage Grid ships with, rather than the

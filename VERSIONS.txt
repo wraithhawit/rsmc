@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.8
+-----
+  /rsmc info reports the server's own screen state, including when the structure does not form,
+  so a stale client can be told apart from a wrong answer. Added a gametest reproducing the
+  reported stuck-screen steps - it passes, so the server path is correct; kept as a regression
+  pin for when #3 replaces the poll.
+
 0.0.7
 -----
   Active screen uses RS's default light blue rather than the blue dye colour. Filed #8 for the

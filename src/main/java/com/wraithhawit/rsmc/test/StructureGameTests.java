@@ -5,7 +5,11 @@ import java.util.List;
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
 import com.refinedmods.refinedstorage.neoforge.api.RefinedStorageNeoForgeApi;
 
+import javax.annotation.Nullable;
+
 import com.wraithhawit.rsmc.RSMC;
+import com.wraithhawit.rsmc.block.ControllerBlock;
+import com.wraithhawit.rsmc.block.ControllerState;
 import com.wraithhawit.rsmc.content.RsmcBlocks;
 import com.wraithhawit.rsmc.structure.CpuTier;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
@@ -19,6 +23,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -201,6 +206,73 @@ public final class StructureGameTests {
             }
         }
         helper.succeed();
+    }
+
+    /**
+     * Breaking blocks out of a finished structure must turn the screen off.
+     *
+     * <p>Written to reproduce a report from in game: breaking the cable correctly darkened the
+     * screen, but breaking blocks out of the crafter itself left it lit. The two go through the
+     * same once-a-second refresh and differ only in which branch of {@code computeState} answers,
+     * so this drives the whole path -- build, settle, break, wait -- rather than asserting on
+     * {@code MultiblockShape.find} alone, which the headless suite already covers and which passes.
+     *
+     * <p>A long timeout because the refresh is a poll: up to a second to notice, and the test has
+     * to outlast that or it would be testing its own patience.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200)
+    public static void breakingBlocksTurnsTheScreenOff(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+
+        final BlockPos controller = controllerPos(helper);
+        if (controller == null) {
+            helper.fail("the test shell did not place a Controller");
+            return;
+        }
+        // Let the poll run at least once so the screen has caught up with the finished structure.
+        helper.runAfterDelay(45L, () -> {
+            final ControllerState formed = stateAt(helper, controller);
+            if (formed == ControllerState.UNFORMED) {
+                helper.fail("a complete structure still reads as UNFORMED after 45 ticks");
+                return;
+            }
+            // Break a chunk of it, one of every type at once -- matching the report, which was
+            // not a single tidy block but "a good chunk, all 4 types, even at the same time".
+            helper.setBlock(new BlockPos(1, 1, 1), Blocks.AIR);   // CPU
+            helper.setBlock(new BlockPos(1, 1, 2), Blocks.AIR);   // pattern storage
+            helper.setBlock(new BlockPos(1, 0, 1), Blocks.AIR);   // casing (wall)
+            helper.setBlock(new BlockPos(0, 0, 0), Blocks.AIR);   // frame (corner)
+            helper.runAfterDelay(45L, () -> {
+                final ControllerState after = stateAt(helper, controller);
+                if (after != ControllerState.UNFORMED) {
+                    helper.fail("broke a CPU, a pattern storage, a casing and a frame, and the"
+                        + " screen still reads " + after);
+                    return;
+                }
+                helper.succeed();
+            });
+        });
+    }
+
+    @Nullable
+    private static BlockPos controllerPos(final GameTestHelper helper) {
+        for (int x = 0; x <= 2; x++) {
+            for (int y = 0; y <= 2; y++) {
+                for (int z = 0; z <= 3; z++) {
+                    final BlockPos pos = new BlockPos(x, y, z);
+                    if (helper.getBlockState(pos).is(RsmcBlocks.CONTROLLER.get())) {
+                        return pos;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static ControllerState stateAt(final GameTestHelper helper, final BlockPos pos) {
+        return helper.getBlockState(pos).getValue(ControllerBlock.STATE);
     }
 
     // ---- helpers ----
