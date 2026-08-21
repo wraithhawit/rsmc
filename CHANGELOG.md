@@ -6,6 +6,33 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.12
+
+**Pattern Storage blocks actually hold patterns now** -- 78 each, saved with the block and dropped
+when it breaks. The first half of #4, and the half everything else reads from.
+
+The inventory is Refined Storage's own `PatternInventory`, so a slot accepts what RS considers a
+pattern and nothing else. No second idea of validity to drift from theirs.
+
+**Breaking one takes its patterns with it**, dropped like any container's contents. Intended, not
+a leak: the alternative is patterns outliving the block they were in, which is exactly the
+ownership question this whole design exists to avoid having.
+
+A loot table cannot do that -- it drops the block, not the contents -- and RS's own container
+blocks handle it in `AbstractBaseBlock.onRemove` for the same reason. Copied rather than
+inherited, because inheriting would drag in their menu, naming and configuration-card behaviour.
+The block-changed guard in there matters: without it the patterns would be dropped every time the
+structure merely changed block state.
+
+Tested both ways an inventory loses things quietly -- a save/load round trip, and the drop list --
+because neither shows up as an error. A pattern that failed to save is simply gone next session.
+
+**The GUI design is settled and recorded on #4**: RS's Autocrafter Manager is built entirely from
+classes rsmc already compiles against (`AbstractStretchingScreen`, `SearchFieldWidget`,
+`SearchIconWidget`, `AbstractBaseContainerMenu`, and a ready-made `PatternSlot`), so the screen
+can match it rather than approximate it. What is genuinely ours is where the slots come from:
+the Pattern Storage blocks inside one structure, gathered at open time.
+
 ## 0.0.11
 
 **The powered branch is now tested, rather than taken on trust.**

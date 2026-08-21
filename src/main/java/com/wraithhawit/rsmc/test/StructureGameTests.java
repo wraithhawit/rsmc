@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import com.wraithhawit.rsmc.RSMC;
 import com.wraithhawit.rsmc.block.ControllerBlock;
 import com.wraithhawit.rsmc.block.ControllerState;
+import com.wraithhawit.rsmc.block.PatternStorageBlockEntity;
 import com.wraithhawit.rsmc.content.RsmcBlocks;
 import com.wraithhawit.rsmc.structure.CpuTier;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
@@ -20,6 +21,7 @@ import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -327,6 +329,47 @@ public final class StructureGameTests {
     /** Looks up a Refined Storage block by name, so the test says what it means. */
     private static Block rsBlock(final String name) {
         return BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("refinedstorage", name));
+    }
+
+    /**
+     * A Pattern Storage block keeps its patterns, and hands them back when broken.
+     *
+     * <p>These are the two ways an inventory loses things quietly. Neither shows up as an error:
+     * a pattern that failed to save is simply gone next session, and one that failed to drop is
+     * gone the moment somebody rearranges their build. Both are exactly the data loss that putting
+     * patterns in the block rather than on a controller was meant to prevent, so both get a test.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void patternsSurviveAndDrop(final GameTestHelper helper) {
+        final BlockPos pos = new BlockPos(1, 1, 1);
+        helper.setBlock(pos, RsmcBlocks.PATTERN_STORAGE.get());
+        if (!(helper.getBlockEntity(pos) instanceof PatternStorageBlockEntity storage)) {
+            helper.fail("no Pattern Storage block entity");
+            return;
+        }
+        final ItemStack pattern = new ItemStack(rsItem("pattern"));
+        storage.patterns().setItem(0, pattern.copy());
+
+        // Round-trip through NBT the way a chunk save and reload does.
+        final CompoundTag tag = storage.saveWithoutMetadata(helper.getLevel().registryAccess());
+        final PatternStorageBlockEntity reloaded = new PatternStorageBlockEntity(
+            helper.absolutePos(pos), helper.getBlockState(pos));
+        reloaded.loadWithComponents(tag, helper.getLevel().registryAccess());
+        if (reloaded.patterns().getItem(0).isEmpty()) {
+            helper.fail("the pattern did not survive a save and reload");
+            return;
+        }
+
+        if (storage.getDrops().isEmpty()) {
+            helper.fail("breaking a Pattern Storage would drop none of its patterns");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** Looks up a Refined Storage item by name, so the test says what it means. */
+    private static net.minecraft.world.item.Item rsItem(final String name) {
+        return BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("refinedstorage", name));
     }
 
     // ---- helpers ----

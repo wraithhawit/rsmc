@@ -8,6 +8,8 @@ import com.wraithhawit.rsmc.structure.MultiblockShape.BlockKind;
 import com.wraithhawit.rsmc.structure.StructureBlock;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.Containers;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -42,5 +44,27 @@ public class PatternStorageBlock extends Block implements EntityBlock, Structure
     @Override
     public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
         return RsmcBlockEntities.PATTERN_STORAGE.get().create(pos, state);
+    }
+
+    /**
+     * Drops the patterns when the block goes.
+     *
+     * <p>The loot table cannot do this -- it drops the block, and Refined Storage's own container
+     * blocks do exactly the same thing and handle their contents here instead
+     * ({@code AbstractBaseBlock.onRemove}). Copied rather than inherited because inheriting would
+     * mean extending an RS block class and taking its menu, naming and configuration-card
+     * behaviour with it.
+     *
+     * <p>The guard matters: without the block-changed check this fires on every block state change,
+     * and the patterns would be dropped by the structure simply lighting up.
+     */
+    @Override
+    protected void onRemove(final BlockState state, final Level level, final BlockPos pos,
+                            final BlockState newState, final boolean moved) {
+        if (!state.is(newState.getBlock())
+            && level.getBlockEntity(pos) instanceof PatternStorageBlockEntity patternStorage) {
+            Containers.dropContents(level, pos, patternStorage.getDrops());
+        }
+        super.onRemove(state, level, pos, newState, moved);
     }
 }

@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.12
+-----
+  Pattern Storage holds 78 patterns, saved and dropped on break, using RS's own PatternInventory
+  so validity is theirs. Drops handled in onRemove like RS's container blocks - a loot table
+  cannot drop contents. Tested against both silent losses: save/load round trip and the drop
+  list. GUI design recorded on #4: RS's Autocrafter Manager is built from classes we already
+  compile against, so the screen can match it rather than approximate it.
+
 0.0.11
 -----
   Gametest for the one untested branch: a structure cabled to an RS Creative Controller reads
