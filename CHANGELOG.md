@@ -6,6 +6,33 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.4.1
+
+**All seven blocks dropped nothing when mined.** Shipped that way in 0.4.0; found by asking what a
+human would still have to test by hand.
+
+They are all `requiresCorrectToolForDrops`, and the only thing that makes any tool the *correct*
+one is membership of a `minecraft:mineable/*` tag. There was no tag. So no tool was correct, so
+nothing dropped — with any tool, forever — while the loot tables stayed perfectly valid, nothing
+logged an error, and `assetCheck` was satisfied that every file it knew about existed.
+
+Fixed by adding `data/minecraft/tags/block/mineable/pickaxe.json`, and guarded twice:
+
+- `assetCheck` now asserts every block appears in that tag (57 checks, up from 50)
+- a gametest asks whether an iron pickaxe is actually the correct tool for each block
+
+**The gametest was vacuous on its first attempt, and that is the more useful lesson.** It asked
+`Block.getDrops` for the drops while passing a pickaxe — and passed happily with the tag file
+emptied out. `getDrops` only runs the loot table, and the loot table has nothing to say about tool
+correctness; the gate lives in `ServerPlayerGameMode`, which checks the tool and only then calls the
+drop path at all. Asking the loot table about a tool requirement it never sees is a test that can
+never fail.
+
+It now asserts the two halves separately — `ItemStack.isCorrectToolForDrops` for the gate, and
+`getDrops` for the loot table naming the right block — and was confirmed by emptying the tag and
+watching it fail, then restoring it and watching it pass. A test nobody has seen fail is not
+evidence.
+
 ## 0.4.0
 
 **The blocks exist.** (Issue #1.) Seven of them — Frame, Casing, four CPU tiers, Pattern Storage —

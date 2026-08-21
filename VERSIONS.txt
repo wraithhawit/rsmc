@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.4.1
+-----
+  All seven blocks dropped NOTHING when mined - requiresCorrectToolForDrops with no
+  minecraft:mineable tag means no tool is correct. Added the pickaxe tag. Guarded by
+  assetCheck (57) and a gametest - whose first version was vacuous, because Block.getDrops
+  never sees the tool requirement; the gate is in ServerPlayerGameMode. Confirmed to fail
+  with the bug reinstated.
+
 0.4.0
 -----
   The seven blocks exist (#1): Frame, Casing, four CPU tiers, Pattern Storage, with items,

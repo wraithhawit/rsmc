@@ -34,7 +34,14 @@ public final class HeadlessAssetCheck {
 
     public static void main(final String[] args) throws IOException {
         final String lang = readLang();
+        final Path pickaxe = RESOURCES.resolve("data/minecraft/tags/block/mineable/pickaxe.json");
         for (final String block : BlockNames.all()) {
+            // Every rsmc block is requiresCorrectToolForDrops. That is a promise the block makes
+            // and this tag is the only thing that keeps it: with the block absent from every
+            // mineable tag, NO tool is the correct one, so the block drops nothing when mined --
+            // with any tool, forever. It is silent, it is not a compile error, and the loot table
+            // is perfectly valid the whole time. It shipped in 0.4.0 exactly this way.
+            contains("in the pickaxe mineable tag", pickaxe, "\"rsmc:" + block + "\"");
             exists("blockstate", RESOURCES.resolve("assets/rsmc/blockstates/" + block + ".json"));
             exists("block model", RESOURCES.resolve("assets/rsmc/models/block/" + block + ".json"));
             exists("item model", RESOURCES.resolve("assets/rsmc/models/item/" + block + ".json"));

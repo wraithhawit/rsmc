@@ -1,0 +1,11 @@
+{
+  "values": [
+    "rsmc:frame",
+    "rsmc:casing",
+    "rsmc:cpu_1k",
+    "rsmc:cpu_4k",
+    "rsmc:cpu_16k",
+    "rsmc:cpu_64k",
+    "rsmc:pattern_storage"
+  ]
+}
