@@ -6,6 +6,27 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.11
+
+**The powered branch is now tested, rather than taken on trust.**
+
+Every state had a test except the one that matters most: a structure cabled to a real, powered
+Refined Storage network reading ACTIVE. The gametest world had no RS controller in it, so
+"formed and unpowered" was provable and "formed and running" was not.
+
+That gap is exactly where the last bug lived. When powered meant `getNetwork() != null`, every
+Controller ever placed satisfied it -- so ACTIVE was reachable for entirely the wrong reason, and
+a test asserting only "goes blue eventually" would have agreed with the bug. It also matters more
+than the others going forward, because the pattern provider will only run when the structure
+reads as powered: get this wrong and the crafter is silently dead while every other test passes.
+
+So the test builds a real network -- RS's own Creative Controller and a cable, plugged into the
+Controller's exposed face -- and asserts ACTIVE. Confirmed by removing the power source and
+watching it fail with INACTIVE.
+
+`buildShell` takes an x offset now, because the Controller lands on the -x face and a cable needs
+that column free, and the template has no negative coordinates.
+
 ## 0.0.10
 
 **The screen lit up whether or not the structure was connected to anything.**

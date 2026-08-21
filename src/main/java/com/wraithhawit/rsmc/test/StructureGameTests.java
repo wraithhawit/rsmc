@@ -18,6 +18,9 @@ import com.wraithhawit.rsmc.structure.MultiblockShape.Failure;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
@@ -280,6 +283,52 @@ public final class StructureGameTests {
         return helper.getBlockState(pos).getValue(ControllerBlock.STATE);
     }
 
+    /**
+     * A structure cabled to a powered Refined Storage network goes light blue.
+     *
+     * <p>The one branch nothing else covers, and the one everything else will hang off: the pattern
+     * provider only runs when the structure reads as powered, so if this is wrong the crafter is
+     * silently dead and every test above still passes.
+     *
+     * <p>It is also the branch the previous bug hid in. When "powered" was `getNetwork() != null`,
+     * every Controller ever placed satisfied it -- so ACTIVE was reachable for the wrong reason and
+     * a test asserting only "goes blue eventually" would have agreed with the bug. This builds a
+     * real network with an RS Creative Controller and a cable, which is the only way to tell a
+     * structure that is genuinely powered from one that merely exists.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200)
+    public static void aPoweredStructureGoesActive(final GameTestHelper helper) {
+        // Offset by one so the Controller's outward face has a free column for the cable.
+        buildShell(helper, 1);
+        helper.setBlock(new BlockPos(2, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(2, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+
+        final BlockPos controller = controllerPos(helper);
+        if (controller == null) {
+            helper.fail("the test shell did not place a Controller");
+            return;
+        }
+        // Straight out of the Controller's exposed face, then RS's own infinite power source.
+        final BlockPos cable = controller.relative(Direction.WEST);
+        helper.setBlock(cable, rsBlock("cable"));
+        helper.setBlock(cable.relative(Direction.WEST), rsBlock("creative_controller"));
+
+        helper.runAfterDelay(60L, () -> {
+            final ControllerState state = stateAt(helper, controller);
+            if (state != ControllerState.ACTIVE) {
+                helper.fail("cabled to a creative controller and the structure reads " + state
+                    + ", expected ACTIVE");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /** Looks up a Refined Storage block by name, so the test says what it means. */
+    private static Block rsBlock(final String name) {
+        return BuiltInRegistries.BLOCK.get(ResourceLocation.fromNamespaceAndPath("refinedstorage", name));
+    }
+
     // ---- helpers ----
 
     /**
@@ -290,12 +339,23 @@ public final class StructureGameTests {
      * statement of the shape, and the two could disagree.
      */
     private static void buildShell(final GameTestHelper helper) {
+        buildShell(helper, 0);
+    }
+
+    /**
+     * The same 3x3x4 shell, shifted along x so a test can leave room beside it.
+     *
+     * <p>Needed because the Controller lands on the first wall slot the fill finds, which is on the
+     * -x face -- so a test wanting to plug a cable into it has to keep that column free, and the
+     * template has no negative coordinates.
+     */
+    private static void buildShell(final GameTestHelper helper, final int originX) {
         final boolean[] controllerPlaced = {false};
-        for (int x = 0; x <= 2; x++) {
+        for (int x = originX; x <= originX + 2; x++) {
             for (int y = 0; y <= 2; y++) {
                 for (int z = 0; z <= 3; z++) {
                     int extremes = 0;
-                    if (x == 0 || x == 2) {
+                    if (x == originX || x == originX + 2) {
                         extremes++;
                     }
                     if (y == 0 || y == 2) {

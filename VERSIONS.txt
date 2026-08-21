@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.11
+-----
+  Gametest for the one untested branch: a structure cabled to an RS Creative Controller reads
+  ACTIVE. That is where the last bug hid, and it is what the pattern provider will gate on -
+  get it wrong and the crafter is silently dead while everything else passes. Confirmed by
+  removing the power source and watching it fail.
+
 0.0.10
 -----
   Screen lit regardless of being connected: RS makes a network for a LONE container, so
