@@ -164,7 +164,7 @@ public final class StructureGameTests {
     }
 
     /**
-     * Refined Storage can actually see the Controller.
+     * Refined Storage can see every block a cable might touch.
      *
      * <p>The payoff test for the connectivity work, and it asks the question the way RS asks it:
      * resolve the network node container provider capability at the position. That is literally
@@ -173,12 +173,16 @@ public final class StructureGameTests {
      * places, renders and breaks perfectly, and nothing logs a word.
      *
  *
-     * <p>Only the Controller, because after the controller redesign it is the only block in the mod
-     * that has a network node at all -- Frame, Casing and the CPUs are plain blocks now.
+     * <p>All three shell blocks, because a cable must be able to touch any face of the box. The
+     * Controller hosts the real node; Frame and Casing are relays that exist only so the probe finds
+     * something. If the shell registration were ever dropped as an optimisation, this is what would
+     * catch it -- and the symptom in game would be "cabling only works at the Controller", which is
+     * the thing it was dropped to avoid.
      */
     @GameTest(template = "empty8", timeoutTicks = 100)
-    public static void refinedStorageSeesTheController(final GameTestHelper helper) {
-        for (final Block block : List.of(RsmcBlocks.CONTROLLER.get())) {
+    public static void refinedStorageSeesTheShell(final GameTestHelper helper) {
+        for (final Block block : List.of(RsmcBlocks.CONTROLLER.get(), RsmcBlocks.FRAME.get(),
+            RsmcBlocks.CASING.get())) {
             final BlockPos pos = new BlockPos(0, 0, 0);
             helper.setBlock(pos, block);
             final NetworkNodeContainerProvider provider = helper.getLevel().getCapability(

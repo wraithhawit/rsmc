@@ -4,7 +4,15 @@ import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.BlockKind;
 import com.wraithhawit.rsmc.structure.StructureBlock;
 
+import javax.annotation.Nullable;
+
+import com.wraithhawit.rsmc.content.RsmcBlockEntities;
+
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * The two plain shell blocks: the Frame on the edges and corners, the Casing on the wall panels.
@@ -23,7 +31,7 @@ import net.minecraft.world.level.block.Block;
  * one block entity, one network node, one place a cable attaches. The shell went back to being
  * plain blocks, which is what it always was in everything but bookkeeping.
  */
-public class ShellBlock extends Block implements StructureBlock {
+public class ShellBlock extends Block implements EntityBlock, StructureBlock {
     private final MultiblockShape.Component component;
 
     public ShellBlock(final Properties properties, final BlockKind kind) {
@@ -34,5 +42,11 @@ public class ShellBlock extends Block implements StructureBlock {
     @Override
     public MultiblockShape.Component component() {
         return this.component;
+    }
+
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
+        return RsmcBlockEntities.SHELL.get().create(pos, state);
     }
 }

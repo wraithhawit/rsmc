@@ -3,6 +3,7 @@ package com.wraithhawit.rsmc.content;
 import com.wraithhawit.rsmc.RSMC;
 import com.wraithhawit.rsmc.block.ControllerBlockEntity;
 import com.wraithhawit.rsmc.block.PatternStorageBlockEntity;
+import com.wraithhawit.rsmc.block.ShellBlockEntity;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -10,7 +11,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * Two block entity types for eight blocks.
+ * Three block entity types for eight blocks.
  *
  * <p>The Controller is the structure's only point of contact with the network, so it is the only
  * shell block that needs one. Frame and Casing are plain blocks, as are the CPUs -- see
@@ -23,6 +24,11 @@ public final class RsmcBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ControllerBlockEntity>>
         CONTROLLER = BLOCK_ENTITIES.register("controller", () -> BlockEntityType.Builder
             .of(ControllerBlockEntity::new, RsmcBlocks.CONTROLLER.get())
+            .build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ShellBlockEntity>> SHELL =
+        BLOCK_ENTITIES.register("shell", () -> BlockEntityType.Builder
+            .of(ShellBlockEntity::new, RsmcBlocks.FRAME.get(), RsmcBlocks.CASING.get())
             .build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PatternStorageBlockEntity>>

@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.5
+-----
+  Cable to any face again. The per-tick cost 0.0.4 was avoiding does not exist: RS ticks nodes
+  only via a BlockEntityTicker the block opts into (ours declares none), and ServerListener.tick
+  is a queued-action drain that never iterates nodes. Frame and Casing carry a connection relay
+  BE - no ticker, no NBT, no energy. Controller keeps the provider node, GUI and energy. No
+  port block needed.
+
 0.0.4
 -----
   Controller block: replaces one Casing on a wall, exactly one, never an edge. It is now the

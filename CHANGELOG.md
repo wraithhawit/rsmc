@@ -6,6 +6,38 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.5
+
+**Cable to any face again.** 0.0.4 traded connect-anywhere for one block entity; it turns out that
+trade was not necessary, because the cost it was avoiding does not exist.
+
+The worry was per-tick lag from ~2,000 nodes. There is no per-tick path:
+
+- RS ticks a node only through a `BlockEntityTicker` **the block itself opts into** (
+  `AutocrafterBlock` declares one). `ShellBlock` declares none, so its block entities cost
+  literally nothing per tick.
+- RS's own server tick handler, `ServerListener.tick`, is a queued-action drain. It never
+  iterates the network's nodes.
+- Zero-energy nodes contribute nothing to the energy component.
+
+What connect-anywhere actually costs is one small non-ticking object per shell block in memory,
+and a network rebuild scan proportional to container count that runs **when blocks change**
+rather than continuously -- and placing a 16x16x16 is already thousands of block updates.
+
+So Frame and Casing carry a connection relay again: no ticker, no saved data, no energy, no
+knowledge of the structure. A doorway and nothing else.
+
+**The Controller stays**, and keeps everything that made it worth adding: it alone hosts the
+pattern provider, the GUI and the energy draw, and it is still the structure's identity. What it
+no longer has to be is the only place you can plug in.
+
+A dedicated port block was offered as the compromise and is not needed -- it would have been a
+ninth block and a ninth shape rule bought to save something that was never being spent.
+
+The gametest now checks all three shell blocks resolve the capability, and was confirmed by
+dropping the shell registration and watching it fail. The symptom in game would have been
+"cabling only works at the Controller" -- exactly the thing this release removes.
+
 ## 0.0.4
 
 **A Controller block, and the connectivity tax goes away.** Wraith's call: give the structure a
