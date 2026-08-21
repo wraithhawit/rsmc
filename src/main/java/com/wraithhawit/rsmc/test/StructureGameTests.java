@@ -2,6 +2,9 @@ package com.wraithhawit.rsmc.test;
 
 import java.util.List;
 
+import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
+import com.refinedmods.refinedstorage.neoforge.api.RefinedStorageNeoForgeApi;
+
 import com.wraithhawit.rsmc.RSMC;
 import com.wraithhawit.rsmc.content.RsmcBlocks;
 import com.wraithhawit.rsmc.structure.CpuTier;
@@ -154,6 +157,41 @@ public final class StructureGameTests {
             }
             if (!drops.getFirst().is(block.asItem())) {
                 helper.fail(deferred.getId() + " dropped " + drops.getFirst() + " instead of itself");
+                return;
+            }
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Refined Storage can actually see a shell block.
+     *
+     * <p>The payoff test for the connectivity work, and it asks the question the way RS asks it:
+     * resolve the network node container provider capability at the position. That is literally
+     * what {@code PlatformImpl.getContainerProviderSafely} does when a cable probes a neighbour, so
+     * a null here means a cable touching the structure joins nothing -- while every block still
+     * places, renders and breaks perfectly, and nothing logs a word.
+     *
+     * <p>Checks a Casing as well as a Frame, because the two share one block entity type and one
+     * capability registration; if that were ever split per block, this is where it would show.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void refinedStorageSeesTheShell(final GameTestHelper helper) {
+        for (final Block block : List.of(RsmcBlocks.FRAME.get(), RsmcBlocks.CASING.get())) {
+            final BlockPos pos = new BlockPos(0, 0, 0);
+            helper.setBlock(pos, block);
+            final NetworkNodeContainerProvider provider = helper.getLevel().getCapability(
+                RefinedStorageNeoForgeApi.INSTANCE.getNetworkNodeContainerProviderCapability(),
+                helper.absolutePos(pos),
+                null);
+            if (provider == null) {
+                helper.fail(block + " exposes no network node container -- a cable touching it"
+                    + " would join nothing");
+                return;
+            }
+            if (provider.getContainers().size() != 1) {
+                helper.fail(block + " exposed " + provider.getContainers().size()
+                    + " containers, expected exactly 1");
                 return;
             }
         }

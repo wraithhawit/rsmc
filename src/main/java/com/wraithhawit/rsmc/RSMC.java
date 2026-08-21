@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 
 import com.wraithhawit.rsmc.content.RsmcBlockEntities;
 import com.wraithhawit.rsmc.content.RsmcBlocks;
+import com.wraithhawit.rsmc.content.RsmcCapabilities;
 import com.wraithhawit.rsmc.content.RsmcCreativeTab;
 import com.wraithhawit.rsmc.content.RsmcItems;
 import com.wraithhawit.rsmc.test.StructureGameTests;
@@ -11,6 +12,7 @@ import com.wraithhawit.rsmc.test.StructureGameTests;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 
 import org.slf4j.Logger;
@@ -68,6 +70,7 @@ public class RSMC {
         RsmcCreativeTab.TABS.register(modEventBus);
         // Only fires when -Dneoforge.enabledGameTestNamespaces includes this mod, which the
         // runGameTestServer run configuration sets.
+        modEventBus.addListener(RegisterCapabilitiesEvent.class, RsmcCapabilities::register);
         modEventBus.addListener(RegisterGameTestsEvent.class,
             event -> event.register(StructureGameTests.class));
         LOGGER.info("[rsmc] v{} loaded", version);

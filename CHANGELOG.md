@@ -6,6 +6,39 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.3
+
+**The structure connects to a Refined Storage network.** (Issue #2, step 1 of 4.) Shell block
+entities now expose network node containers, so a cable touching any face of the box joins it.
+
+**The design was settled by reading RS rather than guessing, and the obvious approach is wrong.**
+The tempting one is a single node for the whole structure declaring every surface-adjacent
+position as a connection point -- `ConnectionStrategy.addOutgoingConnections` is `@API STABLE`
+and takes arbitrary positions, so it looks available.
+
+But `ConnectionProviderImpl.findConnectionsAt` walks the graph **outgoing-only**: it asks a
+container where it reaches, then looks for containers *at those positions*. A cable reaches its
+six neighbours, so a cable against one of our wall blocks probes that wall position -- and if
+nothing lives there, the walk never arrives. Our own outgoing connections cannot help, because
+nothing ever gets to us to ask for them. One node at the corner would connect at the corner and
+nowhere else.
+
+So every shell block hosts a container with a trivial connectivity node, exactly as an RS cable
+does: 98 for a 5x5x5, 2,168 for a 16x16x16. The interior hosts none -- a sealed box cannot be
+probed from outside, which is the other half of why a CPU has no block entity.
+
+**The lookup is a NeoForge capability**, not an interface on the block entity.
+`PlatformImpl.getContainerProviderSafely` resolves
+`RefinedStorageNeoForgeApi.getNetworkNodeContainerProviderCapability()`. Miss that registration
+and the block entities exist, hold nodes, and are invisible to the network while every block
+still places, renders and breaks perfectly with nothing logged.
+
+Which is why the gametest asks the question *the way RS asks it* -- resolve the capability at the
+position -- and was confirmed by disabling the registration and watching it fail. The energy
+model is deliberately not split across these nodes: they draw zero, and the whole structure will
+be charged once on the pattern provider node, because the interior blocks have no block entity
+to charge and a per-node split would leave half the structure running free.
+
 ## 0.0.2
 
 **The creative tab sits next to Refined Storage's now** instead of wherever registration order

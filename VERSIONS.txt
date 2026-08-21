@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.3
+-----
+  The structure joins an RS network (#2, step 1/4). Every shell block hosts a node container,
+  because RS walks the graph OUTGOING-ONLY - a cable probes the position next to it, so one
+  node at the corner would connect only at the corner. Found by reading
+  ConnectionProviderImpl, not guessed. The lookup is a NeoForge capability; missing it is
+  silent. Gametest asks the way RS asks, confirmed to fail without the registration.
+
 0.0.2
 -----
   Creative tab pinned immediately after Refined Storage's via withTabsAfter, instead of being
