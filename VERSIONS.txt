@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.2.0
+-----
+  Structure reshaped to Reborn Storage's shell-and-core: four blocks, not two. Edges are
+  Frames, walls are Casing, the interior is CPUs and Pattern Storage with at least one of
+  each. A position's role is how many of its coordinates sit at an extreme of the box. The
+  3x3x4 minimum is DERIVED from the interior requirement, not declared anywhere. Confirmed
+  against the real Reborn Storage 5.0.7 jar. 24 headless cases, still no blocks.
+
 0.1.0
 -----
   Project set up. Structure detection and the throughput model, both pure logic with no

@@ -6,33 +6,52 @@ import java.util.HashSet;
 import javax.annotation.Nullable;
 
 /**
- * Finds and validates the crafter multiblock: a <em>solid</em> rectangular box of rsmc blocks,
- * between 1x1x1 and 16x16x16.
+ * Finds and validates the crafter multiblock: a hollow rectangular box with a working core.
  *
- * <p>Deliberately free of Minecraft types. Structure detection is the one part of this mod that is
- * pure geometry, and keeping it that way means it can be exercised in a plain JVM by
- * {@code ./gradlew shapeCheck} instead of by launching the game and building boxes by hand. The
- * level is reached only through {@link BlockSource}.
+ * <p>The shape follows Reborn Storage's multiblock crafter, which is the design this mod is a
+ * fresh take on -- no code or assets from it, only the shape, which is an idea rather than a work.
+ * Reborn Storage was itself openly inspired by Applied Energistics' crafting CPU, so the whole
+ * family looks alike; that is the genre, not a copy.
  *
- * <h2>Why a solid box and not any connected blob</h2>
+ * <h2>The rule</h2>
  *
- * <p>A shape rule has to answer two questions a player will ask: did my structure form, and if not,
- * which block is wrong. An arbitrary connected blob answers neither, because there is no such thing
- * as a missing block in a shape with no expected form. A filled box gives every failure a
- * coordinate, which is what {@link Result#failurePos} carries.
+ * <p>A rectangular box, no bigger than 16 on any axis, whose every position is filled and whose
+ * three roles are decided purely by where a position sits in the box:
  *
- * <p><strong>Consequence worth knowing:</strong> two separate boxes placed flush against each other
- * are one connected region, and that region is not a box, so <em>both</em> stop working. Leave a
- * gap. It is reported as {@link Failure#NOT_SOLID} against a position in the hole.
+ * <ul>
+ *   <li><strong>Edges</strong> -- two or more coordinates at an extreme, which is every edge and
+ *       corner of the box -- must be {@link BlockKind#FRAME}.
+ *   <li><strong>Walls</strong> -- exactly one coordinate at an extreme -- must be
+ *       {@link BlockKind#CASING}.
+ *   <li><strong>Interior</strong> -- no coordinate at an extreme -- must be a
+ *       {@link BlockKind#CPU} or a {@link BlockKind#PATTERN_STORAGE}, and there must be at least
+ *       one of each.
+ * </ul>
+ *
+ * <p><strong>The 3x3x4 minimum is derived, not chosen.</strong> A box needs 3 on every axis before
+ * it has any interior at all, and the core needs at least one CPU and at least one pattern storage
+ * -- so an interior of one block is not enough, and the smallest legal box is the smallest one with
+ * an interior of two. There is no separate minimum check in this class: {@link Failure#NO_CPU} and
+ * {@link Failure#NO_PATTERN_STORAGE} enforce it on their own, which means the rule cannot drift out
+ * of step with the constant that states it.
+ *
+ * <h2>Free of Minecraft types, on purpose</h2>
+ *
+ * <p>All of the above is geometry, so it runs in a plain JVM under {@code ./gradlew shapeCheck}
+ * rather than by launching the game and stacking blocks by hand. The level is reached only through
+ * {@link BlockSource}.
+ *
+ * <p><strong>Consequence worth knowing:</strong> two structures placed flush against each other are
+ * one connected region, and that region is not a box, so <em>both</em> stop working. Leave a gap.
  */
 public final class MultiblockShape {
-    /** Per axis, matching the design: a 16x16x16 box of 4096 blocks is the largest legal one. */
+    /** Per axis. 16x16x16 is the largest legal structure. */
     public static final int MAX_EDGE = 16;
 
     /**
-     * The most blocks a search will visit before giving up -- the largest legal structure. Without
-     * a cap, a player who floors an entire chunk in crafter blocks would have this scanning
-     * hundreds of thousands of positions on the tick the last one is placed.
+     * The most blocks a search will visit before giving up. Without a cap, a player who floors a
+     * chunk in crafter blocks would have this scanning hundreds of thousands of positions on the
+     * tick the last one is placed.
      */
     public static final int MAX_VOLUME = MAX_EDGE * MAX_EDGE * MAX_EDGE;
 
@@ -45,8 +64,8 @@ public final class MultiblockShape {
         /**
          * @return the rsmc block at this position, or null for anything else -- air, stone, a
          *     chest, or an unloaded chunk. Treating unloaded as "not ours" is deliberate: a
-         *     structure must never form across a chunk boundary it cannot see, or it would
-         *     silently change shape when that chunk loads.
+         *     structure must never form across a chunk boundary it cannot see, or it would silently
+         *     change shape when that chunk loads.
          */
         @Nullable
         Component blockAt(int x, int y, int z);
@@ -55,39 +74,61 @@ public final class MultiblockShape {
     /**
      * One block of the structure.
      *
-     * @param kind which of the two block types it is
-     * @param tier the CPU tier, or null for a pattern storage -- there is only one storage tier
+     * @param kind which of the four block types it is
+     * @param tier the CPU tier; null for everything that is not a CPU
      */
     public record Component(BlockKind kind, @Nullable CpuTier tier) {
         public static Component cpu(final CpuTier tier) {
             return new Component(BlockKind.CPU, tier);
         }
 
-        public static Component patternStorage() {
-            return new Component(BlockKind.PATTERN_STORAGE, null);
+        public static Component of(final BlockKind kind) {
+            return new Component(kind, null);
         }
     }
 
-    /** The two block types the structure is built from. */
+    /** The four block types, and the role each one fills. */
     public enum BlockKind {
-        /** Adds crafting throughput. Tiered. */
+        /** Edges and corners of the box. */
+        FRAME,
+        /** The flat wall panels between the edges. */
+        CASING,
+        /** Interior. Adds crafting speed. Tiered. */
         CPU,
-        /** Holds patterns. One tier only. */
-        PATTERN_STORAGE
+        /** Interior. Holds patterns. One tier only. */
+        PATTERN_STORAGE;
+
+        /** Whether this block belongs in the core rather than in the shell. */
+        boolean isInterior() {
+            return this == CPU || this == PATTERN_STORAGE;
+        }
+    }
+
+    /** Where a position sits in the box, which is what decides the block it must hold. */
+    public enum Role {
+        /** Two or more coordinates at an extreme. Wants a {@link BlockKind#FRAME}. */
+        EDGE,
+        /** Exactly one coordinate at an extreme. Wants a {@link BlockKind#CASING}. */
+        WALL,
+        /** No coordinate at an extreme. Wants a CPU or a pattern storage. */
+        INTERIOR
     }
 
     /** Why a structure did not form. */
     public enum Failure {
-        /**
-         * The connected region is not a filled box: its bounding box contains a position that is
-         * not an rsmc block. {@link Result#failurePos} is that hole.
-         */
+        /** A position inside the bounding box holds no rsmc block at all. */
         NOT_SOLID,
+        /** The region runs past {@link #MAX_EDGE} on some axis. */
+        TOO_LARGE,
+        /** A position holds an rsmc block, but the wrong one for where it sits. */
+        WRONG_BLOCK,
         /**
-         * The region runs past {@link #MAX_EDGE} along at least one axis. {@link Result#failurePos}
-         * is the block that overshot.
+         * The interior holds no CPU. Also what a box too small to have an interior fails as, since
+         * an interior of nothing contains no CPU.
          */
-        TOO_LARGE
+        NO_CPU,
+        /** The interior holds no pattern storage, so there is nowhere to put a pattern. */
+        NO_PATTERN_STORAGE
     }
 
     /**
@@ -96,74 +137,132 @@ public final class MultiblockShape {
      * @param formed          whether the bounds and counts mean anything
      * @param failure         null when formed
      * @param failurePos      the offending position as {x, y, z}, or null when formed
-     * @param cpus            how many CPU blocks the box contains, of any tier
+     * @param expected        for {@link Failure#WRONG_BLOCK} and {@link Failure#NOT_SOLID}, the
+     *                        role that position needed to fill; null otherwise
+     * @param cpus            how many CPU blocks the core holds, of any tier
      * @param stepsPerTick    the sum of those CPUs' tier weights -- the structure's crafting rate
-     * @param patternStorages how many pattern storage blocks the box contains
+     * @param patternStorages how many pattern storage blocks the core holds
      */
     public record Result(boolean formed,
                          @Nullable Failure failure,
                          @Nullable int[] failurePos,
+                         @Nullable Role expected,
                          int minX, int minY, int minZ,
                          int maxX, int maxY, int maxZ,
                          int cpus,
                          int stepsPerTick,
                          int patternStorages) {
         public int volume() {
-            return (this.maxX - this.minX + 1)
-                * (this.maxY - this.minY + 1)
-                * (this.maxZ - this.minZ + 1);
+            return this.sizeX() * this.sizeY() * this.sizeZ();
         }
 
-        static Result failed(final Failure failure, final int x, final int y, final int z) {
-            return new Result(false, failure, new int[] {x, y, z}, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        public int sizeX() {
+            return this.maxX - this.minX + 1;
+        }
+
+        public int sizeY() {
+            return this.maxY - this.minY + 1;
+        }
+
+        public int sizeZ() {
+            return this.maxZ - this.minZ + 1;
+        }
+
+        static Result failed(final Failure failure, @Nullable final Role expected,
+                             final int x, final int y, final int z) {
+            return new Result(false, failure, new int[] {x, y, z}, expected,
+                0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
     }
 
     /**
      * Walks the region containing the seed and decides whether it is a legal structure.
      *
-     * <p>Two passes rather than one clever pass. The first floods the connected region to find its
-     * extent; the second checks every position inside the resulting bounding box. One pass cannot
-     * do this: "is the box solid" is not a property any individual block has, and a flood fill that
-     * has visited N blocks knows nothing about whether the box it spans is full until it knows what
-     * that box is.
+     * <p>Two passes. The first floods the connected region of rsmc blocks to find its extent; the
+     * second checks every position inside the resulting bounding box against the role that position
+     * demands. One pass cannot do this: the role of a position is defined against the bounds, and
+     * a flood fill knows nothing about the bounds until it has finished.
      */
     public static Result find(final BlockSource source,
                               final int seedX, final int seedY, final int seedZ) {
         if (source.blockAt(seedX, seedY, seedZ) == null) {
-            return Result.failed(Failure.NOT_SOLID, seedX, seedY, seedZ);
+            return Result.failed(Failure.NOT_SOLID, null, seedX, seedY, seedZ);
         }
         final Flood flood = new Flood(source, seedX, seedY, seedZ);
         final Failure floodFailure = flood.run();
         if (floodFailure != null) {
-            return Result.failed(floodFailure, flood.farX, flood.farY, flood.farZ);
+            return Result.failed(floodFailure, null, flood.farX, flood.farY, flood.farZ);
         }
-        // The bounding box is known now, so it can be checked for holes. Counting the two block
-        // kinds happens here rather than during the flood because the flood visits exactly the
-        // same positions only when the region IS a box -- which is the thing not yet decided.
         int cpus = 0;
         int stepsPerTick = 0;
         int patternStorages = 0;
         for (int x = flood.minX; x <= flood.maxX; x++) {
             for (int y = flood.minY; y <= flood.maxY; y++) {
                 for (int z = flood.minZ; z <= flood.maxZ; z++) {
+                    final Role role = roleOf(flood, x, y, z);
                     final Component component = source.blockAt(x, y, z);
                     if (component == null) {
-                        return Result.failed(Failure.NOT_SOLID, x, y, z);
+                        return Result.failed(Failure.NOT_SOLID, role, x, y, z);
+                    }
+                    if (!fits(role, component.kind())) {
+                        return Result.failed(Failure.WRONG_BLOCK, role, x, y, z);
                     }
                     if (component.kind() == BlockKind.CPU && component.tier() != null) {
                         cpus++;
                         stepsPerTick += component.tier().stepsPerTick();
-                    } else {
+                    } else if (component.kind() == BlockKind.PATTERN_STORAGE) {
                         patternStorages++;
                     }
                 }
             }
         }
-        return new Result(true, null, null,
+        // Reported against the middle of the box, which for a structure with no interior is the
+        // position a player would have to make room at. Nothing else in the box is at fault, so
+        // pointing at a shell block would be actively misleading.
+        final int midX = (flood.minX + flood.maxX) / 2;
+        final int midY = (flood.minY + flood.maxY) / 2;
+        final int midZ = (flood.minZ + flood.maxZ) / 2;
+        if (cpus == 0) {
+            return Result.failed(Failure.NO_CPU, Role.INTERIOR, midX, midY, midZ);
+        }
+        if (patternStorages == 0) {
+            return Result.failed(Failure.NO_PATTERN_STORAGE, Role.INTERIOR, midX, midY, midZ);
+        }
+        return new Result(true, null, null, null,
             flood.minX, flood.minY, flood.minZ,
             flood.maxX, flood.maxY, flood.maxZ,
             cpus, stepsPerTick, patternStorages);
+    }
+
+    /**
+     * Which role a position fills, from how many of its coordinates sit at an extreme of the box.
+     *
+     * <p>Counting extremes is the whole rule. A corner has three, an edge two, a wall one, and the
+     * interior none -- so "edges and corners are frames" needs no special case for corners.
+     */
+    private static Role roleOf(final Flood bounds, final int x, final int y, final int z) {
+        int extremes = 0;
+        if (x == bounds.minX || x == bounds.maxX) {
+            extremes++;
+        }
+        if (y == bounds.minY || y == bounds.maxY) {
+            extremes++;
+        }
+        if (z == bounds.minZ || z == bounds.maxZ) {
+            extremes++;
+        }
+        if (extremes >= 2) {
+            return Role.EDGE;
+        }
+        return extremes == 1 ? Role.WALL : Role.INTERIOR;
+    }
+
+    private static boolean fits(final Role role, final BlockKind kind) {
+        return switch (role) {
+            case EDGE -> kind == BlockKind.FRAME;
+            case WALL -> kind == BlockKind.CASING;
+            case INTERIOR -> kind.isInterior();
+        };
     }
 
     /**

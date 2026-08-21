@@ -19,13 +19,13 @@ bin/
 
 # Decompiled Refined Storage sources, kept locally for reference.
 #
-# NOT ignored because it is big -- it is ignored because it is somebody else's source
-# code, recovered from their jar. Committing it to a public repository would redistribute
-# Refined Storage's code under our name. Regenerate it locally; see SETUP.md.
+# Ignored because it is a build input, not source: a jar does not belong in git, and RS
+# should be fetched from upstream rather than vendored here. (RS is MIT, so redistributing
+# it would in fact be permitted -- that is not the reason.) Regenerate locally; see SETUP.md.
 decompiled/
 
 # libs/ holds Refined Storage's jar, taken from a Minecraft instance. Same reasoning:
-# it is not ours to redistribute. A fresh clone has none of it -- SETUP.md says what to
+# a jar is a build input, not source. A fresh clone has none of it -- SETUP.md says what to
 # copy in.
 libs/
 
@@ -39,3 +39,9 @@ logs/
 
 # ...but the Gradle wrapper jar must be committed, or a fresh clone cannot build.
 !gradle/wrapper/gradle-wrapper.jar
+
+# Third-party textures unpacked from other mods' jars, as a working reference while
+# drawing ours. Both sources are MIT so redistributing them would be permitted, but these
+# are scratch copies, not assets of this mod -- the real ones live in src/main/resources
+# and are covered by ATTRIBUTION.md.
+texture-refs/
