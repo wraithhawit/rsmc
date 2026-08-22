@@ -6,6 +6,29 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.1
+
+**The multi-second freeze while shift-clicking patterns in.**
+
+`PatternProviderNetworkNode.setPattern` is not a store. It tells the autocrafting component to
+remove the old pattern and add the new one, which invalidates Refined Storage's crafting indexes
+-- so re-pushing every slot because one changed redid that work for the entire structure. Once per
+shift-click, and a shift-click can move a lot of patterns.
+
+The old guard was a version *sum* across the storage blocks: enough to tell that something had
+changed, useless for telling **what**. It now tracks dirty slots per block as a `BitSet`, and the
+Controller pushes exactly those. Putting one pattern in costs one `setPattern`, not fifty-four.
+
+The offsets live in `StructurePatterns` because that is the only thing that knows them -- a storage
+block knows its own slot 0 but not that it is the structure's slot 54. Draining rather than
+reading is deliberate too: a separate clear step is a step an early return can skip.
+
+> **On the patterns that went missing:** the likely cause is the 78 -> 54 nerf in 0.0.25. Blocks
+> saved at 78 slots keep patterns in slots 54-77 that the smaller inventory has nowhere to put, and
+> they are dropped on load. That was flagged when the nerf shipped, and it only bites once, on a
+> world that predates it. If patterns vanish again in a world created after 0.0.25, that is a
+> different and much more serious bug -- worth saying so it is not written off as the same thing.
+
 ## 0.1.0 -- it crafts
 
 **The minor digit, because the crafter crafts.** That was the milestone named for `0.1.0` when the

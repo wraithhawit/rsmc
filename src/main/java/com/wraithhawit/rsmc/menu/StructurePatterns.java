@@ -1,8 +1,10 @@
 package com.wraithhawit.rsmc.menu;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.IntConsumer;
 
 import com.wraithhawit.rsmc.block.PatternStorageBlockEntity;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
@@ -90,19 +92,36 @@ public final class StructurePatterns implements Container {
         return this.storages.size();
     }
 
-    /**
-     * A number that changes whenever any pattern in the structure does.
-     *
-     * <p>Lets the Controller skip re-parsing every pattern into the network node once a second when
-     * nothing has changed -- which is almost always. A sum rather than anything cleverer: it is a
-     * handful of int reads, and any single change moves it.
-     */
-    public int patternsVersion() {
-        int version = 0;
+    /** Whether anything at all needs pushing, so the usual case costs one loop and no work. */
+    public boolean hasDirtySlots() {
         for (final PatternStorageBlockEntity storage : this.storages) {
-            version += storage.patternsVersion();
+            if (storage.hasDirtySlots()) {
+                return true;
+            }
         }
-        return version;
+        return false;
+    }
+
+    /**
+     * Visits the slots that have changed, in this view's global numbering, and forgets them.
+     *
+     * <p>The offsets live here because this is the only thing that knows them -- a storage block
+     * knows its own slot 0 but not that it is the structure's slot 54.
+     */
+    public void drainDirtySlots(final IntConsumer consumer) {
+        int offset = 0;
+        for (final PatternStorageBlockEntity storage : this.storages) {
+            final BitSet dirty = storage.drainDirtySlots();
+            for (int local = dirty.nextSetBit(0); local >= 0; local = dirty.nextSetBit(local + 1)) {
+                consumer.accept(offset + local);
+            }
+            offset += storage.patterns().getContainerSize();
+        }
+    }
+
+    /** Marks everything for pushing, for a node that has just been rebuilt and holds nothing. */
+    public void markAllDirty() {
+        this.storages.forEach(PatternStorageBlockEntity::markAllDirty);
     }
 
     @Override

@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.1
+-----
+  Fixed the multi-second freeze when shift-clicking patterns in: setPattern invalidates RS's
+  crafting indexes, and every insert re-pushed EVERY slot. Now tracks dirty slots per storage
+  block as a BitSet and pushes only those. Missing patterns are most likely the 78->54 nerf
+  truncating old saves - if it recurs in a post-0.0.25 world, that is a different bug.
+
 0.1.0
 -----
   IT CRAFTS. The milestone the versioning rule reserved the minor digit for. Also halved the

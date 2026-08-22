@@ -59,9 +59,6 @@ public class ControllerBlockEntity extends BlockEntity {
     /** What the current node was built for, so a rebuild happens only when it must. */
     private int builtCapacity;
 
-    /** Sum of the storage blocks' pattern versions when patterns were last pushed. */
-    private int pushedPatternsVersion = -1;
-
     /**
      * Whether the current container has actually joined a network.
      *
@@ -199,38 +196,35 @@ public class ControllerBlockEntity extends BlockEntity {
         this.containerProvider.initialize(currentLevel, null);
         this.joinedNetwork = true;
         this.builtCapacity = capacity;
-        // The new node has no patterns at all, so the next push must not be skipped.
-        this.pushedPatternsVersion = -1;
+        // The new node holds nothing, so everything has to be pushed into it again.
+        StructurePatterns.of(currentLevel, this.worldPosition).markAllDirty();
     }
 
     /**
-     * Hands the structure's patterns to the node.
+     * Hands the changed patterns to the node.
      *
-     * <p>Guarded by a version sum rather than done on every refresh. Turning an item into a
-     * {@link Pattern} parses it, and a large structure holds hundreds -- doing that once a second to
-     * usually discover that nothing had changed would be real work for no result.
+     * <p><strong>Only the slots that changed.</strong> {@code setPattern} is not a store -- it tells
+     * the autocrafting component to remove the old pattern and add the new one, which invalidates
+     * Refined Storage's crafting indexes. Re-pushing every slot because one changed redoes that for
+     * the whole structure, which is what a multi-second freeze per shift-click turned out to be.
      */
     private void pushPatternsIfChanged(final Level currentLevel, final StructurePatterns patterns) {
-        final int version = patterns.patternsVersion();
-        if (version == this.pushedPatternsVersion) {
+        if (!patterns.hasDirtySlots()) {
             return;
         }
-        // Bounded by what the node actually has, not by what the structure has. When capacity has
-        // changed the node is still the old size until the rebuild lands a tick later, and writing
-        // past it is an ArrayIndexOutOfBounds inside RS -- another server crash. Being briefly out
-        // of date is fine; the rebuild forces a full re-push when it arrives.
-        final int slots = Math.min(patterns.getContainerSize(), this.builtCapacity);
-        if (slots < patterns.getContainerSize()) {
+        // The node is still the old size until a capacity rebuild lands a tick later, and writing
+        // past it is an ArrayIndexOutOfBounds inside RS. Waiting costs nothing: the rebuild marks
+        // every slot dirty again.
+        if (patterns.getContainerSize() != this.builtCapacity) {
             return;
         }
-        for (int slot = 0; slot < slots; slot++) {
+        patterns.drainDirtySlots(slot -> {
             final ItemStack stack = patterns.getItem(slot);
             final Pattern pattern = stack.isEmpty()
                 ? null
                 : RefinedStorageApi.INSTANCE.getPattern(stack, currentLevel).orElse(null);
             this.node.setPattern(slot, pattern);
-        }
-        this.pushedPatternsVersion = version;
+        });
     }
 
     private void updateScreen(final Level currentLevel, final Result result) {

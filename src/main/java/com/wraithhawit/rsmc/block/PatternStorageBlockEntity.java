@@ -8,6 +8,8 @@ import com.wraithhawit.rsmc.content.RsmcBlockEntities;
 import com.wraithhawit.rsmc.structure.StructurePower;
 
 import net.minecraft.core.BlockPos;
+import java.util.BitSet;
+
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
@@ -41,26 +43,47 @@ public class PatternStorageBlockEntity extends BlockEntity implements BlockEntit
         new PatternInventory(StructurePower.PATTERNS_PER_STORAGE, this::getLevel);
 
     /**
-     * Bumped whenever a pattern in this block changes.
+     * Which slots have changed since the Controller last pushed them into the network node.
      *
-     * <p>The Controller pushes patterns into the network node, and re-reading every pattern in the
-     * structure once a second would mean parsing hundreds of them to usually learn nothing. Summing
-     * this across the structure's storage blocks is a handful of int reads, and a change to any
-     * pattern anywhere moves the sum.
+     * <p><strong>Per slot, not per block, and not a version counter.</strong> Handing a pattern to
+     * the node is not cheap: {@code PatternProviderNetworkNode.setPattern} tells the autocrafting
+     * component to remove the old pattern and add the new one, which invalidates Refined Storage's
+     * crafting indexes. Re-pushing every slot because one changed therefore redoes that work for the
+     * whole structure -- which showed up as a multi-second freeze while shift-clicking patterns in,
+     * once per click.
+     *
+     * <p>Marked dirty on load as well, so a freshly built node gets everything.
      */
-    private int patternsVersion;
+    private final BitSet dirtySlots = new BitSet(StructurePower.PATTERNS_PER_STORAGE);
 
     public PatternStorageBlockEntity(final BlockPos pos, final BlockState state) {
         super(RsmcBlockEntities.PATTERN_STORAGE.get(), pos, state);
         this.patterns.setListener(slot -> {
-            this.patternsVersion++;
+            this.dirtySlots.set(slot);
             this.setChanged();
         });
+        this.markAllDirty();
     }
 
-    /** See {@link #patternsVersion}. */
-    public int patternsVersion() {
-        return this.patternsVersion;
+    /** Every slot needs pushing: after a load, or into a node that has just been rebuilt. */
+    public void markAllDirty() {
+        this.dirtySlots.set(0, StructurePower.PATTERNS_PER_STORAGE);
+    }
+
+    public boolean hasDirtySlots() {
+        return !this.dirtySlots.isEmpty();
+    }
+
+    /**
+     * Hands over the changed slots and forgets them.
+     *
+     * <p>Draining rather than reading is deliberate: if the caller is going to push these, they stop
+     * being changed. A separate "clear" step is a step that can be skipped on an early return.
+     */
+    public BitSet drainDirtySlots() {
+        final BitSet drained = (BitSet) this.dirtySlots.clone();
+        this.dirtySlots.clear();
+        return drained;
     }
 
     /** The slots this block contributes to the structure's pattern screen. */
