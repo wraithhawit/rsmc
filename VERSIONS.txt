@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.0
+-----
+  IT CRAFTS. The milestone the versioning rule reserved the minor digit for. Also halved the
+  refresh cost: the Controller found the structure and StructurePatterns.of found it again, so
+  the box was scanned twice a second. Remaining known cost is that once-a-second O(volume)
+  refresh - the poll #3 removes.
+
 0.0.25
 -----
   Pattern Storage nerfed 78 -> 54 patterns. Also fits the screen better: 54 is six rows of nine,

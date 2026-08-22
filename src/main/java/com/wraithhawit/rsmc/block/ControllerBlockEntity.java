@@ -164,7 +164,7 @@ public class ControllerBlockEntity extends BlockEntity {
             return;
         }
         this.node.setEnergyUsage(StructurePower.energyUsage(result));
-        final StructurePatterns patterns = StructurePatterns.of(currentLevel, this.worldPosition);
+        final StructurePatterns patterns = StructurePatterns.of(currentLevel, result);
         this.ensureCapacity(currentLevel, patterns.getContainerSize());
         this.pushPatternsIfChanged(currentLevel, patterns);
         final boolean active = this.hasEnergy();

@@ -6,6 +6,29 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.0 -- it crafts
+
+**The minor digit, because the crafter crafts.** That was the milestone named for `0.1.0` when the
+versioning rule was written, and it has been reached: patterns go in, appear in the Refined
+Storage system, and craft.
+
+**One optimisation before performance testing, so the numbers mean something.** The Controller
+found the structure and then called `StructurePatterns.of`, which found it again -- so the
+once-a-second refresh scanned the box **twice**, up to 4,096 positions each time, every one of
+them a chunk lookup as well as a block read. It now hands the result it already has along.
+
+### Where the remaining cost is, stated before measuring it
+
+Per formed structure, per second: one `MultiblockShape.find` over the whole volume, plus one
+`getBlockEntity` per interior position. For a 16x16x16 that is 4,096 block reads and 2,744 block
+entity lookups. Every craft step itself is a normal RS pattern provider tick and costs what an
+autocrafter costs.
+
+That refresh is the poll #3 exists to remove, and it is O(volume) -- so it should show up in a
+profile as `refreshStateOccasionally`, growing with structure size and with the number of
+structures, not with how much crafting is happening. If a profile shows something else on top,
+that is the more interesting result.
+
 ## 0.0.25
 
 **Pattern Storage nerfed from 78 patterns to 54.** Wraith's call.

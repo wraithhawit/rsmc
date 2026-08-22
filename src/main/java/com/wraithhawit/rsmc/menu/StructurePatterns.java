@@ -50,8 +50,18 @@ public final class StructurePatterns implements Container {
      * player is told why by {@code /rsmc info} rather than by an empty window.
      */
     public static StructurePatterns of(final Level level, final BlockPos seed) {
-        final Result result = MultiblockShape.find(
-            new LevelBlockSource(level), seed.getX(), seed.getY(), seed.getZ());
+        return of(level, MultiblockShape.find(
+            new LevelBlockSource(level), seed.getX(), seed.getY(), seed.getZ()));
+    }
+
+    /**
+     * The same, for a caller that has already found the structure.
+     *
+     * <p>Worth having: the Controller's refresh finds the structure and then wants its patterns, and
+     * without this it scanned the box twice a second -- up to 4,096 positions each time, every one
+     * of them a chunk lookup as well as a block read. Handing the result along is free.
+     */
+    public static StructurePatterns of(final Level level, final Result result) {
         if (!result.formed()) {
             return new StructurePatterns(List.of());
         }
