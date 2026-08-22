@@ -6,6 +6,37 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.2
+
+**`StructurePatterns.canPlaceItem` was 16.3% of the server thread.** Found in Wraith's first spark
+profile, and it is the largest single cost the mod has had.
+
+`ItemHandlerHelper.insertItem` walks **every slot** looking for one that will take the item,
+calling `canPlaceItem` on each. The filter behind ours is RS's `PatternProviderItem.isValid`,
+which parses the pattern. So one shift-click into a 54-slot structure validated the same pattern
+54 times, and more storage blocks multiplied it again.
+
+The slot cannot change the answer -- `FilteredContainer.canPlaceItem` ignores it and tests the
+stack alone -- so the result is now remembered for as long as the same stack keeps being offered,
+which is exactly the length of one insert.
+
+Compared **by identity**, deliberately: `ItemStack` has no meaningful `equals`, so a value
+comparison is not on offer, and identity is what is wanted anyway. The guarantee being relied on
+is that `insertItem` passes the same instance down its loop; any other instance re-checks.
+
+### What else the profile said
+
+Our per-second refresh -- the thing predicted to dominate -- is **0.18%**, and
+`MultiblockShape.find` inside it is 0.15%. The prediction was wrong, and wrong in a useful
+direction: the O(volume) scan #3 exists to remove is not currently worth removing.
+
+The largest cost on that server is not this mod at all: **22.8% is Step Crafter's step requester**
+starting tasks, through RS's crafting calculator, with `MutablePatternPlan.copy` alone at 6.1%
+self time.
+
+Worth recording as a method note: the guess was reasonable and measurement disagreed within one
+profile. It would have been quicker to ask for one earlier.
+
 ## 0.1.1
 
 **The multi-second freeze while shift-clicking patterns in.**

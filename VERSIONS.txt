@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.2
+-----
+  canPlaceItem was 16.3% of the server thread: insertItem calls it per slot and the filter
+  parses the pattern, so one shift-click validated the same pattern 54 times. Memoised per
+  stack (by identity - ItemStack has no equals). Profile also showed the predicted hot path,
+  the once-a-second refresh, is 0.18% - and that 22.8% belongs to Step Crafter, not us.
+
 0.1.1
 -----
   Fixed the multi-second freeze when shift-clicking patterns in: setPattern invalidates RS's

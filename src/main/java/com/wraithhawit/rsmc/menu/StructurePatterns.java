@@ -6,6 +6,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.IntConsumer;
 
+import javax.annotation.Nullable;
+
 import com.wraithhawit.rsmc.block.PatternStorageBlockEntity;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
@@ -35,6 +37,14 @@ import net.minecraft.world.level.Level;
 public final class StructurePatterns implements Container {
     private final List<PatternStorageBlockEntity> storages;
     private final int size;
+
+    /**
+     * One-entry memo for {@link #canPlaceItem}. Not persisted, not shared, and thrown away with the
+     * view -- a view lives for one menu or one refresh.
+     */
+    @Nullable
+    private ItemStack lastCheckedStack;
+    private boolean lastCheckedResult;
 
     private StructurePatterns(final List<PatternStorageBlockEntity> storages) {
         this.storages = storages;
@@ -169,10 +179,35 @@ public final class StructurePatterns implements Container {
         }
     }
 
+    /**
+     * Whether a pattern may go in a slot -- answered once per stack, not once per slot.
+     *
+     * <p><strong>This was 16% of the server thread.</strong> {@code ItemHandlerHelper.insertItem}
+     * walks every slot looking for one that will take the item, calling this on each; the filter
+     * behind it is RS's {@code PatternProviderItem.isValid}, which parses the pattern. So one
+     * shift-click into a 54-slot structure validated the same pattern 54 times, and a structure with
+     * several storage blocks multiplied that again.
+     *
+     * <p>The slot cannot change the answer: {@code FilteredContainer.canPlaceItem} ignores it and
+     * tests the stack alone. So the result is remembered for as long as the same stack keeps being
+     * offered, which is exactly the duration of one insert.
+     *
+     * <p><strong>Compared by identity, deliberately.</strong> {@code ItemStack} has no meaningful
+     * {@code equals}, so a value comparison is not available -- and identity is what is wanted here
+     * anyway: the guarantee being relied on is that {@code insertItem} passes the same instance down
+     * the loop, and any other instance should be re-checked rather than assumed.
+     */
     @Override
     public boolean canPlaceItem(final int slot, final ItemStack stack) {
+        if (stack == this.lastCheckedStack) {
+            return this.lastCheckedResult;
+        }
         final PatternStorageBlockEntity storage = this.storageFor(slot);
-        return storage != null && storage.patterns().canPlaceItem(this.localIndex(slot), stack);
+        final boolean result =
+            storage != null && storage.patterns().canPlaceItem(this.localIndex(slot), stack);
+        this.lastCheckedStack = stack;
+        this.lastCheckedResult = result;
+        return result;
     }
 
     @Override
