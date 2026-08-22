@@ -6,6 +6,18 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.25
+
+**Pattern Storage nerfed from 78 patterns to 54.** Wraith's call.
+
+54 also happens to be the better number for the screen: it is six full rows of nine, so one
+storage block's slots fill the grid exactly, where 78 left a ragged part-row at every block
+boundary. Still six times a stock autocrafter's nine.
+
+One constant, and everything follows from it -- the pattern inventory size, the menu, the screen,
+the node's capacity and the tests all read `StructurePower.PATTERNS_PER_STORAGE` rather than
+carrying their own copy.
+
 ## 0.0.24
 
 **The stall was not expected -- nothing was ever asking the node to take a step.**

@@ -17,10 +17,13 @@ public final class StructurePower {
     /**
      * Patterns per Pattern Storage block.
      *
-     * <p>Reborn Storage's number, kept because it is the one figure players coming from it will
-     * have a feel for -- 78 against the 9 a stock Refined Storage autocrafter holds.
+     * <p><strong>54, deliberately below Reborn Storage's 78.</strong> It is also the better number
+     * for this screen: 54 is six full rows of nine, so one storage block's slots fill the grid
+     * exactly, where 78 leaves a ragged part-row at every block boundary.
+     *
+     * <p>Still six times a stock Refined Storage autocrafter's nine.
      */
-    public static final int PATTERNS_PER_STORAGE = 78;
+    public static final int PATTERNS_PER_STORAGE = 54;
 
     /** Energy per shell block. Cheap: they are structure, not machinery. */
     private static final long FRAME_COST = 1L;

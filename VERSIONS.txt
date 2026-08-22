@@ -8,6 +8,11 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.25
+-----
+  Pattern Storage nerfed 78 -> 54 patterns. Also fits the screen better: 54 is six rows of nine,
+  so a storage block fills the grid exactly. One constant, everything else derives from it.
+
 0.0.24
 -----
   Crafts stalled because nothing ever called node.doWork(). RS ticks a pattern provider's own
