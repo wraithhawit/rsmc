@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.17
+-----
+  Patterns render as their output: implement RS's PatternOutputRenderingScreen, and copy
+  containsPattern INCLUDING its reference equality, which is what keeps the same pattern in
+  your inventory rendering as a pattern. Lifted renderSlotContents and added RS's
+  SearchIconWidget. Standing instruction from Wraith: reuse RS classes wherever possible -
+  reimplementing what RS solves has cost four bugs in two versions.
+
 0.0.16
 -----
   Four fixes from the first real look at the screen: player inventory floated mid-panel

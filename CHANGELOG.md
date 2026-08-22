@@ -6,6 +6,31 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.17
+
+**Patterns render as what they make**, not as a pattern icon.
+
+RS already had the answer and it is one interface. `PatternRendering` asks the open screen -- if it
+is a `PatternOutputRenderingScreen` -- whether a given stack should draw as its output; the
+Autocrafter Manager, the Autocrafter and the Pattern Grid all implement it. So does this now.
+
+**`containsPattern` is copied from RS reference-equality and all**, which looks like a bug and is
+not: it identifies the one stack instance being drawn, so a pattern in a structure slot renders as
+its output while the very same pattern sitting in the player's inventory below still renders as a
+pattern. Comparing by value would turn the inventory into outputs too.
+
+Also lifted `renderSlotContents` and added RS's `SearchIconWidget`. The slot rendering matters
+more than it looks: the base screen scissors the row area and draws slots outside it, so without
+redrawing them the contents of a stretched, scrolled list land in the wrong place. The pose
+translate is theirs too.
+
+### The standing instruction
+
+Wraith: use as many RS classes as possible. Reimplementing what RS already solves has now cost
+four bugs across two versions -- the blank panel, the floating inventory, the dead scrollbar, and
+pattern icons -- every one of them a behaviour their code already had. **Look for the RS class
+first.** Copy it if it is not public. Only write something new when RS genuinely does not do it.
+
 ## 0.0.16
 
 **Four bugs from the first look at the real screen**, all of them from inheriting RS's stretching

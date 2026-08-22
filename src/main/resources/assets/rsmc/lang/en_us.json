@@ -2,6 +2,7 @@
   "itemGroup.rsmc": "Refined Storage Multiblock Crafter",
 
   "container.rsmc.patterns": "MultiBlock Crafter",
+  "gui.rsmc.patterns.search_help": "Searches the patterns in this crafter by what they make.",
 
   "block.rsmc.frame": "Crafter Frame",
   "block.rsmc.casing": "Crafter Casing",

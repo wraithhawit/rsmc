@@ -122,6 +122,24 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
         return this.patterns.getContainerSize();
     }
 
+    /**
+     * Whether this exact stack is a pattern sitting in one of the structure's slots.
+     *
+     * <p>Lifted from {@code AutocrafterManagerContainerMenu.containsPattern}, <strong>reference
+     * equality and all</strong>. That looks like a bug and is not: it identifies the one stack
+     * instance being drawn, so a pattern in a structure slot renders as its output while the very
+     * same pattern in the player's inventory below still renders as a pattern. Comparing by value
+     * would turn the inventory into outputs too.
+     */
+    public boolean containsPattern(final ItemStack stack) {
+        for (final Slot slot : this.patternSlots) {
+            if (slot.getItem() == stack) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void addPlayerInventory(final Inventory playerInventory) {
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < COLUMNS; column++) {

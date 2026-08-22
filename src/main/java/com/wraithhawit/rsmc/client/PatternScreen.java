@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.refinedmods.refinedstorage.common.api.autocrafting.PatternOutputRenderingScreen;
 import com.refinedmods.refinedstorage.common.support.stretching.AbstractStretchingScreen;
 import com.refinedmods.refinedstorage.common.support.widget.History;
 import com.refinedmods.refinedstorage.common.support.widget.SearchFieldWidget;
+import com.refinedmods.refinedstorage.common.support.widget.SearchIconWidget;
 
 import com.wraithhawit.rsmc.RSMC;
 import com.wraithhawit.rsmc.menu.PatternMenu;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -43,7 +46,8 @@ import net.minecraft.world.item.ItemStack;
  * <em>indices</em>, so the server never has to agree about layout -- filtering cannot desync, and a
  * search that hides a slot cannot lose the pattern in it.
  */
-public class PatternScreen extends AbstractStretchingScreen<PatternMenu> {
+public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
+    implements PatternOutputRenderingScreen {
     private static final ResourceLocation TEXTURE =
         ResourceLocation.fromNamespaceAndPath(RSMC.MODID, "textures/gui/patterns.png");
     private static final List<String> SEARCH_HISTORY = new ArrayList<>();
@@ -88,6 +92,11 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu> {
             this.layout();
         });
         this.addWidget(this.searchField);
+        // RS's own search icon, beside the field, with the mode help on hover -- the magnifier every
+        // other RS screen has. Reused rather than drawn, like everything else here.
+        this.addRenderableWidget(new SearchIconWidget(this.leftPos + 79, this.topPos + 5,
+            () -> Component.translatable("gui.rsmc.patterns.search_help").withStyle(ChatFormatting.GRAY),
+            this.searchField));
         this.layout();
     }
 
@@ -209,6 +218,48 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu> {
             graphics.fill(slotX - 1, slotY - 1, slotX + 17, slotY + 17, 0xFF373737);
             graphics.fill(slotX, slotY, slotX + 16, slotY + 16, 0xFF8B8B8B);
         }
+        this.renderSlotContents(graphics, mouseX, mouseY);
+    }
+
+    /**
+     * Draws the slots and their hover highlight, lifted from
+     * {@code AutocrafterManagerScreen.renderSlotContents}.
+     *
+     * <p>Needed because the base screen scissors the row area and draws slots outside it -- so
+     * without redrawing them here the contents of a stretched, scrolled list render in the wrong
+     * place or not at all. The pose translate is RS's too: slot coordinates are relative to the
+     * window, and this is called with the window's origin already applied.
+     */
+    private void renderSlotContents(final GuiGraphics graphics, final int mouseX, final int mouseY) {
+        graphics.pose().pushPose();
+        graphics.pose().translate((float) this.leftPos, (float) this.topPos, 0.0F);
+        for (final Slot slot : this.getMenu().patternSlots()) {
+            if (slot.x == OFF_SCREEN) {
+                continue;
+            }
+            this.renderSlot(graphics, slot);
+            final boolean hovering = mouseX >= slot.x + this.leftPos
+                && mouseX < slot.x + this.leftPos + 16
+                && mouseY >= slot.y + this.topPos
+                && mouseY < slot.y + this.topPos + 16;
+            if (slot.isActive() && hovering) {
+                renderSlotHighlight(graphics, slot.x, slot.y, 0);
+            }
+        }
+        graphics.pose().popPose();
+    }
+
+    /**
+     * Renders a pattern in a structure slot as the thing it makes, rather than as a pattern.
+     *
+     * <p>RS's {@code PatternRendering} asks the open screen -- if it is a
+     * {@link PatternOutputRenderingScreen} -- whether a given stack should draw as its output. So
+     * this is the whole of it: implement the interface, and patterns in the structure show their
+     * results the way they do in every other RS screen.
+     */
+    @Override
+    public boolean canDisplayOutput(final ItemStack stack) {
+        return this.getMenu().containsPattern(stack);
     }
 
     @Override
