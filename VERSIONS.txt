@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.18
+-----
+  Deleted three more hand-rolled things RS already provides: addPlayerInventory(), the
+  TransferManager for shift-click (one line, and the same path every RS screen uses), and the
+  playerSlots list they made necessary. Assessed copying the Autocrafter Manager wholesale:
+  feasible, maps one group per Pattern Storage block, worth doing after crafting works.
+
 0.0.17
 -----
   Patterns render as their output: implement RS's PatternOutputRenderingScreen, and copy

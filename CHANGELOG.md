@@ -6,6 +6,36 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.18
+
+**Three more things RS already did, deleted from here.** Prompted by asking whether the Autocrafter
+Manager could simply be copied wholesale -- the honest answer being that most of what I had written
+by hand was already sitting in the base class.
+
+| was | is |
+|---|---|
+| four rows of inventory positioned by hand, with a hotbar-gap constant | `addPlayerInventory(inventory, x, y)` |
+| `quickMoveStack` hand-rolled with `moveItemStackTo` and index ranges | `transferManager.addBiTransfer(playerInventory, patterns)` |
+| a `playerSlots` list kept only to reposition them | gone -- the helper owns them |
+
+The shift-click case is the one worth noting. `AbstractBaseContainerMenu.quickMoveStack` already
+delegates to a `TransferManager`; a menu just declares what moves where. One line replaces twenty,
+and it is the same code path every other RS screen uses -- so shift-clicking a pattern behaves
+exactly as it does in an Autocrafter.
+
+### On copying the manager wholesale
+
+It is ~550 lines of menu and screen plus ~200 of supporting types, and it is structured around
+**groups**: `AutocrafterManagerData` is a list of named groups of slot counts, and
+`initializeGroups` lays them out top to bottom.
+
+That maps onto this mod almost exactly -- **one group per Pattern Storage block** instead of one
+per autocrafter -- and would bring named headers per storage block for free. What would not carry
+over is the network-wide machinery: view types, the visible-to-the-manager flag, and search modes
+tied to autocrafter names.
+
+Worth doing, but after the crafter actually crafts. Recorded on #4.
+
 ## 0.0.17
 
 **Patterns render as what they make**, not as a pattern icon.

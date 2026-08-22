@@ -51,7 +51,7 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
 
     private final Container patterns;
     private final List<Slot> patternSlots = new ArrayList<>();
-    private final List<Slot> playerSlots = new ArrayList<>();
+    private final Inventory playerInventory;
 
     /** Server side: real patterns, in the real blocks. */
     public PatternMenu(final int containerId, final Inventory playerInventory,
@@ -82,7 +82,9 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
                 level);
             this.patternSlots.add(this.addSlot(slot));
         }
-        this.addPlayerInventory(playerInventory);
+        this.playerInventory = playerInventory;
+        // Patterns move between the player and the structure, and nothing else moves either way.
+        this.transferManager.addBiTransfer(playerInventory, patterns);
     }
 
     /** In menu order, which is {@link StructurePatterns}' order: by block position. */
@@ -106,16 +108,10 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
      */
     @Override
     public void resized(final int playerInventoryY, final int topYStart, final int topYEnd) {
-        for (int i = 0; i < this.playerSlots.size(); i++) {
-            final Slot slot = this.playerSlots.get(i);
-            final int column = i % COLUMNS;
-            final int row = i / COLUMNS;
-            slot.x = PATTERNS_X + column * SLOT_SIZE;
-            // The last row is the hotbar, which sits a gap below the other three.
-            slot.y = row == 3
-                ? playerInventoryY + 3 * SLOT_SIZE + 4
-                : playerInventoryY + row * SLOT_SIZE;
-        }
+        // RS's own helper, the same call AutocrafterManagerContainerMenu.initializeGroups makes.
+        // An earlier version positioned the four rows by hand and got the hotbar gap from a
+        // constant; this is one line and cannot disagree with how every other RS screen looks.
+        this.addPlayerInventory(this.playerInventory, PATTERNS_X, playerInventoryY);
     }
 
     public int patternSlotCount() {
@@ -140,49 +136,10 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
         return false;
     }
 
-    private void addPlayerInventory(final Inventory playerInventory) {
-        for (int row = 0; row < 3; row++) {
-            for (int column = 0; column < COLUMNS; column++) {
-                this.playerSlots.add(this.addSlot(new Slot(playerInventory,
-                    column + row * COLUMNS + 9, 0, 0)));
-            }
-        }
-        for (int column = 0; column < COLUMNS; column++) {
-            this.playerSlots.add(this.addSlot(new Slot(playerInventory, column, 0, 0)));
-        }
-    }
-
-    /**
-     * Shift-clicking moves patterns between the player and the structure.
-     *
-     * <p>Deliberately does not fall back to "try every slot": a pattern shift-clicked from the
-     * player goes into the structure and nowhere else, and one shift-clicked out of the structure
-     * goes to the player. Anything that is not a pattern cannot enter the structure at all, because
-     * {@link PatternSlot} refuses it.
-     */
-    @Override
-    public ItemStack quickMoveStack(final Player player, final int index) {
-        final Slot slot = this.slots.get(index);
-        if (!slot.hasItem()) {
-            return ItemStack.EMPTY;
-        }
-        final ItemStack stack = slot.getItem();
-        final ItemStack original = stack.copy();
-        final int patternCount = this.patternSlots.size();
-        final boolean fromStructure = index < patternCount;
-        final boolean moved = fromStructure
-            ? this.moveItemStackTo(stack, patternCount, this.slots.size(), true)
-            : this.moveItemStackTo(stack, 0, patternCount, false);
-        if (!moved) {
-            return ItemStack.EMPTY;
-        }
-        if (stack.isEmpty()) {
-            slot.set(ItemStack.EMPTY);
-        } else {
-            slot.setChanged();
-        }
-        return original;
-    }
+    // Shift-click is RS's TransferManager, configured in the constructor: a pattern goes from the
+    // player into the structure and back, and nothing else moves either way. The base class's
+    // quickMoveStack already delegates to it, so there is nothing to override -- an earlier version
+    // hand-rolled the whole thing with moveItemStackTo.
 
     @Override
     public boolean stillValid(final Player player) {
