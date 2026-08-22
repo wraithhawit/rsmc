@@ -6,6 +6,36 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.20
+
+**The pattern provider node.** (#2, the last step.) The Controller now hosts a real
+`PatternProviderNetworkNode`, fed the structure's patterns, its speed and its energy draw -- which
+is everything Refined Storage needs to craft through it.
+
+- **Speed** is `StructureStepBehavior`: N steps every tick, N being the summed CPU tier weight.
+- **Capacity** rebuilds the node when it changes, because `PatternProviderNetworkNode` fixes its
+  slot count at construction. Nothing is lost in the swap -- the patterns are in the Pattern
+  Storage blocks, not on the node, and get pushed straight back into the new one. Had they lived
+  on the node this would be a migration with somewhere to drop them.
+- **Patterns** are pushed only when they change, guarded by a version sum across the storage
+  blocks. Turning an item into a `Pattern` parses it, and doing that for hundreds of slots once a
+  second to usually learn nothing is real work for no result.
+- **A broken structure crafts nothing** rather than crafting slowly or continuing with whatever it
+  was last told.
+
+### And a probe, because reasoning was not converging
+
+Shift-clicking real patterns in stopped working after 0.0.18 moved shift-click onto RS's
+`TransferManager`. The difference is which question gets asked: the old hand-rolled path went
+through `Slot.mayPlace`, which `PatternSlot` implements; `TransferManager` goes through
+`Container.canPlaceItem` on our own `StructurePatterns`.
+
+That is a testable predicate, except for one thing -- **an encoded pattern cannot be conjured in a
+gametest**, and a blank pattern is refused by RS's filter anyway, so a test can only prove the
+negative case. So `/rsmc info` now reports what the structure says about the item in your hand,
+and distinguishes "not a pattern" from "a pattern item, but not an encoded one", which look
+identical from the outside.
+
 ## 0.0.19
 
 **Shift-clicking a non-pattern into the crafter looked like it worked.** It never actually did --

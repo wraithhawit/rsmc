@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.20
+-----
+  The pattern provider node (#2 last step): Controller hosts a real PatternProviderNetworkNode
+  with the structure's patterns, speed and energy. Node rebuilds when capacity changes - free,
+  because patterns live in the blocks. Patterns pushed only when a version sum changes.
+  Plus /rsmc info now says whether the held item is accepted, since an encoded pattern cannot
+  be built in a gametest.
+
 0.0.19
 -----
   Shift-clicking a non-pattern in only LOOKED like it worked: the server always refused, the

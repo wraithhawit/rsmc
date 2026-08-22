@@ -2,62 +2,65 @@ package com.wraithhawit.rsmc.block;
 
 import javax.annotation.Nullable;
 
-import com.refinedmods.refinedstorage.api.network.impl.node.SimpleNetworkNode;
+import com.refinedmods.refinedstorage.api.autocrafting.Pattern;
 import com.refinedmods.refinedstorage.api.network.Network;
 import com.refinedmods.refinedstorage.api.network.energy.EnergyNetworkComponent;
+import com.refinedmods.refinedstorage.api.network.impl.node.patternprovider.PatternProviderNetworkNode;
 import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
 
 import com.wraithhawit.rsmc.content.RsmcBlockEntities;
+import com.wraithhawit.rsmc.menu.StructurePatterns;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
 import com.wraithhawit.rsmc.structure.StructurePower;
+import com.wraithhawit.rsmc.structure.StructureStepBehavior;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * The one block entity that does anything, and the structure's only real network node.
- *
- * <p>It joins the Refined Storage network, keeps the screen honest, and will host the pattern
- * provider once #2 step 2 lands.
+ * The structure's brain: its one network node, and the pattern provider Refined Storage crafts
+ * through.
  *
  * <h2>Still stateless about the structure</h2>
  *
  * <p>Nothing here caches whether the multiblock is formed, how big it is, or what is inside it. The
- * structure is recomputed from the world by {@link MultiblockShape#find} whenever it is needed --
- * including by the screen refresh below, which throws its answer away every time rather than
- * keeping it.
+ * structure is recomputed by {@link MultiblockShape#find} whenever it is needed, and the answer is
+ * thrown away every time. What <em>is</em> kept is what the node was last built for -- its pattern
+ * capacity, and the version of the patterns already pushed into it -- which is not a belief about
+ * the world but a record of what has already been done to the node.
  *
  * <p>This is the exact spot where Reborn Storage's design goes wrong, so it is worth naming: their
  * controller is a persistent object with an assembly state machine and the pattern inventories on
- * it, and its belief about the structure can drift from the blocks that are actually there. Having
- * a controller <em>block</em> is not the same mistake as having a controller <em>object that
- * remembers</em> -- but it is the thing that invites it. If a future change wants to cache the
- * formed structure in this class, that is the mistake the whole design exists to avoid.
+ * it, and its belief about the structure can drift from the blocks that are actually there. A
+ * controller <em>block</em> is not the same mistake as a controller <em>object that remembers</em>
+ * -- but it is the thing that invites it.
  */
 public class ControllerBlockEntity extends BlockEntity {
     /** Once a second. See {@link #refreshStateOccasionally()}. */
     private static final int REFRESH_INTERVAL_TICKS = 20;
 
     /**
-     * Starts at zero and is set from the structure on every refresh -- see
-     * {@link com.wraithhawit.rsmc.structure.StructurePower}. The whole structure is charged here
-     * because the interior blocks have no block entity of their own, so there is nowhere else it
-     * could go.
-     *
-     * <p>It is not only a cost: it is what makes "is this thing actually powered" answerable at
-     * all. A node that draws nothing is satisfied by a network that holds nothing.
+     * The pattern provider. Rebuilt when the structure's pattern capacity changes, because
+     * {@link PatternProviderNetworkNode} fixes its slot count at construction.
      */
-    private final SimpleNetworkNode node = new SimpleNetworkNode(0L);
+    private PatternProviderNetworkNode node = new PatternProviderNetworkNode(0L, 0);
 
     @Nullable
     private NetworkNodeContainerProvider containerProvider;
+
+    /** What the current node was built for, so a rebuild happens only when it must. */
+    private int builtCapacity;
+
+    /** Sum of the storage blocks' pattern versions when patterns were last pushed. */
+    private int pushedPatternsVersion = -1;
 
     public ControllerBlockEntity(final BlockPos pos, final BlockState state) {
         super(RsmcBlockEntities.CONTROLLER.get(), pos, state);
@@ -69,32 +72,36 @@ public class ControllerBlockEntity extends BlockEntity {
      */
     public NetworkNodeContainerProvider containerProvider() {
         if (this.containerProvider == null) {
-            final NetworkNodeContainerProvider provider =
-                RefinedStorageApi.INSTANCE.createNetworkNodeContainerProvider();
-            final InWorldNetworkNodeContainer container = RefinedStorageApi.INSTANCE
-                .createNetworkNodeContainer(this, this.node)
-                .name("controller")
-                .build();
-            provider.addContainer(container);
-            this.containerProvider = provider;
+            this.containerProvider = this.buildContainerProvider();
         }
         return this.containerProvider;
     }
 
-    public SimpleNetworkNode node() {
+    private NetworkNodeContainerProvider buildContainerProvider() {
+        final NetworkNodeContainerProvider provider =
+            RefinedStorageApi.INSTANCE.createNetworkNodeContainerProvider();
+        final InWorldNetworkNodeContainer container = RefinedStorageApi.INSTANCE
+            .createNetworkNodeContainer(this, this.node)
+            .name("controller")
+            .build();
+        provider.addContainer(container);
+        return provider;
+    }
+
+    public PatternProviderNetworkNode node() {
         return this.node;
     }
 
     /**
-     * Keeps the screen truthful: unformed, formed-but-unplugged, or live.
+     * Keeps the node and the screen in step with the blocks that are actually there.
      *
-     * <p>Once a second, not every tick. All this decides is which of three pictures to show, and
-     * re-reading the structure means walking up to 4,096 positions -- worth doing to keep the
-     * feedback honest, not worth doing twenty times a second.
+     * <p>Once a second, not every tick: re-reading the structure walks up to 4,096 positions and
+     * nothing here needs to be more current than that. RS drives the crafting itself, at the rate
+     * {@link StructureStepBehavior} reports, so a slow refresh does not slow crafting down -- it
+     * only delays noticing that the structure changed.
      *
-     * <p>Polling at all is a placeholder. #3 replaces it with updates driven by the block changes
-     * that can actually alter the answer; until that exists, a slow poll is the version that cannot
-     * silently go stale.
+     * <p>Polling at all is a placeholder; #3 replaces it with updates driven by the block changes
+     * that can actually alter the answer.
      */
     public void refreshStateOccasionally() {
         final Level currentLevel = this.level;
@@ -104,11 +111,93 @@ public class ControllerBlockEntity extends BlockEntity {
         if (currentLevel.getGameTime() % REFRESH_INTERVAL_TICKS != 0) {
             return;
         }
+        final Result result = MultiblockShape.find(new LevelBlockSource(currentLevel),
+            this.worldPosition.getX(), this.worldPosition.getY(), this.worldPosition.getZ());
+        this.syncNode(currentLevel, result);
+        this.updateScreen(currentLevel, result);
+    }
+
+    /**
+     * Points the node at what the structure currently is: its capacity, its patterns, its speed and
+     * its energy draw.
+     */
+    private void syncNode(final Level currentLevel, final Result result) {
+        if (!result.formed()) {
+            // A broken structure crafts nothing, rather than crafting slowly or continuing to craft
+            // whatever it was last told about.
+            this.node.setStepBehavior(StructureStepBehavior.IDLE);
+            this.node.setActive(false);
+            return;
+        }
+        this.node.setEnergyUsage(StructurePower.energyUsage(result));
+        final StructurePatterns patterns = StructurePatterns.of(currentLevel, this.worldPosition);
+        this.ensureCapacity(currentLevel, patterns.getContainerSize());
+        this.pushPatternsIfChanged(currentLevel, patterns);
+        final boolean active = this.hasEnergy();
+        this.node.setActive(active);
+        this.node.setStepBehavior(new StructureStepBehavior(result.stepsPerTick(), active));
+    }
+
+    /**
+     * Rebuilds the node when the structure gains or loses pattern capacity.
+     *
+     * <p>{@link PatternProviderNetworkNode} takes its slot count in the constructor and never
+     * changes it, so adding a Pattern Storage block means a new node -- and a new container, and
+     * rejoining the network.
+     *
+     * <p><strong>Nothing is lost in the swap</strong>, which is the payoff for keeping patterns in
+     * the blocks rather than on the node: they are still sitting in the Pattern Storage block
+     * entities and get pushed into the new node immediately afterwards. Had they lived on the node,
+     * this would be a migration, with somewhere for them to fall out.
+     */
+    private void ensureCapacity(final Level currentLevel, final int capacity) {
+        if (capacity == this.builtCapacity && this.containerProvider != null) {
+            return;
+        }
+        if (this.containerProvider != null) {
+            this.containerProvider.remove(currentLevel);
+        }
+        this.node = new PatternProviderNetworkNode(this.node.getEnergyUsage(), capacity);
+        this.containerProvider = this.buildContainerProvider();
+        this.containerProvider.initialize(currentLevel, null);
+        this.builtCapacity = capacity;
+        // The new node has no patterns at all, so the next push must not be skipped.
+        this.pushedPatternsVersion = -1;
+    }
+
+    /**
+     * Hands the structure's patterns to the node.
+     *
+     * <p>Guarded by a version sum rather than done on every refresh. Turning an item into a
+     * {@link Pattern} parses it, and a large structure holds hundreds -- doing that once a second to
+     * usually discover that nothing had changed would be real work for no result.
+     */
+    private void pushPatternsIfChanged(final Level currentLevel, final StructurePatterns patterns) {
+        final int version = patterns.patternsVersion();
+        if (version == this.pushedPatternsVersion) {
+            return;
+        }
+        for (int slot = 0; slot < patterns.getContainerSize(); slot++) {
+            final ItemStack stack = patterns.getItem(slot);
+            final Pattern pattern = stack.isEmpty()
+                ? null
+                : RefinedStorageApi.INSTANCE.getPattern(stack, currentLevel).orElse(null);
+            this.node.setPattern(slot, pattern);
+        }
+        this.pushedPatternsVersion = version;
+    }
+
+    private void updateScreen(final Level currentLevel, final Result result) {
         final BlockState current = this.getBlockState();
         if (!current.hasProperty(ControllerBlock.STATE)) {
             return;
         }
-        final ControllerState wanted = this.computeState(currentLevel);
+        final ControllerState wanted;
+        if (!result.formed()) {
+            wanted = ControllerState.UNFORMED;
+        } else {
+            wanted = this.hasEnergy() ? ControllerState.ACTIVE : ControllerState.INACTIVE;
+        }
         if (current.getValue(ControllerBlock.STATE) != wanted) {
             currentLevel.setBlock(this.worldPosition,
                 current.setValue(ControllerBlock.STATE, wanted), Block.UPDATE_ALL);
@@ -116,36 +205,19 @@ public class ControllerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Whether the structure is formed, and whether it is actually running.
+     * Whether the structure is actually running.
      *
      * <p><strong>"Has a network" is not a test of anything.</strong> RS's {@code NetworkBuilderImpl}
      * creates a network for a lone container when there is nothing to merge with, so
      * {@code getNetwork() != null} is true the moment this block initialises, cabled or not. An
      * earlier version used it and the screen lit up for every Controller ever placed.
      *
-     * <p>So this asks RS's own question instead, the one {@code calculateActive} asks of every RS
-     * machine: is energy required at all, and if so does the network hold at least what this
-     * structure draws. A one-node network of our own making stores nothing, so it fails that on its
-     * own -- no special case needed for "not really connected", because a network with nothing in
-     * it cannot power anything.
-     *
-     * <p>Which is also why the node's energy usage has to be real. With a draw of zero, "stored >=
-     * usage" is true of an empty network too, and the bug comes straight back.
+     * <p>So this asks RS's own question, the one {@code calculateActive} asks of every RS machine:
+     * is energy required at all, and if so does the network hold at least what this structure draws.
+     * A one-node network of our own making stores nothing, so it fails that on its own.
      */
-    private ControllerState computeState(final Level currentLevel) {
-        final Result result = MultiblockShape.find(new LevelBlockSource(currentLevel),
-            this.worldPosition.getX(), this.worldPosition.getY(), this.worldPosition.getZ());
-        if (!result.formed()) {
-            return ControllerState.UNFORMED;
-        }
-        this.node.setEnergyUsage(StructurePower.energyUsage(result));
-        return this.hasEnergy() ? ControllerState.ACTIVE : ControllerState.INACTIVE;
-    }
-
     private boolean hasEnergy() {
         if (!RefinedStorageApi.INSTANCE.isEnergyRequired()) {
-            // A pack with energy switched off: every RS machine runs regardless, and ours should
-            // behave the same way rather than being the one block that still refuses.
             return true;
         }
         final Network network = this.node.getNetwork();

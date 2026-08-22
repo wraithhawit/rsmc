@@ -40,8 +40,27 @@ public class PatternStorageBlockEntity extends BlockEntity implements BlockEntit
     private final PatternInventory patterns =
         new PatternInventory(StructurePower.PATTERNS_PER_STORAGE, this::getLevel);
 
+    /**
+     * Bumped whenever a pattern in this block changes.
+     *
+     * <p>The Controller pushes patterns into the network node, and re-reading every pattern in the
+     * structure once a second would mean parsing hundreds of them to usually learn nothing. Summing
+     * this across the structure's storage blocks is a handful of int reads, and a change to any
+     * pattern anywhere moves the sum.
+     */
+    private int patternsVersion;
+
     public PatternStorageBlockEntity(final BlockPos pos, final BlockState state) {
         super(RsmcBlockEntities.PATTERN_STORAGE.get(), pos, state);
+        this.patterns.setListener(slot -> {
+            this.patternsVersion++;
+            this.setChanged();
+        });
+    }
+
+    /** See {@link #patternsVersion}. */
+    public int patternsVersion() {
+        return this.patternsVersion;
     }
 
     /** The slots this block contributes to the structure's pattern screen. */

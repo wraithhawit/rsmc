@@ -80,6 +80,21 @@ public final class StructurePatterns implements Container {
         return this.storages.size();
     }
 
+    /**
+     * A number that changes whenever any pattern in the structure does.
+     *
+     * <p>Lets the Controller skip re-parsing every pattern into the network node once a second when
+     * nothing has changed -- which is almost always. A sum rather than anything cleverer: it is a
+     * handful of int reads, and any single change moves it.
+     */
+    public int patternsVersion() {
+        int version = 0;
+        for (final PatternStorageBlockEntity storage : this.storages) {
+            version += storage.patternsVersion();
+        }
+        return version;
+    }
+
     @Override
     public int getContainerSize() {
         return this.size;

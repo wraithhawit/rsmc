@@ -2,6 +2,7 @@ package com.wraithhawit.rsmc;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
+import com.wraithhawit.rsmc.menu.StructurePatterns;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
@@ -14,8 +15,12 @@ import com.wraithhawit.rsmc.block.ControllerBlock;
 import com.wraithhawit.rsmc.block.ControllerState;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -76,6 +81,7 @@ public final class StructureInfoCommand {
         final Result result = MultiblockShape.find(
             new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ());
         reportScreen(source, player, pos, result);
+        reportHeldItem(source, player, player.level(), pos, result);
         if (result.formed()) {
             reportFormed(source, result);
         } else {
@@ -92,6 +98,44 @@ public final class StructureInfoCommand {
      * the client did not get the update at all. Without printing both, telling those apart takes a
      * round trip per guess.
      */
+    /**
+     * What the structure says about the item in the player's hand.
+     *
+     * <p>Added because shift-clicking patterns in stopped working and reasoning about why did not
+     * converge. Shift-click goes through {@code Container.canPlaceItem}, not through the slot, so
+     * this asks the container exactly the question the transfer path asks -- with a real item, in a
+     * real world, which is the part a test could not supply: an encoded pattern is not something
+     * that can be conjured in a gametest.
+     *
+     * <p>It also separates the two ways this fails. RS's filter wants an <em>encoded</em> pattern,
+     * so a blank one is refused and looks identical from the outside.
+     */
+    private static void reportHeldItem(final CommandSourceStack source, final ServerPlayer player,
+                                       final Level level, final BlockPos pos, final Result result) {
+        final ItemStack held = player.getMainHandItem();
+        if (held.isEmpty() || !result.formed()) {
+            return;
+        }
+        final StructurePatterns patterns = StructurePatterns.of(level, pos);
+        if (patterns.getContainerSize() == 0) {
+            line(source, ChatFormatting.RED, "  held item: no pattern slots to put it in");
+            return;
+        }
+        final boolean accepted = patterns.canPlaceItem(0, held);
+        final boolean isPatternItem = held.getItem() == BuiltInRegistries.ITEM
+            .get(ResourceLocation.fromNamespaceAndPath("refinedstorage", "pattern"));
+        final String detail;
+        if (accepted) {
+            detail = "accepted";
+        } else if (isPatternItem) {
+            detail = "REFUSED -- it is a pattern item, but not an encoded one";
+        } else {
+            detail = "refused -- not a pattern";
+        }
+        line(source, accepted ? ChatFormatting.GREEN : ChatFormatting.RED,
+            "  held " + held.getHoverName().getString() + ": " + detail);
+    }
+
     private static void reportScreen(final CommandSourceStack source, final ServerPlayer player,
                                      final BlockPos lookingAt, final Result result) {
         // The looked-at block first, because when the structure does NOT form there is no
