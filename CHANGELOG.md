@@ -6,6 +6,38 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.6
+
+**The client hitch was 82.7% of the render thread, and it was mine.**
+
+0.0.19 backed the client menu with Refined Storage's `PatternInventory` so the client would refuse
+a non-pattern exactly as the server does, instead of predicting a shift-clicked cobblestone into a
+slot and having it bounce. Right instinct, wrong implementation: RS's filter is
+`PatternProviderItem.isValid`, which resolves the pattern's **recipe** -- a full
+`RecipeManager.getRecipeFor` scan across every recipe in the pack.
+
+Something asks a menu's container whether an item fits on every frame, so that scan ran
+continuously while the screen was open.
+
+The client now asks the cheap half of the same question -- is it a pattern item at all -- which is
+an `instanceof`, and rejects everything a player will realistically try. **The server still runs
+the full check and is still the authority**, so nothing invalid can actually get in.
+
+The one thing this predicts wrongly is an *unencoded* pattern: the client lets it move and the
+server puts it back. A corrected prediction, not a lost item, and a fair price for not scanning
+every recipe in the game twenty times a second.
+
+### Four server profiles before anyone looked at the client
+
+The hitch was reported as client-side from the start. It was chased through the Step Requester,
+pattern plan copying, and two rstweaks changes first, because an early client profile showed the
+render thread 65.6% parked -- genuinely blocked on an overloaded server at the time. Once the
+server was fixed the parking stayed (it is ordinary frame pacing) and the real work underneath it
+was visible.
+
+**Read a parked render thread as "blocked" only when the server is actually busy.** Otherwise it is
+just a client waiting for its next frame, and the interesting frames are the small ones.
+
 ## 0.1.5
 
 **Patterns are handed to the network a few at a time**, instead of the whole backlog in one tick.

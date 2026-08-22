@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.6
+-----
+  THE client hitch: 82.7% of the render thread was RS's PatternProviderItem.isValid, called per
+  frame by the client-side PatternInventory added in 0.0.19 - it resolves the pattern's recipe,
+  scanning every recipe in the pack. Client now checks instanceof PatternProviderItem instead;
+  the server still runs the real check.
+
 0.1.5
 -----
   Patterns are pushed to the network 8 per refresh instead of the whole backlog at once.

@@ -3,7 +3,6 @@ package com.wraithhawit.rsmc.menu;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.refinedmods.refinedstorage.common.autocrafting.PatternInventory;
 import com.refinedmods.refinedstorage.common.autocrafting.PatternSlot;
 import com.refinedmods.refinedstorage.common.support.AbstractBaseContainerMenu;
 import com.refinedmods.refinedstorage.common.support.stretching.ScreenSizeListener;
@@ -41,8 +40,8 @@ import net.minecraft.world.level.Level;
  *
  * <p>On the server the slots read straight through {@link StructurePatterns} into the Pattern
  * Storage block entities. On the client there is no structure to read, so they are backed by a
- * {@link PatternInventory} of the same size -- RS's own, so the client filters non-patterns exactly
- * as the server does rather than predicting them in and having them bounce back.
+ * {@link ClientPatternContainer} of the same size, which rejects non-patterns with an instanceof
+ * rather than a recipe lookup -- the server remains the authority.
  */
 public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSizeListener {
     private static final int COLUMNS = 9;
@@ -62,11 +61,15 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
         this(containerId, playerInventory, patterns, playerInventory.player.level());
     }
 
-    /** Client side: RS's own pattern container, so it filters identically. */
+    /**
+     * Client side: a container that rejects non-patterns cheaply.
+     *
+     * <p>Deliberately not RS's {@code PatternInventory}, which filters with a full recipe lookup --
+     * see {@link ClientPatternContainer} for what that cost.
+     */
     public PatternMenu(final int containerId, final Inventory playerInventory,
                        final RegistryFriendlyByteBuf buf) {
-        this(containerId, playerInventory,
-            new PatternInventory(buf.readVarInt(), () -> playerInventory.player.level()),
+        this(containerId, playerInventory, new ClientPatternContainer(buf.readVarInt()),
             playerInventory.player.level());
     }
 
