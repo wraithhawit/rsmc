@@ -6,6 +6,33 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.23
+
+**Copied the Autocrafter Manager properly instead of imitating it piece by piece** -- and the very
+first thing that fell out was the shift-click bug.
+
+**Patterns could not be put in because the server menu had no player inventory slots at all.**
+`AutocrafterManagerContainerMenu` adds them in its **constructor** and again in
+`initializeGroups`; mine only added them in `resized()`, which is called by the screen and
+therefore **only ever runs on the client**. So the client had 36 more slots than the server, every
+index a click sent referred to something else, and shift-click silently did nothing.
+
+Slots are now built in the constructor and rebuilt on resize, exactly as RS does it. Nothing about
+that is obvious from the outside -- it is only obvious from their constructor.
+
+**The scrollbar had no background because the window was 17px too narrow.** RS uses
+`imageWidth = 193`, not 176: the extra width *is* the scrollbar track, and the texture already
+contains it. Since the texture is theirs unmodified, this was never a number to choose.
+
+**The title is a `TextMarquee(title, 70)`**, which is why RS's own long titles scroll rather than
+run under the search field. "MultiBlock Crafter" is wider than the gap, so it now scrolls.
+
+Three symptoms, one cause: reimplementing what the manager already does. That is now five rounds
+of it, and the wholesale copy found in one pass what piecemeal porting had missed each time.
+
+> **No, you do not need to rebuild the structure.** Nothing about the shift-click failure was to do
+> with the blocks -- the menu was wrong on the server, whatever the structure had been built with.
+
 ## 0.0.22
 
 **The slots are RS's slot sprite now**, not two rectangles drawn by hand -- which is where the

@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.23
+-----
+  Copied the manager properly. THE shift-click bug: RS adds player inventory slots in the menu
+  CONSTRUCTOR as well as in resized(), which only runs client-side - so the server menu had no
+  player slots and every click index was wrong. Also imageWidth is 193, not 176 (the extra
+  width IS the scrollbar track, hence the missing background), and the title is a
+  TextMarquee(title, 70) so it scrolls instead of overlapping. No structure rebuild needed.
+
 0.0.22
 -----
   Slots use RS's Sprites.SLOT via blitSprite, the same call the Autocrafter Manager makes,

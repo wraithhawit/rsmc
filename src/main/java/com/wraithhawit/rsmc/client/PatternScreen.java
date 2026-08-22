@@ -6,6 +6,7 @@ import java.util.Locale;
 
 import com.refinedmods.refinedstorage.common.api.autocrafting.PatternOutputRenderingScreen;
 import com.refinedmods.refinedstorage.common.support.Sprites;
+import com.refinedmods.refinedstorage.common.support.widget.TextMarquee;
 import com.refinedmods.refinedstorage.common.support.stretching.AbstractStretchingScreen;
 import com.refinedmods.refinedstorage.common.support.widget.History;
 import com.refinedmods.refinedstorage.common.support.widget.SearchFieldWidget;
@@ -63,9 +64,15 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
     private int rows;
 
     public PatternScreen(final PatternMenu menu, final Inventory inventory, final Component title) {
-        super(menu, inventory, title);
+        // RS's own numbers, and the texture is RS's own file, so these are not values to choose.
+        // 193 rather than 176 is what makes the scrollbar track part of the window: the missing
+        // background behind the slider was the window being 17px too narrow to include it.
+        //
+        // TextMarquee is why a long title scrolls instead of running under the search field --
+        // "MultiBlock Crafter" is wider than the space between the title and the search box.
+        super(menu, inventory, new TextMarquee(title, 70));
         this.inventoryLabelY = 75;
-        this.imageWidth = 176;
+        this.imageWidth = 193;
         this.imageHeight = 176;
     }
 
