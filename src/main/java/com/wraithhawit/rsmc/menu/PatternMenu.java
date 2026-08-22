@@ -3,6 +3,7 @@ package com.wraithhawit.rsmc.menu;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.refinedmods.refinedstorage.common.autocrafting.PatternInventory;
 import com.refinedmods.refinedstorage.common.autocrafting.PatternSlot;
 import com.refinedmods.refinedstorage.common.support.AbstractBaseContainerMenu;
 import com.refinedmods.refinedstorage.common.support.stretching.ScreenSizeListener;
@@ -11,7 +12,6 @@ import com.wraithhawit.rsmc.content.RsmcMenus;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.Container;
-import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -62,7 +62,12 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
     /** Client side: a container of the right size, which vanilla slot syncing fills. */
     public PatternMenu(final int containerId, final Inventory playerInventory,
                        final RegistryFriendlyByteBuf buf) {
-        this(containerId, playerInventory, new SimpleContainer(buf.readVarInt()),
+        // A PatternInventory, not a plain container: it filters with RS's own
+        // PatternProviderItem.isValid, so the client refuses a non-pattern exactly as the server
+        // does. With a SimpleContainer here the client happily predicted a shift-clicked
+        // cobblestone into a pattern slot and only the server's correction took it back out.
+        this(containerId, playerInventory,
+            new PatternInventory(buf.readVarInt(), () -> playerInventory.player.level()),
             playerInventory.player.level());
     }
 

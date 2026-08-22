@@ -6,6 +6,27 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.19
+
+**Shift-clicking a non-pattern into the crafter looked like it worked.** It never actually did --
+the server refused it every time -- but the client predicted it in and only a correction took it
+back out.
+
+The client menu was backed by a plain `SimpleContainer`, which accepts anything. It is now a
+`PatternInventory` of the same size, so the client filters with RS's own
+`PatternProviderItem.isValid` and the prediction matches the answer. More RS reuse, and it removes
+a class of bug rather than one instance: any future slot restriction is now enforced identically
+on both sides because it is literally the same container type.
+
+**The test that found this was wrong in an interesting way.** It asserted a blank pattern item
+would be accepted -- and it is not. RS's filter wants an *encoded* pattern, not merely the right
+item, so an unstamped pattern is refused like any other junk. That is now asserted rather than
+assumed: it is the difference between "only patterns fit" and "only patterns that actually make
+something fit".
+
+Cobblestone was correctly refused all along, including through the two-storage-block index
+arithmetic, which is what narrowed this to the client in one step.
+
 ## 0.0.18
 
 **Three more things RS already did, deleted from here.** Prompted by asking whether the Autocrafter

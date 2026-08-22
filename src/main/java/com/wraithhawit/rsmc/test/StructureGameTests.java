@@ -431,6 +431,44 @@ public final class StructureGameTests {
         helper.succeed();
     }
 
+    /**
+     * Only patterns can go into a pattern slot.
+     *
+     * <p>Reported from in game: shift-clicking a non-pattern moved it into the crafter. The filter
+     * is Refined Storage's own -- {@code PatternInventory} tests every stack with
+     * {@code PatternProviderItem.isValid} -- so this asks the container the same question the
+     * transfer path does, rather than trusting that delegation works.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void onlyPatternsFitInPatternSlots(final GameTestHelper helper) {
+        buildShellSized(helper, 2, 2, 5);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+
+        final StructurePatterns view =
+            StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));
+        if (view.canPlaceItem(0, new ItemStack(Items.COBBLESTONE))) {
+            helper.fail("a cobblestone was accepted into a pattern slot");
+            return;
+        }
+        // And the slot in the second storage block, since that goes through the index arithmetic.
+        if (view.canPlaceItem(StructurePower.PATTERNS_PER_STORAGE, new ItemStack(Items.COBBLESTONE))) {
+            helper.fail("a cobblestone was accepted into the second storage block");
+            return;
+        }
+        // A BLANK pattern is refused too, and that is correct: RS's filter is
+        // PatternProviderItem.isValid, which wants an encoded pattern, not merely the right item.
+        // Worth asserting rather than assuming -- it is the difference between "only patterns fit"
+        // and "only patterns that actually make something fit".
+        if (view.canPlaceItem(0, new ItemStack(rsItem("pattern")))) {
+            helper.fail("an unencoded pattern was accepted");
+            return;
+        }
+        helper.succeed();
+    }
+
     // ---- helpers ----
 
     /**
