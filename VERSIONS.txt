@@ -8,6 +8,12 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.4
+-----
+  StructurePatterns.getItem was 2.9% of the server thread with the screen open - the menu calls
+  it per slot per tick and each call did two linear walks over the storage blocks. Slot ->
+  (block, index) is now precomputed as arrays.
+
 0.1.3
 -----
   /rsmc info prints the mod version first on every path, and how many patterns the structure

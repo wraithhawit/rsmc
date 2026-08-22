@@ -6,6 +6,32 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.4
+
+**Slot lookup is O(1).** `StructurePatterns.getItem` appeared at 2.90% of the server thread in a
+profile taken with the pattern screen open -- up from 0.19% in one taken with it closed.
+
+The menu calls `getItem` on every slot every tick while a screen is open, and each call did
+**two** linear walks over the storage blocks to work out which one owned the slot. Fifty-four
+slots per storage, twenty times a second.
+
+The mapping is now built once, in the constructor, as two arrays. One pass to build, an array read
+per lookup after that.
+
+### What the three profiles have shown, in order
+
+| | profile 1 | profile 2 | profile 3 |
+|---|---|---|---|
+| `canPlaceItem` | **16.3%** | 0.13% | -- |
+| Step Requester | 22.8% | **96.2%** | 26.5% |
+| `MutablePatternPlan.copy` self | 6.1% | 26.2% | 6.9% |
+| `getItem` | 0.19% | -- | **2.90%** |
+
+Each profile has found a different real cost, and only the first two were ours. The Step Requester
+figure moving from 96% to 26% between profiles suggests a large part of that spike depends on what
+is on the network rather than on Step Crafter alone -- a structure full of patterns is more
+branches for RS's crafting calculator to explore on *every* craft, not only ours.
+
 ## 0.1.3
 
 **`/rsmc info` now prints the mod version first**, on every path including the failures.
