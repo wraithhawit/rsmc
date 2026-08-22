@@ -51,6 +51,7 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
 
     private final Container patterns;
     private final List<Slot> patternSlots = new ArrayList<>();
+    private final List<Slot> playerSlots = new ArrayList<>();
 
     /** Server side: real patterns, in the real blocks. */
     public PatternMenu(final int containerId, final Inventory playerInventory,
@@ -90,16 +91,31 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
     }
 
     /**
-     * Called by {@code AbstractStretchingScreen} when the window resizes and it works out how many
-     * rows fit.
+     * Puts the player's inventory where the stretched window ends.
      *
-     * <p>Nothing to do: the screen owns layout entirely, and re-laying out from here would be a
-     * second place that moves slots. RS's own menus use this to reposition their inventory slots
-     * because their layout lives in the menu; ours does not.
+     * <p>Called by {@code AbstractStretchingScreen} once it knows how many rows fit, with the y the
+     * player inventory should start at. <strong>It is not optional.</strong> A stretching screen has
+     * no fixed height, so inventory slots given a position at construction end up wherever the
+     * window happened to be that size -- which in practice was floating in the middle of the pattern
+     * area while the drawn inventory at the bottom sat empty.
+     *
+     * <p>An earlier version left this empty on the reasoning that the screen owns layout. That is
+     * true of the <em>pattern</em> slots, which the screen moves for scrolling and filtering. The
+     * player's inventory is the opposite case: it never moves except when the window resizes, and
+     * this is the only notification that it did.
      */
     @Override
-    public void resized(final int screenWidth, final int screenHeight, final int topHeight) {
-        // Intentionally empty -- see above.
+    public void resized(final int playerInventoryY, final int topYStart, final int topYEnd) {
+        for (int i = 0; i < this.playerSlots.size(); i++) {
+            final Slot slot = this.playerSlots.get(i);
+            final int column = i % COLUMNS;
+            final int row = i / COLUMNS;
+            slot.x = PATTERNS_X + column * SLOT_SIZE;
+            // The last row is the hotbar, which sits a gap below the other three.
+            slot.y = row == 3
+                ? playerInventoryY + 3 * SLOT_SIZE + 4
+                : playerInventoryY + row * SLOT_SIZE;
+        }
     }
 
     public int patternSlotCount() {
@@ -107,16 +123,14 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
     }
 
     private void addPlayerInventory(final Inventory playerInventory) {
-        final int inventoryY = PATTERNS_Y + VISIBLE_ROWS * SLOT_SIZE + 14;
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < COLUMNS; column++) {
-                this.addSlot(new Slot(playerInventory, column + row * COLUMNS + 9,
-                    PATTERNS_X + column * SLOT_SIZE, inventoryY + row * SLOT_SIZE));
+                this.playerSlots.add(this.addSlot(new Slot(playerInventory,
+                    column + row * COLUMNS + 9, 0, 0)));
             }
         }
         for (int column = 0; column < COLUMNS; column++) {
-            this.addSlot(new Slot(playerInventory, column,
-                PATTERNS_X + column * SLOT_SIZE, inventoryY + 58));
+            this.playerSlots.add(this.addSlot(new Slot(playerInventory, column, 0, 0)));
         }
     }
 

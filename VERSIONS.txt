@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.16
+-----
+  Four fixes from the first real look at the screen: player inventory floated mid-panel
+  (resized() must position it - a stretching screen has no fixed height), pattern area was
+  blank (RS's row texture is plain; renderRows has to draw the wells), scrollbar did nothing
+  (setup belongs in init(rows), not init()), and the title is now MultiBlock Crafter.
+
 0.0.15
 -----
   Pattern screen rebuilt on RS's AbstractStretchingScreen + SearchFieldWidget instead of

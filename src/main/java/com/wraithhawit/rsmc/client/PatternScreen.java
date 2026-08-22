@@ -64,9 +64,18 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu> {
         this.imageHeight = 176;
     }
 
+    /**
+     * Setup happens here, not in {@code init()}.
+     *
+     * <p>{@code AbstractStretchingScreen.init()} works out how many rows fit, sizes the window,
+     * repositions the menu's slots and builds the scrollbar -- and only then calls this with the row
+     * count. Doing any of it earlier means laying out against a row count of zero and a scrollbar
+     * that does not exist yet.
+     */
     @Override
-    protected void init() {
-        super.init();
+    protected void init(final int visibleRows) {
+        super.init(visibleRows);
+        this.rows = visibleRows;
         if (this.searchField == null) {
             this.searchField = new SearchFieldWidget(this.font,
                 this.leftPos + 94 + 1, this.topPos + 6 + 1, 67, new History(SEARCH_HISTORY));
@@ -176,13 +185,30 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu> {
         }
     }
 
+    /**
+     * Draws the well behind every visible pattern slot.
+     *
+     * <p>RS's row texture is <em>plain</em> -- the Autocrafter Manager's list is empty grey until it
+     * has autocrafters to show, and it paints a well per slot as it draws each group. Inheriting
+     * their texture therefore means inheriting the job of drawing slots, which is why leaving this
+     * empty produced a large blank panel with items floating in it.
+     *
+     * <p>Drawn from the visible slots rather than as a fixed grid, so the wells are exactly where
+     * the slots are: a filtered half-row shows the wells it has and no more.
+     */
     @Override
     protected void renderRows(final GuiGraphics graphics, final int x, final int y,
                               final int topHeight, final int rowCount,
                               final int mouseX, final int mouseY) {
-        // Slots draw themselves through the vanilla container screen; the rows behind them come
-        // from renderStretchingBackground. Nothing extra to paint per row yet -- pattern output
-        // icons and group headers are what RS puts here, and neither exists for us.
+        for (final Slot slot : this.getMenu().patternSlots()) {
+            if (slot.x == OFF_SCREEN) {
+                continue;
+            }
+            final int slotX = x + slot.x;
+            final int slotY = y + slot.y;
+            graphics.fill(slotX - 1, slotY - 1, slotX + 17, slotY + 17, 0xFF373737);
+            graphics.fill(slotX, slotY, slotX + 16, slotY + 16, 0xFF8B8B8B);
+        }
     }
 
     @Override

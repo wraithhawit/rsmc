@@ -1,7 +1,7 @@
 {
   "itemGroup.rsmc": "Refined Storage Multiblock Crafter",
 
-  "container.rsmc.patterns": "Crafter Patterns",
+  "container.rsmc.patterns": "MultiBlock Crafter",
 
   "block.rsmc.frame": "Crafter Frame",
   "block.rsmc.casing": "Crafter Casing",

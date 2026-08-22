@@ -6,6 +6,34 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.16
+
+**Four bugs from the first look at the real screen**, all of them from inheriting RS's stretching
+screen without inheriting the jobs that come with it.
+
+**Player inventory floated in the middle of the pattern area.** 0.0.15 left `resized()` empty,
+reasoning that the screen owns layout. That is true of the pattern slots -- the screen moves those
+to scroll and filter -- and exactly wrong for the player's inventory. A stretching screen has no
+fixed height, so slots positioned at construction land wherever the window happened to be that
+size, and `resized()` is the only notification that it changed. It now places them properly, with
+the hotbar in its gap.
+
+**The pattern area was blank.** RS's row texture is plain -- the Autocrafter Manager's list really
+is empty grey until it has autocrafters, and it paints a well per slot as it draws each group. So
+inheriting their texture means inheriting the job of drawing slots. `renderRows` now draws a well
+behind every visible slot, taken from the slots themselves rather than a fixed grid, so a filtered
+half-row shows the wells it has and no more.
+
+**The scrollbar moved and nothing happened.** Setup was in `init()`, which runs before
+`AbstractStretchingScreen` has worked out the row count, sized the window or built the scrollbar.
+Moved to `init(int rows)`, which is called with the row count once all of that exists.
+
+**The title is "MultiBlock Crafter"** rather than "Crafter Patterns".
+
+The common thread: `AbstractStretchingScreen` is not a base class you extend and fill in the
+blanks of. It hands out responsibilities -- position the inventory, draw the slots, lay out after
+init -- and quietly renders something plausible-looking when you decline them.
+
 ## 0.0.15
 
 **The pattern screen is now Refined Storage's stretching screen, not an imitation of it.**
