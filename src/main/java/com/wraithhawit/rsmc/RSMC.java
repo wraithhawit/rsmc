@@ -5,7 +5,9 @@ import com.mojang.logging.LogUtils;
 import com.wraithhawit.rsmc.content.RsmcBlockEntities;
 import com.wraithhawit.rsmc.content.RsmcBlocks;
 import com.wraithhawit.rsmc.content.RsmcCapabilities;
+import com.wraithhawit.rsmc.client.RsmcClient;
 import com.wraithhawit.rsmc.content.RsmcCreativeTab;
+import com.wraithhawit.rsmc.content.RsmcMenus;
 import com.wraithhawit.rsmc.content.RsmcItems;
 import com.wraithhawit.rsmc.test.StructureGameTests;
 
@@ -13,6 +15,9 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 
@@ -68,7 +73,11 @@ public class RSMC {
         RsmcBlocks.BLOCKS.register(modEventBus);
         RsmcItems.ITEMS.register(modEventBus);
         RsmcBlockEntities.BLOCK_ENTITIES.register(modEventBus);
+        RsmcMenus.MENUS.register(modEventBus);
         RsmcCreativeTab.TABS.register(modEventBus);
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            modEventBus.addListener(RegisterMenuScreensEvent.class, RsmcClient::registerScreens);
+        }
         NeoForge.EVENT_BUS.register(StructureInfoCommand.class);
         // Only fires when -Dneoforge.enabledGameTestNamespaces includes this mod, which the
         // runGameTestServer run configuration sets.

@@ -6,6 +6,52 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.14
+
+**Right-clicking any block in the structure opens the pattern screen.** Search field at the top,
+every pattern slot the structure has, scrolling.
+
+Frame, Casing, Controller, CPU and Pattern Storage all behave identically -- the whole box is one
+machine, and asking which block is the "real" one is friction with no upside. Shared from one
+place rather than repeated on five blocks, because five copies of an interaction is five chances
+for one to drift.
+
+**A block that is not part of a structure does not open an empty window.** An empty window is the
+least informative thing it could do: it looks like a bug and hides the real answer. It reports the
+failure and the exact position in chat instead, in the same words `/rsmc info` uses, from the same
+`MultiblockShape.find` call.
+
+### Scrolling and searching are one operation
+
+Both move slots rather than rebuilding the menu. `layout()` decides which slots are visible --
+filtered by the search text, then offset by the scroll row -- and puts them where they go;
+everything else goes off-screen where it cannot be clicked or drawn. One method moves slots, so
+there is one answer to "why is this slot here".
+
+That works because **slot positions are client-side only**: a click travels as a slot index, never
+a coordinate. The server never has to agree about layout, so filtering cannot desync and a search
+that hides a slot cannot lose the pattern in it.
+
+An empty query shows empty slots too -- an empty slot is where you put a pattern, and a screen
+that only showed occupied ones would have nowhere to put the first.
+
+### An access transformer, for a good reason
+
+`Slot.x` and `Slot.y` are final in 1.21.1. RS hits this too and ships a `Platform.setSlotY`
+helper -- but it only scrolls vertically, and a filtered list re-flows horizontally as well, so
+there is no y-only version of this. `public-f` on both fields, justified in the file: safe
+precisely because nothing the server believes depends on where a slot is drawn.
+
+The two sides are backed by different things on purpose. On the server the slots read straight
+through `StructurePatterns` into the real block entities; on the client they are backed by a plain
+container of the same size that vanilla slot syncing fills. The client is told **only the slot
+count**, because that is the one thing it could not work out for itself.
+
+The chrome is plain for now -- flat panels and slot wells, not the Autocrafter Manager's exact
+look. Matching that needs `AbstractStretchingScreen` and its sprite plumbing, which is real
+coupling to RS's GUI internals and the part most likely to break on an RS update. Worth doing as a
+second pass, after the thing can be opened and used.
+
 ## 0.0.13
 
 **`StructurePatterns`: every pattern slot in one structure, as a single container.** The screen will

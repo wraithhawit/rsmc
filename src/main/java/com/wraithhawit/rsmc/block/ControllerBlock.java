@@ -5,11 +5,14 @@ import javax.annotation.Nullable;
 import com.wraithhawit.rsmc.content.RsmcBlockEntities;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.BlockKind;
+import com.wraithhawit.rsmc.menu.PatternScreenOpener;
 import com.wraithhawit.rsmc.structure.StructureBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.Level;
@@ -17,6 +20,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -106,5 +110,16 @@ public class ControllerBlock extends Block implements EntityBlock, StructureBloc
                 controller.refreshStateOccasionally();
             }
         };
+    }
+
+    /**
+     * Right-clicking opens the structure's pattern screen. Every block in the structure does this;
+     * see {@link com.wraithhawit.rsmc.menu.PatternScreenOpener}.
+     */
+    @Override
+    protected InteractionResult useWithoutItem(final BlockState state, final Level level,
+                                               final BlockPos pos, final Player player,
+                                               final BlockHitResult hit) {
+        return PatternScreenOpener.open(level, pos, player);
     }
 }

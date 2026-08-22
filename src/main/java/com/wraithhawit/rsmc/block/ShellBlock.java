@@ -2,6 +2,7 @@ package com.wraithhawit.rsmc.block;
 
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.BlockKind;
+import com.wraithhawit.rsmc.menu.PatternScreenOpener;
 import com.wraithhawit.rsmc.structure.StructureBlock;
 
 import javax.annotation.Nullable;
@@ -9,10 +10,14 @@ import javax.annotation.Nullable;
 import com.wraithhawit.rsmc.content.RsmcBlockEntities;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 /**
  * The two plain shell blocks: the Frame on the edges and corners, the Casing on the wall panels.
@@ -48,5 +53,16 @@ public class ShellBlock extends Block implements EntityBlock, StructureBlock {
     @Override
     public BlockEntity newBlockEntity(final BlockPos pos, final BlockState state) {
         return RsmcBlockEntities.SHELL.get().create(pos, state);
+    }
+
+    /**
+     * Right-clicking opens the structure's pattern screen. Every block in the structure does this;
+     * see {@link com.wraithhawit.rsmc.menu.PatternScreenOpener}.
+     */
+    @Override
+    protected InteractionResult useWithoutItem(final BlockState state, final Level level,
+                                               final BlockPos pos, final Player player,
+                                               final BlockHitResult hit) {
+        return PatternScreenOpener.open(level, pos, player);
     }
 }

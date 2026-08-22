@@ -8,6 +8,15 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.14
+-----
+  The pattern screen opens: right-click ANY block in the structure. Search field, every pattern
+  slot, scrolling - both done by moving slots, which is safe because positions are client-side
+  and clicks travel as indices. A block outside a structure explains the failure in chat
+  instead of opening an empty window. Needed an access transformer: Slot.x/y are final in
+  1.21.1 and a filtered list re-flows horizontally, which RS's setSlotY helper cannot do.
+  Chrome is plain for now; matching the Autocrafter Manager exactly is a second pass.
+
 0.0.13
 -----
   StructurePatterns: every pattern slot in a structure as one container, ordered by position so

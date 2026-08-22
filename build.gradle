@@ -17,6 +17,12 @@ repositories {
     mavenCentral()
 }
 
+minecraft {
+    accessTransformers {
+        file('src/main/resources/META-INF/accesstransformer.cfg')
+    }
+}
+
 // Structure detection is pure geometry with no Minecraft types in it, so it can be
 // checked without launching the game. Wired into `check`, so `build` runs it.
 tasks.register('shapeCheck', JavaExec) {

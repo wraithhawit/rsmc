@@ -2,9 +2,16 @@ package com.wraithhawit.rsmc.block;
 
 import com.wraithhawit.rsmc.structure.CpuTier;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
+import com.wraithhawit.rsmc.menu.PatternScreenOpener;
 import com.wraithhawit.rsmc.structure.StructureBlock;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 /**
  * A Crafting CPU. Goes in the interior, and adds its tier's weight to the structure's steps/tick.
@@ -35,5 +42,16 @@ public class CpuBlock extends Block implements StructureBlock {
     @Override
     public MultiblockShape.Component component() {
         return this.component;
+    }
+
+    /**
+     * Right-clicking opens the structure's pattern screen. Every block in the structure does this;
+     * see {@link com.wraithhawit.rsmc.menu.PatternScreenOpener}.
+     */
+    @Override
+    protected InteractionResult useWithoutItem(final BlockState state, final Level level,
+                                               final BlockPos pos, final Player player,
+                                               final BlockHitResult hit) {
+        return PatternScreenOpener.open(level, pos, player);
     }
 }
