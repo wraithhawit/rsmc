@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.refinedmods.refinedstorage.common.autocrafting.PatternSlot;
+import com.refinedmods.refinedstorage.common.support.AbstractBaseContainerMenu;
+import com.refinedmods.refinedstorage.common.support.stretching.ScreenSizeListener;
 
 import com.wraithhawit.rsmc.content.RsmcMenus;
 
@@ -36,7 +38,7 @@ import net.minecraft.world.level.Level;
  * syncing fills in. The client is told only how many slots there are, because that is the only
  * thing it needs and the only thing it could not work out.
  */
-public class PatternMenu extends AbstractContainerMenu {
+public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSizeListener {
     private static final int COLUMNS = 9;
     private static final int SLOT_SIZE = 18;
 
@@ -85,6 +87,19 @@ public class PatternMenu extends AbstractContainerMenu {
     /** In menu order, which is {@link StructurePatterns}' order: by block position. */
     public List<Slot> patternSlots() {
         return this.patternSlots;
+    }
+
+    /**
+     * Called by {@code AbstractStretchingScreen} when the window resizes and it works out how many
+     * rows fit.
+     *
+     * <p>Nothing to do: the screen owns layout entirely, and re-laying out from here would be a
+     * second place that moves slots. RS's own menus use this to reposition their inventory slots
+     * because their layout lives in the menu; ours does not.
+     */
+    @Override
+    public void resized(final int screenWidth, final int screenHeight, final int topHeight) {
+        // Intentionally empty -- see above.
     }
 
     public int patternSlotCount() {

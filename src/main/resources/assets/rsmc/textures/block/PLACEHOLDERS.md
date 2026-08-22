@@ -47,3 +47,10 @@ correctness property, not a decoration.
 Generated rather than drawn because all three are the Casing texture with one inset screen, and the
 only difference is what the screen is doing. Three near-identical hand-edited 16x16 images is how
 they drift apart.
+
+## The pattern screen's GUI texture
+
+`assets/rsmc/textures/gui/patterns.png` is Refined Storage's `autocrafter_manager.png`, unmodified.
+Kept as-is on purpose: `AbstractStretchingScreen` blits fixed offsets out of it (the row bands at
+v=19/37/55, the bottom at v=73 for 99px), so a redrawn texture has to match that layout anyway. MIT,
+covered by `ATTRIBUTION.md`.

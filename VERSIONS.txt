@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.15
+-----
+  Pattern screen rebuilt on RS's AbstractStretchingScreen + SearchFieldWidget instead of
+  imitating it: stretches to screen height, real scrollbar, same chrome. Deep coupling to RS
+  internals is how addons are written - Step Crafter extends four RS base classes and mixins
+  into AbstractGridScreen. Texture is RS's autocrafter_manager.png unmodified, since the blit
+  offsets are theirs to match.
+
 0.0.14
 -----
   The pattern screen opens: right-click ANY block in the structure. Search field, every pattern

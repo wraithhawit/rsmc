@@ -4,92 +4,115 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.refinedmods.refinedstorage.common.support.stretching.AbstractStretchingScreen;
+import com.refinedmods.refinedstorage.common.support.widget.History;
+import com.refinedmods.refinedstorage.common.support.widget.SearchFieldWidget;
+
+import com.wraithhawit.rsmc.RSMC;
 import com.wraithhawit.rsmc.menu.PatternMenu;
 
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * The structure's pattern screen: a search field, and every pattern slot the structure has.
+ * The structure's pattern screen, built on Refined Storage's own stretching screen.
  *
- * <p>Modelled on Refined Storage's Autocrafter Manager, which solves the same problem -- far more
- * slots than fit on a screen, gathered from more than one place.
+ * <p>It is the Autocrafter Manager's shape because it is the Autocrafter Manager's problem: far
+ * more slots than fit on screen, gathered from more than one place, wanted by name. Using RS's
+ * {@link AbstractStretchingScreen} means the window stretches to the player's screen, scrolls and
+ * renders with the same chrome as every other RS screen, rather than approximating it.
+ *
+ * <p><strong>Coupling to RS's internals here is deliberate.</strong> Step Crafter -- the same author
+ * as Cable Tiers -- extends {@code AbstractBaseScreen}, {@code AbstractBaseContainerMenu},
+ * {@code AbstractBaseBlock} and mixins into {@code AbstractGridScreen}. Deep coupling is how RS
+ * addons are written, and the cost of
+ * breaking on an RS update is accepted in exchange for looking and behaving like part of the mod
+ * you are adding to.
  *
  * <h2>Scrolling and searching are the same operation</h2>
  *
- * <p>Both are done by <strong>moving slots</strong>, not by rebuilding the menu. {@link #layout()}
- * decides which slots are visible -- filtered by the search text, then offset by the scroll row --
- * and puts them where they go; everything else is moved off-screen so it cannot be clicked or drawn.
+ * <p>Both are done by <strong>moving slots</strong>, not by rebuilding the menu: {@link #layout()}
+ * places the slots the filter matches, offset by the scroll row, and pushes everything else
+ * off-screen where it can be neither clicked nor drawn.
  *
- * <p>This works because a slot's position is a client-side concern. Clicks travel as slot
- * <em>indices</em>, so the server never has to agree about layout, which means filtering can never
- * desync and a search that hides a slot cannot lose the pattern in it.
+ * <p>That is safe because a slot's position is a client-side concern. Clicks travel as slot
+ * <em>indices</em>, so the server never has to agree about layout -- filtering cannot desync, and a
+ * search that hides a slot cannot lose the pattern in it.
  */
-public class PatternScreen extends AbstractContainerScreen<PatternMenu> {
+public class PatternScreen extends AbstractStretchingScreen<PatternMenu> {
+    private static final ResourceLocation TEXTURE =
+        ResourceLocation.fromNamespaceAndPath(RSMC.MODID, "textures/gui/patterns.png");
+    private static final List<String> SEARCH_HISTORY = new ArrayList<>();
+
     private static final int COLUMNS = 9;
     private static final int SLOT_SIZE = 18;
     /** Somewhere no click can reach, for slots the filter or the scroll has hidden. */
     private static final int OFF_SCREEN = -10000;
 
-    private EditBox searchField;
-    private int scrollRow;
+    private SearchFieldWidget searchField;
     private String query = "";
+    private int rows;
 
     public PatternScreen(final PatternMenu menu, final Inventory inventory, final Component title) {
         super(menu, inventory, title);
+        this.inventoryLabelY = 75;
         this.imageWidth = 176;
-        this.imageHeight = PatternMenu.PATTERNS_Y + PatternMenu.VISIBLE_ROWS * SLOT_SIZE + 14 + 76;
-        this.inventoryLabelY = this.imageHeight - 94;
+        this.imageHeight = 176;
     }
 
     @Override
     protected void init() {
         super.init();
-        this.searchField = new EditBox(this.font,
-            this.leftPos + 8 + 1, this.topPos + 18, 158 - 2, 12, Component.empty());
-        this.searchField.setBordered(false);
-        this.searchField.setMaxLength(50);
-        this.searchField.setTextColor(0xFFFFFF);
+        if (this.searchField == null) {
+            this.searchField = new SearchFieldWidget(this.font,
+                this.leftPos + 94 + 1, this.topPos + 6 + 1, 67, new History(SEARCH_HISTORY));
+        } else {
+            this.searchField.setX(this.leftPos + 94 + 1);
+            this.searchField.setY(this.topPos + 6 + 1);
+        }
         this.searchField.setResponder(value -> {
             this.query = value.toLowerCase(Locale.ROOT);
-            this.scrollRow = 0;
             this.layout();
         });
         this.addWidget(this.searchField);
         this.layout();
     }
 
+    @Override
+    protected void scrollbarChanged(final int visibleRows) {
+        super.scrollbarChanged(visibleRows);
+        this.rows = visibleRows;
+        this.layout();
+    }
+
     /**
      * Places the visible slots and hides the rest.
      *
-     * <p>Called on every change to the query or the scroll position, and it is the only thing that
-     * ever moves a slot -- so there is one answer to "why is this slot here" rather than several
-     * interacting ones.
+     * <p>The only thing in the mod that moves a slot, so there is one answer to "why is this slot
+     * here" rather than several interacting ones.
      */
     private void layout() {
         final List<Slot> visible = this.matchingSlots();
-        final int totalRows = (visible.size() + COLUMNS - 1) / COLUMNS;
-        this.scrollRow = Math.max(0, Math.min(this.scrollRow,
-            Math.max(0, totalRows - PatternMenu.VISIBLE_ROWS)));
+        final int visibleRows = Math.max(1, this.rows);
         for (final Slot slot : this.getMenu().patternSlots()) {
             slot.x = OFF_SCREEN;
             slot.y = OFF_SCREEN;
         }
-        final int firstIndex = this.scrollRow * COLUMNS;
-        for (int i = 0; i < PatternMenu.VISIBLE_ROWS * COLUMNS; i++) {
+        final int firstIndex = this.getScrollbarOffset() / SLOT_SIZE * COLUMNS;
+        for (int i = 0; i < visibleRows * COLUMNS; i++) {
             final int index = firstIndex + i;
             if (index >= visible.size()) {
                 break;
             }
             final Slot slot = visible.get(index);
-            slot.x = PatternMenu.PATTERNS_X + i % COLUMNS * SLOT_SIZE;
-            slot.y = PatternMenu.PATTERNS_Y + i / COLUMNS * SLOT_SIZE;
+            slot.x = 7 + 1 + i % COLUMNS * SLOT_SIZE;
+            slot.y = TOP_HEIGHT + 1 + i / COLUMNS * SLOT_SIZE;
         }
+        this.updateScrollbar((visible.size() + COLUMNS - 1) / COLUMNS);
     }
 
     /**
@@ -98,7 +121,7 @@ public class PatternScreen extends AbstractContainerScreen<PatternMenu> {
      * <p>An empty query matches everything <em>including empty slots</em>, because an empty slot is
      * where you put a pattern -- a screen that only showed occupied slots would have nowhere to put
      * the first one. A non-empty query hides empty slots, since "show me slots matching iron" has no
-     * sensible reading that includes blank ones.
+     * reading that includes blank ones.
      */
     private List<Slot> matchingSlots() {
         final List<Slot> matching = new ArrayList<>();
@@ -116,81 +139,71 @@ public class PatternScreen extends AbstractContainerScreen<PatternMenu> {
         return matching;
     }
 
+    /**
+     * Where the bottom section starts in the texture. 73 is where RS puts it, and the texture is
+     * theirs unmodified, so this is not a number to pick -- it is a number to match.
+     */
     @Override
-    public boolean mouseScrolled(final double mouseX, final double mouseY,
-                                 final double scrollX, final double scrollY) {
-        if (scrollY != 0) {
-            this.scrollRow -= (int) Math.signum(scrollY);
-            this.layout();
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    protected int getBottomV() {
+        return 73;
+    }
+
+    /** How tall that bottom section is. Also RS's number, for the same reason. */
+    @Override
+    protected int getBottomHeight() {
+        return 99;
     }
 
     @Override
-    public boolean keyPressed(final int key, final int scanCode, final int modifiers) {
-        // The search field takes typing first, or pressing "e" while searching closes the screen.
-        if (this.searchField.isFocused() && key != 256) {
-            return this.searchField.keyPressed(key, scanCode, modifiers)
-                || this.searchField.canConsumeInput()
-                || super.keyPressed(key, scanCode, modifiers);
-        }
-        return super.keyPressed(key, scanCode, modifiers);
+    protected ResourceLocation getTexture() {
+        return TEXTURE;
     }
 
     @Override
-    public boolean charTyped(final char codePoint, final int modifiers) {
-        return this.searchField.charTyped(codePoint, modifiers)
-            || super.charTyped(codePoint, modifiers);
-    }
-
-    @Override
-    protected void renderBg(final GuiGraphics graphics, final float partialTick,
-                            final int mouseX, final int mouseY) {
-        graphics.fill(this.leftPos, this.topPos,
-            this.leftPos + this.imageWidth, this.topPos + this.imageHeight, 0xFFC6C6C6);
-        // The search field's well.
-        graphics.fill(this.leftPos + 7, this.topPos + 16,
-            this.leftPos + 169, this.topPos + 29, 0xFF373737);
-        for (int row = 0; row < PatternMenu.VISIBLE_ROWS; row++) {
-            for (int column = 0; column < COLUMNS; column++) {
-                this.drawSlotWell(graphics,
-                    this.leftPos + PatternMenu.PATTERNS_X + column * SLOT_SIZE,
-                    this.topPos + PatternMenu.PATTERNS_Y + row * SLOT_SIZE);
+    protected void renderStretchingBackground(final GuiGraphics graphics, final int x, final int y,
+                                              final int rowCount) {
+        // Three bands in the texture: the first row, a repeating middle, and the last. Same layout
+        // as every stretching RS screen, which is why the texture can be theirs unmodified.
+        for (int row = 0; row < rowCount; row++) {
+            int textureY = 37;
+            if (row == 0) {
+                textureY = 19;
+            } else if (row == rowCount - 1) {
+                textureY = 55;
             }
-        }
-        final int inventoryY = this.topPos + PatternMenu.PATTERNS_Y
-            + PatternMenu.VISIBLE_ROWS * SLOT_SIZE + 14;
-        for (int row = 0; row < 3; row++) {
-            for (int column = 0; column < COLUMNS; column++) {
-                this.drawSlotWell(graphics, this.leftPos + PatternMenu.PATTERNS_X + column * SLOT_SIZE,
-                    inventoryY + row * SLOT_SIZE);
-            }
-        }
-        for (int column = 0; column < COLUMNS; column++) {
-            this.drawSlotWell(graphics, this.leftPos + PatternMenu.PATTERNS_X + column * SLOT_SIZE,
-                inventoryY + 58);
+            graphics.blit(this.getTexture(), x, y + SLOT_SIZE * row, 0, textureY, this.imageWidth,
+                SLOT_SIZE);
         }
     }
 
-    private void drawSlotWell(final GuiGraphics graphics, final int x, final int y) {
-        graphics.fill(x - 1, y - 1, x + 17, y + 17, 0xFF373737);
-        graphics.fill(x, y, x + 16, y + 16, 0xFF8B8B8B);
+    @Override
+    protected void renderRows(final GuiGraphics graphics, final int x, final int y,
+                              final int topHeight, final int rowCount,
+                              final int mouseX, final int mouseY) {
+        // Slots draw themselves through the vanilla container screen; the rows behind them come
+        // from renderStretchingBackground. Nothing extra to paint per row yet -- pattern output
+        // icons and group headers are what RS puts here, and neither exists for us.
     }
 
     @Override
     public void render(final GuiGraphics graphics, final int mouseX, final int mouseY,
-                       final float partialTick) {
-        this.renderBackground(graphics, mouseX, mouseY, partialTick);
-        super.render(graphics, mouseX, mouseY, partialTick);
-        this.searchField.render(graphics, mouseX, mouseY, partialTick);
-        this.renderTooltip(graphics, mouseX, mouseY);
+                       final float partialTicks) {
+        super.render(graphics, mouseX, mouseY, partialTicks);
+        if (this.searchField != null) {
+            this.searchField.render(graphics, 0, 0, 0.0F);
+        }
     }
 
     @Override
-    public boolean mouseClicked(final double mouseX, final double mouseY, final int button) {
-        this.searchField.mouseClicked(mouseX, mouseY, button);
-        this.setFocused(this.searchField.isMouseOver(mouseX, mouseY) ? this.searchField : null);
-        return super.mouseClicked(mouseX, mouseY, button);
+    public boolean charTyped(final char codePoint, final int modifiers) {
+        return this.searchField != null && this.searchField.charTyped(codePoint, modifiers)
+            || super.charTyped(codePoint, modifiers);
+    }
+
+    @Override
+    public boolean keyPressed(final int key, final int scanCode, final int modifiers) {
+        // The search field gets first refusal, or typing "e" while searching closes the screen.
+        return this.searchField != null && this.searchField.keyPressed(key, scanCode, modifiers)
+            || super.keyPressed(key, scanCode, modifiers);
     }
 }

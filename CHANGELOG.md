@@ -6,6 +6,29 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.15
+
+**The pattern screen is now Refined Storage's stretching screen, not an imitation of it.**
+
+0.0.14 drew its own flat panels because coupling to RS's GUI internals looked like a risk worth
+avoiding. Checking what other addons actually do settled that: **Step Crafter** -- same author as
+Cable Tiers -- extends `AbstractBaseScreen`, `AbstractBaseContainerMenu`, `AbstractBaseBlock` and
+`AbstractBaseNetworkNodeContainerBlockEntity`, and mixins into `AbstractGridScreen`. Deep coupling
+is simply how RS addons are written, and breaking on an RS update is the accepted cost of looking
+and behaving like part of the mod you are adding to.
+
+So the menu extends `AbstractBaseContainerMenu` and implements `ScreenSizeListener`, and the screen
+extends `AbstractStretchingScreen` with RS's `SearchFieldWidget`. That brings the window that
+stretches to your screen height, the real scrollbar, and the same chrome as every other RS screen.
+
+The texture is RS's `autocrafter_manager.png` unmodified, and the magic numbers around it are
+theirs too -- row bands at v=19/37/55, bottom at v=73 for 99px. Those are not numbers to pick,
+they are numbers to match, which is exactly why the texture is worth keeping unedited.
+
+`resized` is deliberately empty: the screen owns layout, and re-laying out from the menu would be a
+second thing moving slots. RS's own menus use it because their layout lives in the menu; ours
+does not.
+
 ## 0.0.14
 
 **Right-clicking any block in the structure opens the pattern screen.** Search field at the top,
