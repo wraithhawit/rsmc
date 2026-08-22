@@ -6,6 +6,22 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.22
+
+**The slots are RS's slot sprite now**, not two rectangles drawn by hand -- which is where the
+hard black grid lines came from. A Minecraft slot is a bevelled sprite; a border drawn with
+`graphics.fill` looks like a spreadsheet.
+
+`graphics.blitSprite(Sprites.SLOT, x, y, 18, 18)` -- the same call
+`AutocrafterManagerScreen.renderGroup` makes. Found by actually reading how the manager draws its
+grid instead of assuming the row texture carried it: the rows are plain, and RS blits a slot
+sprite per slot.
+
+Which is the standing instruction again, and the fifth time it has been the answer: **look for the
+RS class first.** Every hand-rolled piece of this screen has now been replaced by the RS one it
+was imitating -- the base screen, the search field, the search icon, the inventory layout,
+shift-click, the pattern output rendering, and now the slot.
+
 ## 0.0.21
 
 **0.0.20 crashed the server.** It shipped with a failing gametest because the command that built and

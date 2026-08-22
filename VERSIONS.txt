@@ -8,6 +8,12 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.22
+-----
+  Slots use RS's Sprites.SLOT via blitSprite, the same call the Autocrafter Manager makes,
+  instead of two hand-drawn rectangles - which is what the black grid lines were. Fifth time
+  the answer has been "use the RS class".
+
 0.0.21
 -----
   Fixes the server crash 0.0.20 shipped with. A container CANNOT be removed while its block

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Locale;
 
 import com.refinedmods.refinedstorage.common.api.autocrafting.PatternOutputRenderingScreen;
+import com.refinedmods.refinedstorage.common.support.Sprites;
 import com.refinedmods.refinedstorage.common.support.stretching.AbstractStretchingScreen;
 import com.refinedmods.refinedstorage.common.support.widget.History;
 import com.refinedmods.refinedstorage.common.support.widget.SearchFieldWidget;
@@ -213,10 +214,11 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
             if (slot.x == OFF_SCREEN) {
                 continue;
             }
-            final int slotX = x + slot.x;
-            final int slotY = y + slot.y;
-            graphics.fill(slotX - 1, slotY - 1, slotX + 17, slotY + 17, 0xFF373737);
-            graphics.fill(slotX, slotY, slotX + 16, slotY + 16, 0xFF8B8B8B);
+            // RS's own slot sprite, the same call AutocrafterManagerScreen.renderGroup makes.
+            // An earlier version drew the well with two graphics.fill rectangles, and that is where
+            // the hard black grid lines came from: a Minecraft slot is a bevelled sprite, not a
+            // border. Nothing about it was worth reinventing.
+            graphics.blitSprite(Sprites.SLOT, x + slot.x - 1, y + slot.y - 1, 18, 18);
         }
         this.renderSlotContents(graphics, mouseX, mouseY);
     }
