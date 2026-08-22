@@ -93,9 +93,13 @@ public class ControllerBlock extends Block implements EntityBlock, StructureBloc
     /**
      * The only ticker in the mod, and only one per structure.
      *
-     * <p>It exists to keep the screen honest. The shell blocks deliberately have none -- see
-     * {@link ShellBlockEntity} -- and this one runs once a second rather than every tick, because
-     * all it does is re-read the structure to decide which of three pictures to show.
+     * <p>Two jobs, at two rates. {@code tickNode} runs every tick because that is what actually
+     * performs crafting -- RS steps a pattern provider's tasks from {@code doWork}, exactly as
+     * {@code NetworkNodeBlockEntityTicker} does for an autocrafter. {@code refreshStateOccasionally}
+     * throttles itself to once a second, because re-reading the structure is expensive and only
+     * decides which of three pictures to show.
+     *
+     * <p>The shell blocks deliberately have no ticker at all -- see {@link ShellBlockEntity}.
      */
     @Nullable
     @Override
@@ -107,6 +111,7 @@ public class ControllerBlock extends Block implements EntityBlock, StructureBloc
         }
         return (tickLevel, pos, tickState, blockEntity) -> {
             if (blockEntity instanceof ControllerBlockEntity controller) {
+                controller.tickNode();
                 controller.refreshStateOccasionally();
             }
         };

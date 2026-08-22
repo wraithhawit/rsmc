@@ -107,6 +107,26 @@ public class ControllerBlockEntity extends BlockEntity {
     }
 
     /**
+     * Performs crafting. Every tick, no throttling.
+     *
+     * <p><strong>This is what makes the structure craft at all.</strong> Refined Storage does not
+     * drive a pattern provider from the network -- the provider's own block entity is ticked and
+     * calls {@code doWork}, which steps its tasks; {@code NetworkNodeBlockEntityTicker} does exactly
+     * this for an autocrafter. Without it the node joins the network, accepts patterns, reports its
+     * speed, appears in the crafting preview, and then every craft stalls forever, because nothing
+     * ever asks it to take a step.
+     *
+     * <p>Which is a memorable failure: everything looks correct except that nothing happens.
+     */
+    public void tickNode() {
+        final Level currentLevel = this.level;
+        if (currentLevel == null || currentLevel.isClientSide()) {
+            return;
+        }
+        this.node.doWork();
+    }
+
+    /**
      * Keeps the node and the screen in step with the blocks that are actually there.
      *
      * <p>Once a second, not every tick: re-reading the structure walks up to 4,096 positions and

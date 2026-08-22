@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.0.24
+-----
+  Crafts stalled because nothing ever called node.doWork(). RS ticks a pattern provider's own
+  block entity to step its tasks (NetworkNodeBlockEntityTicker); our ticker only refreshed the
+  screen. The node joined, took patterns, reported speed, appeared in the preview - and never
+  stepped. tickNode() now runs every tick.
+
 0.0.23
 -----
   Copied the manager properly. THE shift-click bug: RS adds player inventory slots in the menu

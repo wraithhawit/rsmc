@@ -6,6 +6,24 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.24
+
+**The stall was not expected -- nothing was ever asking the node to take a step.**
+
+Refined Storage does not drive a pattern provider from the network. The provider's own block
+entity is ticked and calls `doWork()`, which steps its tasks -- `NetworkNodeBlockEntityTicker`
+does exactly this for an autocrafter, every tick. Our ticker only refreshed the screen, once a
+second, and never called `doWork()` at all.
+
+So the node joined the network, accepted patterns, reported its speed, showed up in the crafting
+preview, and then every craft stalled forever. **Everything looked correct except that nothing
+happened** -- which is exactly the failure that gets mistaken for "I must be missing ingredients".
+
+`tickNode()` now runs every tick with no throttling, alongside the once-a-second structure
+refresh. Two jobs at two rates, for two different reasons: stepping is the crafting itself and
+must be immediate, while re-reading the structure is expensive and only decides which of three
+pictures the screen shows.
+
 ## 0.0.23
 
 **Copied the Autocrafter Manager properly instead of imitating it piece by piece** -- and the very
