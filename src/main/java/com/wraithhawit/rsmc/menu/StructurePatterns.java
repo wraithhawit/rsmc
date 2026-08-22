@@ -149,6 +149,20 @@ public final class StructurePatterns implements Container {
         }
     }
 
+    /**
+     * Puts one slot back on the list of things to push.
+     *
+     * <p>For a caller that drained more than it was willing to do this tick. Draining is
+     * all-or-nothing by design -- it is what stops a slot being pushed twice -- so handing one back
+     * is how a budget is spent without losing the remainder.
+     */
+    public void markDirty(final int slot) {
+        final PatternStorageBlockEntity storage = this.storageFor(slot);
+        if (storage != null) {
+            storage.markDirty(this.localIndex(slot));
+        }
+    }
+
     /** Marks everything for pushing, for a node that has just been rebuilt and holds nothing. */
     public void markAllDirty() {
         this.storages.forEach(PatternStorageBlockEntity::markAllDirty);

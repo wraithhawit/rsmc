@@ -6,6 +6,32 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.5
+
+**Patterns are handed to the network a few at a time**, instead of the whole backlog in one tick.
+
+`setPattern` is far more than a store. It calls remove and then add on the network's autocrafting
+component, and `add` ends with
+`patternListeners.forEach(listener -> listener.onAdded(pattern))` -- Refined Storage keeps **four**
+calculator listeners on that path, so one pattern means four notifications and whatever
+recalculation each of them decides to do.
+
+Draining every dirty slot in one refresh therefore landed the entire cost of a shift-click in a
+single tick. Eight per refresh fills a storage block in under seven seconds -- faster than anyone
+fills one by hand -- and never lands the listener storm at once.
+
+### What the profiles say after rstweaks 0.2.109
+
+| | worst | now |
+|---|---|---|
+| `CraftingTree.calculate` | 96.2% | 25.0% |
+| `MutablePatternPlan.copy` (self) | 26.2% | absent from the top 12 |
+| `MutableTaskPlan.copy` -> `MutablePatternPlan.copy` | -- | 0.70% |
+
+**And the client lag was never client lag.** The render thread is 65.6% `Unsafe.park` -- blocked
+waiting on the integrated server. Worth knowing before reaching for `/sparkc`: on a single-player
+world a client freeze is usually a server freeze seen from the other side.
+
 ## 0.1.4
 
 **Slot lookup is O(1).** `StructurePatterns.getItem` appeared at 2.90% of the server thread in a

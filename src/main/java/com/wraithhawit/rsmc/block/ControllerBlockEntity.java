@@ -48,6 +48,14 @@ public class ControllerBlockEntity extends BlockEntity {
     private static final int REFRESH_INTERVAL_TICKS = 20;
 
     /**
+     * How many patterns are handed to the network per refresh. See the comment where it is used.
+     *
+     * <p>Eight a second fills a storage block in under seven, which is faster than anyone fills one
+     * by hand, and slow enough that the listener storm never lands in one tick.
+     */
+    private static final int PATTERN_PUSHES_PER_REFRESH = 8;
+
+    /**
      * The pattern provider. Rebuilt when the structure's pattern capacity changes, because
      * {@link PatternProviderNetworkNode} fixes its slot count at construction.
      */
@@ -218,7 +226,25 @@ public class ControllerBlockEntity extends BlockEntity {
         if (patterns.getContainerSize() != this.builtCapacity) {
             return;
         }
+        // A few at a time, never the whole backlog at once.
+        //
+        // setPattern is far more than a store: it calls remove and then add on the network's
+        // autocrafting component, and add ends with
+        // patternListeners.forEach(listener -> listener.onAdded(pattern)). Refined Storage keeps
+        // four calculator listeners on that path, so one pattern means four notifications and
+        // whatever recalculation each decides to do.
+        //
+        // Draining every dirty slot in one refresh therefore lands the whole cost of a shift-click
+        // in a single tick, which is what a hard lock-up while inserting patterns turned out to be.
+        // Spreading it means a bulk insert registers over a few seconds, which nobody notices,
+        // instead of freezing the server once, which everybody does.
+        final int[] budget = {PATTERN_PUSHES_PER_REFRESH};
         patterns.drainDirtySlots(slot -> {
+            if (budget[0]-- <= 0) {
+                // Out of budget: hand it back, so the next refresh picks it up.
+                patterns.markDirty(slot);
+                return;
+            }
             final ItemStack stack = patterns.getItem(slot);
             final Pattern pattern = stack.isEmpty()
                 ? null

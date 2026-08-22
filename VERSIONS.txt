@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.5
+-----
+  Patterns are pushed to the network 8 per refresh instead of the whole backlog at once.
+  setPattern fires RS's four pattern listeners each time, so a shift-clicked stack landed as one
+  tick of listener storm. Also recorded: the client lockup is the render thread parked waiting
+  on the server (65.6% Unsafe.park), so /spark not /sparkc.
+
 0.1.4
 -----
   StructurePatterns.getItem was 2.9% of the server thread with the screen open - the menu calls

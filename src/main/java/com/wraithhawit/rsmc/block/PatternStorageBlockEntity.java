@@ -65,6 +65,11 @@ public class PatternStorageBlockEntity extends BlockEntity implements BlockEntit
         this.markAllDirty();
     }
 
+    /** Puts one slot back on the list of things to push. */
+    public void markDirty(final int slot) {
+        this.dirtySlots.set(slot);
+    }
+
     /** Every slot needs pushing: after a load, or into a node that has just been rebuilt. */
     public void markAllDirty() {
         this.dirtySlots.set(0, StructurePower.PATTERNS_PER_STORAGE);
