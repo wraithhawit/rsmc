@@ -62,6 +62,20 @@ public class ControllerBlockEntity extends BlockEntity {
     /** Sum of the storage blocks' pattern versions when patterns were last pushed. */
     private int pushedPatternsVersion = -1;
 
+    /**
+     * Whether the current container has actually joined a network.
+     *
+     * <p>Not a convenience. {@code clearRemoved()} can run before the block entity has a level, in
+     * which case the container is never initialised -- and asking RS to remove a container it never
+     * received is a hard crash: {@code NetworkBuilderImpl.remove} validates that the container is
+     * present and throws "The removed container should be present in the removed entries, but
+     * isn't". This is the only thing that knows whether a remove is legal.
+     */
+    private boolean joinedNetwork;
+
+    /** So a capacity change queues one rebuild, not one per refresh until it happens. */
+    private boolean recreateRequested;
+
     public ControllerBlockEntity(final BlockPos pos, final BlockState state) {
         super(RsmcBlockEntities.CONTROLLER.get(), pos, state);
     }
@@ -154,12 +168,16 @@ public class ControllerBlockEntity extends BlockEntity {
         if (capacity == this.builtCapacity && this.containerProvider != null) {
             return;
         }
-        if (this.containerProvider != null) {
-            this.containerProvider.remove(currentLevel);
+        if (this.joinedNetwork) {
+            // Already on the network at a different size. The node cannot be swapped in place, so
+            // this is done by rebuilding the block entity on the next tick.
+            this.requestRecreate(currentLevel);
+            return;
         }
         this.node = new PatternProviderNetworkNode(this.node.getEnergyUsage(), capacity);
         this.containerProvider = this.buildContainerProvider();
         this.containerProvider.initialize(currentLevel, null);
+        this.joinedNetwork = true;
         this.builtCapacity = capacity;
         // The new node has no patterns at all, so the next push must not be skipped.
         this.pushedPatternsVersion = -1;
@@ -177,7 +195,15 @@ public class ControllerBlockEntity extends BlockEntity {
         if (version == this.pushedPatternsVersion) {
             return;
         }
-        for (int slot = 0; slot < patterns.getContainerSize(); slot++) {
+        // Bounded by what the node actually has, not by what the structure has. When capacity has
+        // changed the node is still the old size until the rebuild lands a tick later, and writing
+        // past it is an ArrayIndexOutOfBounds inside RS -- another server crash. Being briefly out
+        // of date is fine; the rebuild forces a full re-push when it arrives.
+        final int slots = Math.min(patterns.getContainerSize(), this.builtCapacity);
+        if (slots < patterns.getContainerSize()) {
+            return;
+        }
+        for (int slot = 0; slot < slots; slot++) {
             final ItemStack stack = patterns.getItem(slot);
             final Pattern pattern = stack.isEmpty()
                 ? null
@@ -204,6 +230,49 @@ public class ControllerBlockEntity extends BlockEntity {
         }
     }
 
+
+    /**
+     * Rebuilds this block entity from scratch, on the next tick, so the node can change size.
+     *
+     * <p><strong>A container cannot be removed while its block still stands.</strong>
+     * {@code NetworkBuilderImpl.remove} walks the network from a neighbouring container and requires
+     * the removed one to be <em>absent</em> from that rescan -- but the capability at our position
+     * keeps answering as long as the block entity is there, so RS finds it, fails its own validation
+     * and throws. That is a hard server crash, and it took three wrong theories to find: it is not
+     * about initialisation order, and not about RS's deferred task queue.
+     *
+     * <p>Dropping the block entity makes the capability answer nothing, which is exactly the state
+     * RS expects during a removal -- so {@code setRemoved} takes the container out cleanly and the
+     * fresh block entity builds a node at the new size.
+     *
+     * <p>Nothing is lost, because nothing here is worth keeping: capacity, patterns and speed are
+     * all derived from the world, and the patterns themselves live in the Pattern Storage blocks.
+     * The decision to keep them there pays for itself here.
+     *
+     * <p>Deferred to the server's task queue rather than done inline, because this runs from inside
+     * the block entity tick and removing a block entity while the level is iterating them is how you
+     * get a concurrent modification instead of a working crafter.
+     */
+    private void requestRecreate(final Level currentLevel) {
+        if (this.recreateRequested || currentLevel.getServer() == null) {
+            return;
+        }
+        this.recreateRequested = true;
+        final BlockPos pos = this.worldPosition;
+        currentLevel.getServer().execute(() -> {
+            if (currentLevel.getBlockEntity(pos) != this) {
+                return;
+            }
+            currentLevel.removeBlockEntity(pos);
+            final BlockState state = currentLevel.getBlockState(pos);
+            if (state.getBlock() instanceof ControllerBlock controllerBlock) {
+                final BlockEntity fresh = controllerBlock.newBlockEntity(pos, state);
+                if (fresh != null) {
+                    currentLevel.setBlockEntity(fresh);
+                }
+            }
+        });
+    }
     /**
      * Whether the structure is actually running.
      *
@@ -231,18 +300,23 @@ public class ControllerBlockEntity extends BlockEntity {
     @Override
     public void setRemoved() {
         super.setRemoved();
-        if (this.containerProvider != null) {
+        if (this.containerProvider != null && this.joinedNetwork && this.node.getNetwork() != null) {
             this.containerProvider.remove(this.level);
+            this.joinedNetwork = false;
         }
     }
 
     @Override
     public void clearRemoved() {
         super.clearRemoved();
-        final Level currentLevel = this.level;
-        // Server only -- the client has no network graph.
-        if (currentLevel != null && !currentLevel.isClientSide()) {
-            this.containerProvider().initialize(currentLevel, null);
-        }
+        // Deliberately does NOT join the network here.
+        //
+        // The node's pattern capacity is fixed at construction, and at this point the structure has
+        // not been read yet -- so joining now means joining at size zero, discovering the real size
+        // a tick later, and rebuilding. Which rebuilds into another size-zero node, and so on: an
+        // endless recreate loop that showed up as a structure that never powered on.
+        //
+        // The first refresh joins, once the size is known. An unformed structure therefore is not
+        // on the network at all, which is also the more honest answer.
     }
 }

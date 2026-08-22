@@ -6,6 +6,37 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.0.21
+
+**0.0.20 crashed the server.** It shipped with a failing gametest because the command that built and
+installed it did not stop on the failure. That is fixed here, and the sequence is worth recording
+because three separate theories were wrong before the real one.
+
+**A container cannot be removed while its block still stands.** `NetworkBuilderImpl.remove` walks
+the network from a neighbouring container and requires the removed one to be *absent* from that
+rescan -- but the capability at our position keeps answering as long as the block entity is there.
+RS finds it, fails its own validation, and throws. It is not about initialisation order, and not
+about RS deferring network changes to its task queue; both were checked and neither was it.
+
+So a node whose size must change is handled by **dropping and rebuilding the block entity** on the
+next tick. With the block entity gone the capability answers nothing, which is exactly the state
+RS expects during a removal. Deferred rather than inline because this runs from inside the block
+entity tick.
+
+**Nothing is lost in that rebuild**, and that is the design paying for itself: capacity, patterns
+and speed are all derived from the world, and the patterns live in the Pattern Storage blocks.
+There is nothing on the controller worth keeping.
+
+Two further crashes fell out of the fix:
+
+- **Writing patterns past the node's size.** The node is still the old size until the rebuild
+  lands, so the push is now bounded by what the node actually has.
+- **An endless rebuild loop.** The block entity joined the network before the structure had been
+  read, so it joined at size zero, found the real size a tick later, rebuilt -- into another
+  size-zero node. It showed up as a structure that never powered on. It now joins on the first
+  refresh, once the size is known; an unformed structure is not on the network at all, which is
+  the more honest answer anyway.
+
 ## 0.0.20
 
 **The pattern provider node.** (#2, the last step.) The Controller now hosts a real
