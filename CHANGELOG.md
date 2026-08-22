@@ -6,6 +6,19 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.3
+
+**`/rsmc info` now prints the mod version first**, on every path including the failures.
+
+Asked for while chasing a lag spike, and it is the right instinct: a result that cannot be tied to
+a build is not evidence. rstweaks learned this the expensive way, mistaking a report from a jar
+three versions old for a confirmation.
+
+It also prints **how many patterns the structure holds**, used of capacity. That number is not
+trivia: every pattern on a network is another branch Refined Storage's crafting calculator may
+explore, on any craft, not only ours. A structure full of patterns makes planning more expensive
+for the whole network -- which is exactly the shape of the problem the profiles are showing.
+
 ## 0.1.2
 
 **`StructurePatterns.canPlaceItem` was 16.3% of the server thread.** Found in Wraith's first spark

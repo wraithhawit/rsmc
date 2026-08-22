@@ -8,6 +8,12 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.3
+-----
+  /rsmc info prints the mod version first on every path, and how many patterns the structure
+  holds (used of capacity) - the number that makes RS's crafting calculator more expensive for
+  the whole network.
+
 0.1.2
 -----
   canPlaceItem was 16.3% of the server thread: insertItem calls it per slot and the filter

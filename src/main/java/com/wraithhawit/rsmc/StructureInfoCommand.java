@@ -7,6 +7,7 @@ import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
 import com.wraithhawit.rsmc.structure.StructureBlock;
+import com.wraithhawit.rsmc.structure.StructurePower;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -61,6 +62,10 @@ public final class StructureInfoCommand {
     }
 
     private static void info(final CommandSourceStack source) {
+        // First line, always, even on the failure paths. A result that cannot be tied to a build is
+        // not evidence -- rstweaks learned this by mistaking a report from a three-version-old jar
+        // for a confirmation.
+        line(source, ChatFormatting.DARK_AQUA, "rsmc v" + RSMC.version);
         final ServerPlayer player = source.getPlayer();
         if (player == null) {
             source.sendFailure(Component.literal("Run this as a player -- it reads what you look at."));
@@ -83,7 +88,7 @@ public final class StructureInfoCommand {
         reportScreen(source, player, pos, result);
         reportHeldItem(source, player, player.level(), pos, result);
         if (result.formed()) {
-            reportFormed(source, result);
+            reportFormed(source, player, result);
         } else {
             reportFailure(source, result);
         }
@@ -161,7 +166,8 @@ public final class StructureInfoCommand {
                     : ""));
     }
 
-    private static void reportFormed(final CommandSourceStack source, final Result result) {
+    private static void reportFormed(final CommandSourceStack source, final ServerPlayer player,
+                                     final Result result) {
         line(source, ChatFormatting.GREEN, "Structure formed.");
         line(source, ChatFormatting.GRAY, "  size      "
             + result.sizeX() + " x " + result.sizeY() + " x " + result.sizeZ()
@@ -175,6 +181,11 @@ public final class StructureInfoCommand {
         }
         line(source, ChatFormatting.GRAY, "  CPUs      " + result.cpus()
             + "   pattern storage " + result.patternStorages());
+        // How many patterns this structure puts into the network. Worth printing because it is the
+        // number that makes RS's crafting calculator more expensive for the whole network: every
+        // pattern is another branch the calculator may explore on any craft, not just ours.
+        line(source, ChatFormatting.GRAY, "  patterns  " + patternsInUse(player, result)
+            + " of " + (result.patternStorages() * StructurePower.PATTERNS_PER_STORAGE));
         line(source, ChatFormatting.AQUA, "  speed     " + result.stepsPerTick()
             + " steps/tick  (a fully upgraded RS autocrafter is 2.5)");
         // Said plainly, because a formed structure that does nothing is the single most confusing
@@ -183,6 +194,18 @@ public final class StructureInfoCommand {
             "  It will not craft yet -- the pattern provider is not implemented (issue #2).");
         line(source, ChatFormatting.YELLOW,
             "  Connecting a cable to any face does work.");
+    }
+
+    /** How many pattern slots in the structure actually hold something. */
+    private static int patternsInUse(final ServerPlayer player, final Result result) {
+        final StructurePatterns patterns = StructurePatterns.of(player.level(), result);
+        int used = 0;
+        for (int slot = 0; slot < patterns.getContainerSize(); slot++) {
+            if (!patterns.getItem(slot).isEmpty()) {
+                used++;
+            }
+        }
+        return used;
     }
 
     private static void reportFailure(final CommandSourceStack source, final Result result) {
