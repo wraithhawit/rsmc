@@ -8,6 +8,17 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.8
+-----
+  Two fixes to 0.1.7, both reported after using it. (1) The outline was NOT see-through:
+  RenderType.lines() is depth-tested, and a MultiBufferSource re-applies the render type's own GL
+  state at endBatch, so disabling depth beforehand was overwritten. The class comment claimed
+  see-through and the code did the opposite. Now the lines state is set up, depth is disabled
+  AFTER that setup, and the box is drawn immediately instead of queued -- so a wrong block inside
+  the crafter is actually visible. (2) The chat message ate the block placement that came with the
+  right-click: the unformed path returned CONSUME. It returns PASS now, so building against the
+  structure works, and the message is rate-limited to once a second per player so a wall of
+  right-clicks does not become a wall of text. Right-clicking the Controller always speaks.
 0.1.7
 -----
   #3, the player-facing half. Right-clicking the CONTROLLER of an unformed structure now outlines

@@ -53,7 +53,12 @@ public final class PatternScreenOpener {
         if (!result.formed()) {
             explain(serverPlayer, result,
                 level.getBlockState(pos).getBlock() instanceof ControllerBlock);
-            return InteractionResult.CONSUME;
+            // PASS, not CONSUME. Consuming the interaction eats the block placement that came
+            // with it, so building the box against a block that is already part of it silently
+            // did nothing -- exactly when a player is placing the most blocks. An unformed
+            // structure has no screen to open and nothing to protect, so the interaction should
+            // carry on to whatever the held item wanted to do.
+            return InteractionResult.PASS;
         }
         final StructurePatterns patterns = StructurePatterns.of(level, pos);
         serverPlayer.openMenu(new SimpleMenuProvider(
@@ -66,6 +71,18 @@ public final class PatternScreenOpener {
 
     private static void explain(final ServerPlayer player, final Result result,
                                 final boolean fromController) {
+        // Now that the interaction PASSes, one right-click can both place a block and report the
+        // failure -- and placing a wall by hand is a right-click per block. A player asked for
+        // this message on demand, not as a running commentary, so it speaks at most once a
+        // second per player. The highlight is not rate-limited: it is deliberate, aimed, and
+        // replaces itself rather than accumulating.
+        final long now = player.level().getGameTime();
+        final Long last = LAST_MESSAGE.get(player.getUUID());
+        final boolean quiet = last != null && now - last < MESSAGE_INTERVAL_TICKS;
+        LAST_MESSAGE.put(player.getUUID(), now);
+        if (quiet && !fromController) {
+            return;
+        }
         player.displayClientMessage(
             Component.literal("Not formed: " + describe(result)).withStyle(ChatFormatting.RED),
             false);
@@ -96,6 +113,18 @@ public final class PatternScreenOpener {
 
     /** Long enough to walk round the box and look, short enough not to become scenery. */
     private static final int HIGHLIGHT_TICKS = 20 * 15;
+
+    /** How often one player can be told, at most. */
+    private static final int MESSAGE_INTERVAL_TICKS = 20;
+
+    /**
+     * Last time each player was told, by uuid.
+     *
+     * <p>Never cleaned: an entry is two longs, and a server that has seen enough distinct players
+     * for this to matter has larger maps than this one everywhere else.
+     */
+    private static final java.util.Map<java.util.UUID, Long> LAST_MESSAGE =
+        new java.util.concurrent.ConcurrentHashMap<>();
 
     /** What a position needed to be, in the words the blocks are actually called. */
     private static String needed(@Nullable final MultiblockShape.Role role) {

@@ -6,6 +6,40 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.8
+
+**Two fixes to 0.1.7, both found by using it.**
+
+### The outline was not see-through
+
+0.1.7's class comment said the highlight was drawn "deliberately without depth testing, so the
+outline is visible through the structure's own walls". It was not. `RenderType.lines()` is
+depth-tested, and handing geometry to a `MultiBufferSource` means the render type re-applies its
+own GL state at `endBatch` — so any `disableDepthTest()` beforehand is overwritten a moment later.
+
+The comment described the intent and the code did the opposite, which is worse than either alone:
+it reads as verified. The offending block is very often *inside* the box, which is exactly the
+case the highlight exists for, and exactly the case that did not work.
+
+Building a no-depth `RenderType` needs `RenderType.create` plus half of `RenderStateShard`, all
+protected — a pile of access transformers for one outline. So the lines state is set up, depth
+testing is disabled **after** that setup, and the box is drawn immediately rather than queued.
+
+### The message ate the block placement
+
+The unformed path returned `InteractionResult.CONSUME`, which consumes the whole interaction —
+including the block placement that came with it. So right-clicking a structure block to place
+another one against it silently did nothing, precisely when a player is placing the most blocks.
+
+It returns `PASS` now. An unformed structure has no screen to open and nothing to protect, so the
+interaction should carry on to whatever the held item wanted to do.
+
+That makes one right-click both place a block and report the failure, and placing a wall by hand
+is a right-click per block — so the message is rate-limited to **once a second per player**.
+Right-clicking the **Controller** always speaks, because that is a deliberate question rather
+than a side effect of building. The highlight is never rate-limited: it is aimed, and it replaces
+itself rather than accumulating.
+
 ## 0.1.7
 
 **#3's player-facing half: showing which block is wrong instead of describing it.**

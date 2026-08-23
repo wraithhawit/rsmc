@@ -1,6 +1,12 @@
 package com.wraithhawit.rsmc.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.wraithhawit.rsmc.network.ClientHighlightHandler;
 import com.wraithhawit.rsmc.network.HighlightBlockPayload;
 
@@ -20,10 +26,23 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
  * <p>Client-side and entirely transient: one position and a countdown, replaced whenever a newer
  * highlight arrives. Nothing here is saved, and losing it costs a right-click.
  *
- * <p>Drawn at {@code AFTER_TRANSLUCENT_BLOCKS} and deliberately <b>without</b> depth testing, so
- * the outline is visible through the structure's own walls. A player asking "which block is
- * wrong" is usually standing outside a box whose offending position is on the far side; an
- * outline they cannot see through the machine answers nothing.
+ * <p>Drawn <b>without depth testing</b>, so the outline is visible through the structure's own
+ * walls. That is the whole point: the offending block is very often <em>inside</em> the box, and
+ * an outline hidden behind the machine answers nothing.
+ *
+ * <h2>Why the draw is done by hand</h2>
+ *
+ * <p>0.1.7 claimed this and did not do it. {@code RenderType.lines()} is depth-tested, and
+ * handing it to a {@code MultiBufferSource} means the render type sets up its own GL state at
+ * {@code endBatch} — so a {@code RenderSystem.disableDepthTest()} beforehand is simply overwritten
+ * a moment later. The comment said "without depth testing" and the code did the opposite, which is
+ * worse than either.
+ *
+ * <p>Building a no-depth {@code RenderType} needs {@code RenderType.create} and half of
+ * {@code RenderStateShard}, all protected — a pile of access transformers for one outline. So
+ * instead the lines state is set up, depth testing is disabled <em>after</em> that setup, and the
+ * geometry is drawn immediately rather than queued. Nothing else shares the state, because
+ * nothing else is batched in between.
  */
 public final class StructureHighlight {
     /** Slightly larger than the block, so the outline does not z-fight with its own faces. */
@@ -66,18 +85,23 @@ public final class StructureHighlight {
         }
         final Vec3 camera = event.getCamera().getPosition();
         final PoseStack poseStack = event.getPoseStack();
-        final MultiBufferSource.BufferSource buffers =
-            minecraft.renderBuffers().bufferSource();
 
         poseStack.pushPose();
         poseStack.translate(-camera.x, -camera.y, -camera.z);
-        // lines() rather than a depth-tested type: see the class comment.
+
+        final RenderType lines = RenderType.lines();
+        lines.setupRenderState();
+        // AFTER the render type's own setup, which would otherwise re-enable it.
+        RenderSystem.disableDepthTest();
+
+        final BufferBuilder builder = Tesselator.getInstance()
+            .begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
         LevelRenderer.renderLineBox(
-            poseStack,
-            buffers.getBuffer(RenderType.lines()),
-            new AABB(pos).inflate(INFLATE),
-            1.0F, 0.25F, 0.25F, 1.0F);
+            poseStack, builder, new AABB(pos).inflate(INFLATE), 1.0F, 0.25F, 0.25F, 1.0F);
+        BufferUploader.drawWithShader(builder.buildOrThrow());
+
+        RenderSystem.enableDepthTest();
+        lines.clearRenderState();
         poseStack.popPose();
-        buffers.endBatch(RenderType.lines());
     }
 }
