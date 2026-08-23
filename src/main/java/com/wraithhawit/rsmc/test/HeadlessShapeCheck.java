@@ -62,7 +62,7 @@ public final class HeadlessShapeCheck {
         // required CPU and pattern storage at once. Nothing declares this minimum -- it falls out
         // of the interior requirement, and this case is what proves that.
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         final Result result = world.find(0, 0, 0);
         expectFormed("3x3x4", result);
@@ -76,7 +76,7 @@ public final class HeadlessShapeCheck {
         // 3x3x3 has exactly one interior slot. Whichever block goes in it, the other is missing --
         // which is why the effective minimum is 3x3x4 without anything having to say so.
         final World world = shell(0, 0, 0, 2, 2, 2);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         expectFailure("3x3x3 cpu only", world.find(0, 0, 0), Failure.NO_PATTERN_STORAGE);
 
         final World other = shell(0, 0, 0, 2, 2, 2);
@@ -87,9 +87,9 @@ public final class HeadlessShapeCheck {
     private static void tierWeightsAreSummed() {
         // 3x3x6 gives an interior of 1x1x4: three CPUs of different tiers and one storage.
         final World world = shell(0, 0, 0, 2, 2, 5);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
-        world.cpu(1, 1, 2, CpuTier.FOUR_K);
-        world.cpu(1, 1, 3, CpuTier.SIXTY_FOUR_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
+        world.cpu(1, 1, 2, CpuTier.FOUR_X);
+        world.cpu(1, 1, 3, CpuTier.SIXTY_FOUR_X);
         world.put(1, 1, 4, BlockKind.PATTERN_STORAGE);
         final Result result = world.find(0, 0, 0);
         expectFormed("mixed tiers", result);
@@ -99,7 +99,7 @@ public final class HeadlessShapeCheck {
 
     private static void aFrameInAWallSlotIsWrong() {
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         // (1, 0, 1) has one coordinate at an extreme, so it is a wall slot.
         world.put(1, 0, 1, BlockKind.FRAME);
@@ -110,7 +110,7 @@ public final class HeadlessShapeCheck {
 
     private static void aCasingOnAnEdgeIsWrong() {
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         // (0, 0, 1) has two coordinates at an extreme, so it is an edge.
         world.put(0, 0, 1, BlockKind.CASING);
@@ -119,15 +119,15 @@ public final class HeadlessShapeCheck {
 
     private static void aCpuInTheShellIsWrong() {
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
-        world.cpu(1, 0, 1, CpuTier.ONE_K);
+        world.cpu(1, 0, 1, CpuTier.ONE_X);
         expectFailure("cpu in the wall", world.find(0, 0, 0), Failure.WRONG_BLOCK);
     }
 
     private static void aHoleIsNotSolid() {
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         world.remove(1, 0, 1);
         final Result result = world.find(0, 0, 0);
@@ -145,7 +145,7 @@ public final class HeadlessShapeCheck {
         // which one surfaces is just scan order. Asserting one would be asserting the order of
         // three nested loops, which is not a rule anyone should be held to.
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         world.put(3, 1, 1, BlockKind.FRAME);
         expectNotFormed("overhang", world.find(0, 0, 0));
@@ -155,7 +155,7 @@ public final class HeadlessShapeCheck {
         // A big interior full of CPUs and no storage: formed shape, nowhere to put a pattern.
         final World world = shell(0, 0, 0, 2, 2, 5);
         for (int z = 1; z <= 4; z++) {
-            world.cpu(1, 1, z, CpuTier.ONE_K);
+            world.cpu(1, 1, z, CpuTier.ONE_X);
         }
         expectFailure("all cpus", world.find(0, 0, 0), Failure.NO_PATTERN_STORAGE);
     }
@@ -170,14 +170,14 @@ public final class HeadlessShapeCheck {
     }
 
     private static void maximumStructure() {
-        // The number the README quotes: a 16x16x16 whose 14x14x14 interior is 64K CPUs but for one
+        // The number the README quotes: a 16x16x16 whose 14x14x14 interior is 64x CPUs but for one
         // pattern storage. Checked rather than asserted in prose, because a tier weight change
         // would otherwise silently make the docs wrong.
         final World world = shell(0, 0, 0, 15, 15, 15);
         for (int x = 1; x <= 14; x++) {
             for (int y = 1; y <= 14; y++) {
                 for (int z = 1; z <= 14; z++) {
-                    world.cpu(x, y, z, CpuTier.SIXTY_FOUR_K);
+                    world.cpu(x, y, z, CpuTier.SIXTY_FOUR_X);
                 }
             }
         }
@@ -192,14 +192,14 @@ public final class HeadlessShapeCheck {
     private static void aStructureNeedsAController() {
         // Every wall a plain Casing: a perfectly built box with no way to reach a network.
         final World world = shellWithoutController(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         expectFailure("no controller", world.find(0, 0, 0), Failure.NO_CONTROLLER);
     }
 
     private static void twoControllersIsAnError() {
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         // shell() already placed one on the first wall slot it found; add a second elsewhere.
         world.put(1, 2, 1, BlockKind.CONTROLLER);
@@ -211,7 +211,7 @@ public final class HeadlessShapeCheck {
 
     private static void aControllerOnAnEdgeIsWrong() {
         final World world = shell(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         world.put(0, 0, 1, BlockKind.CONTROLLER);
         expectFailure("controller on an edge", world.find(0, 0, 0), Failure.WRONG_BLOCK);
@@ -219,7 +219,7 @@ public final class HeadlessShapeCheck {
 
     private static void theControllerPositionIsReported() {
         final World world = shellWithoutController(0, 0, 0, 2, 2, 3);
-        world.cpu(1, 1, 1, CpuTier.ONE_K);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
         world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
         world.put(1, 0, 1, BlockKind.CONTROLLER);
         final Result result = world.find(0, 0, 0);

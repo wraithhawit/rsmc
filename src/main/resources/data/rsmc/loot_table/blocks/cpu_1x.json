@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "rsmc:cpu_4k"
+          "name": "rsmc:cpu_1x"
         }
       ],
       "conditions": [

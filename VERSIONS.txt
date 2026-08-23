@@ -8,6 +8,21 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.11
+------
+  Four changes from playing with 0.1.10. (1) Crafter Casing was one ingredient away from Crafter
+  Frame in the recipe book; it now takes basic processors in the top and bottom centre, so the two
+  are distinct shapes. (2) CPU tiers renamed 1K/4K/16K/64K -> 1x/4x/16x/64x. K reads as CAPACITY,
+  which is what it means on every other block wearing it, and these store nothing -- a 64x CPU is
+  64 steps per tick, not 64,000 of anything. Rung ratio and recipe ladder unchanged, only the
+  label. (3) CPU recipes put the quartz enriched iron at the bottom and swap the redstone for a
+  vanilla crafter, matching the 1x recipe. (4) A registry alias for the rename was written, tested
+  and then REMOVED on Wraith's call -- no playthrough to protect, so it was machinery guarding a
+  failure nobody will hit. Existing worlds will lose their CPU blocks; that is accepted. Noted in
+  CHANGELOG for when it matters: MissingMappingsEvent does NOT exist in NeoForge 1.21,
+  DeferredRegister.addAlias is the replacement, and it needs applying to blocks AND items.
+  The rename was done as cpu_1k -> cpu_1x, never bare 1k -> 1x: a blanket replace would have
+  rewritten refinedstorage:1k_storage_part in the Pattern Storage recipe into a nonexistent item.
 0.1.10
 ------
   #5: every block is craftable. Frame and Casing as proposed (quartz enriched iron/copper round a

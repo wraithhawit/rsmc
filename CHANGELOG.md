@@ -6,6 +6,71 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.11
+
+**Four changes from playing with 0.1.10.**
+
+### Casing and Frame no longer look alike in the recipe book
+
+They were `ICI/CMC/ICI` and `CCC/CMC/CCC` — one ingredient apart, in a corner-vs-edge arrangement
+nobody is going to hold in their head. The Casing now takes **basic processors** in the top and
+bottom centre:
+
+```
+CPC        C = quartz enriched copper
+CMC        P = refinedstorage:basic_processor
+CPC        M = refinedstorage:machine_casing
+```
+
+Two distinct shapes, and the processors give the wall block a reason to be more than "the frame
+without corners".
+
+### The CPU tiers are 1x / 4x / 16x / 64x
+
+`K` was borrowed from Refined Storage's storage ladder on the theory that a player already reads
+it as a four-step ×4 progression. It also reads as **capacity**, because that is what K means on
+every other block wearing it — and these do not store anything. A 64K CPU is not 64,000 of
+something; it is 64 steps per tick. The `x` says the one true thing about it.
+
+The rung ratio is unchanged and the recipes still ladder like RS's storage parts. Only the label
+moved.
+
+### Existing worlds do NOT survive the rename, deliberately
+
+A renamed block id makes Minecraft delete the block: it finds something in the chunk no registry
+knows and drops it. Every CPU in an existing crafter becomes air, and because the interior is
+sealed, nobody watches it happen.
+
+That is normally worth a registry alias, and one was written and working before Wraith pointed
+out there is no playthrough to protect — the test world is disposable and cheating blocks back in
+is a ten-second job. So it was removed rather than carried: seventy lines of machinery guarding a
+failure nobody will experience is a cost with no matching benefit, in a codebase young enough
+that every piece should still be earning its keep.
+
+Recorded for whenever it *does* matter: `MissingMappingsEvent` is what a 1.20 mod would use and
+**does not exist in NeoForge 1.21** — it was removed. `DeferredRegister.addAlias(old, new)` is
+the replacement, and it must be applied to the **block and item registries separately**, since
+aliasing only the block still loses every copy sitting in a chest or a Pattern Storage.
+
+### CPU recipes: quartz enriched iron moved to the bottom, redstone became a crafter
+
+```
+PSP        P = basic → improved → advanced processor
+SCS        S = 3× the tier below
+PEP        C = minecraft:crafter,  E = quartz enriched iron
+```
+
+Every tier now consumes a vanilla crafter, which reads better than redstone dust for a block
+whose whole job is crafting — and matches the 1x CPU, which already used one.
+
+### One near-miss worth recording
+
+The rename was done as `cpu_1k` → `cpu_1x`, never bare `1k` → `1x`. A blanket replace would have
+rewritten `refinedstorage:1k_storage_part` in the Pattern Storage recipe into an item that does
+not exist — and per 0.1.10, that failure is silent: the recipe is dropped at datapack load and the
+block simply cannot be made. `recipeCheck` would have caught it, which is the second time in two
+versions that test has earned its place.
+
 ## 0.1.10
 
 **#5: every block is craftable.**

@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["PSP", "SCS", "PEP"],
+  "key": {
+    "P": {"item": "refinedstorage:basic_processor"},
+    "S": {"item": "rsmc:cpu_1x"},
+    "C": {"item": "minecraft:crafter"},
+    "E": {"item": "refinedstorage:quartz_enriched_iron"}
+  },
+  "result": {"id": "rsmc:cpu_4x", "count": 1}
+}

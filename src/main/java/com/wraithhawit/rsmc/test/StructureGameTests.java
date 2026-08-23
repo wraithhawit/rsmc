@@ -59,7 +59,7 @@ public final class StructureGameTests {
     @GameTest(template = "empty8", timeoutTicks = 100)
     public static void smallestStructureForms(final GameTestHelper helper) {
         buildShell(helper);
-        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.FOUR_K).get());
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.FOUR_X).get());
         helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
 
         final Result result = find(helper);
@@ -68,7 +68,7 @@ public final class StructureGameTests {
             return;
         }
         if (result.stepsPerTick() != 4) {
-            helper.fail("expected 4 steps/tick from one 4K CPU, got " + result.stepsPerTick());
+            helper.fail("expected 4 steps/tick from one 4x CPU, got " + result.stepsPerTick());
             return;
         }
         if (result.cpus() != 1 || result.patternStorages() != 1) {
@@ -83,7 +83,7 @@ public final class StructureGameTests {
     @GameTest(template = "empty8", timeoutTicks = 100)
     public static void aHoleIsReportedWhereItIs(final GameTestHelper helper) {
         buildShell(helper);
-        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
         helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
         // A wall panel: one coordinate at an extreme.
         helper.setBlock(new BlockPos(1, 0, 1), net.minecraft.world.level.block.Blocks.AIR);
@@ -110,7 +110,7 @@ public final class StructureGameTests {
     @GameTest(template = "empty8", timeoutTicks = 100)
     public static void aForeignBlockDoesNotCount(final GameTestHelper helper) {
         buildShell(helper);
-        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
         helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
         helper.setBlock(new BlockPos(1, 0, 1), net.minecraft.world.level.block.Blocks.IRON_BLOCK);
 
@@ -230,7 +230,7 @@ public final class StructureGameTests {
     @GameTest(template = "empty8", timeoutTicks = 200)
     public static void breakingBlocksTurnsTheScreenOff(final GameTestHelper helper) {
         buildShell(helper);
-        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
         helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
 
         final BlockPos controller = controllerPos(helper);
@@ -304,7 +304,7 @@ public final class StructureGameTests {
     public static void aPoweredStructureGoesActive(final GameTestHelper helper) {
         // Offset by one so the Controller's outward face has a free column for the cable.
         buildShell(helper, 1);
-        helper.setBlock(new BlockPos(2, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(2, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
         helper.setBlock(new BlockPos(2, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
 
         final BlockPos controller = controllerPos(helper);
@@ -391,9 +391,9 @@ public final class StructureGameTests {
         // 3x3x6 gives an interior of 1x1x4: room for two storages with CPUs between them.
         buildShellSized(helper, 2, 2, 5);
         helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
-        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
         helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.PATTERN_STORAGE.get());
-        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
 
         final int perStorage = StructurePower.PATTERNS_PER_STORAGE;
         final StructurePatterns view =
@@ -443,9 +443,9 @@ public final class StructureGameTests {
     public static void onlyPatternsFitInPatternSlots(final GameTestHelper helper) {
         buildShellSized(helper, 2, 2, 5);
         helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
-        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
         helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.PATTERN_STORAGE.get());
-        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_K).get());
+        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
 
         final StructurePatterns view =
             StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));

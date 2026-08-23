@@ -29,7 +29,7 @@ blockstate property, no model code at all.
 
 ## When drawing the real ones
 
-Four CPU tiers are needed (`cpu_1k`, `cpu_4k`, `cpu_16k`, `cpu_64k`), not the single `cpu.png` here.
+Four CPU tiers are needed (`cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x`), not the single `cpu.png` here.
 Reference material from Cable Tiers and Refined Storage is unpacked in `texture-refs/` at the repo
 root.
 

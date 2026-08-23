@@ -43,8 +43,8 @@ public final class StructurePower {
      *
      * <p><strong>A CPU costs exactly what it produces</strong> -- its tier weight, the same number
      * it contributes to steps/tick. So energy tracks throughput rather than volume, and a big slow
-     * structure is cheap while a small fast one is not. It also means the 1K/4K/16K/64K ladder is
-     * energy-neutral: four 1K CPUs and one 4K cost the same and do the same, and the tier only buys
+     * structure is cheap while a small fast one is not. It also means the 1x/4x/16x/64x ladder is
+     * energy-neutral: four 1x CPUs and one 4x cost the same and do the same, and the tier only buys
      * you space.
      *
      * <p>These are starting numbers, not a considered balance -- #5 is where that happens.

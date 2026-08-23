@@ -60,14 +60,14 @@ A structure's rate is the plain sum of its CPU blocks' tier weights, in steps pe
 
 | CPU tier | steps/tick each |
 |---|---|
-| 1K | 1 |
-| 4K | 4 |
-| 16K | 16 |
-| 64K | 64 |
+| 1x | 1 |
+| 4x | 4 |
+| 16x | 16 |
+| 64x | 64 |
 
 A plain sum, deliberately: you can count blocks and know the answer, and adding a CPU is never a
-downgrade. For scale — one 1K CPU is 1 step/tick, ten times a bare autocrafter and still under a
-fully upgraded one; three of them pass it. A 5×5×5 with a 3×3×3 interior of 1K CPUs is 27
+downgrade. For scale — one 1x CPU is 1 step/tick, ten times a bare autocrafter and still under a
+fully upgraded one; three of them pass it. A 5×5×5 with a 3×3×3 interior of 1x CPUs is 27
 steps/tick, about eleven maxed autocrafters.
 
 ### One rule that surprises people

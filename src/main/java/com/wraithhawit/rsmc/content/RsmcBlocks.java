@@ -21,7 +21,6 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 /** Every block rsmc adds: the two shell blocks, four CPU tiers, and the pattern storage. */
 public final class RsmcBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(RSMC.MODID);
-
     public static final DeferredBlock<ShellBlock> FRAME =
         BLOCKS.register(BlockNames.FRAME, () -> new ShellBlock(properties(), BlockKind.FRAME));
 

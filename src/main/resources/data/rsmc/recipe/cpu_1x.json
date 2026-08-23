@@ -8,5 +8,5 @@
     "S": {"item": "refinedstorage:autocrafting_upgrade"},
     "C": {"item": "minecraft:crafter"}
   },
-  "result": {"id": "rsmc:cpu_1k", "count": 1}
+  "result": {"id": "rsmc:cpu_1x", "count": 1}
 }

@@ -1,7 +1,7 @@
 {
   "variants": {
     "": {
-      "model": "rsmc:block/cpu_1k"
+      "model": "rsmc:block/cpu_16x"
     }
   }
 }

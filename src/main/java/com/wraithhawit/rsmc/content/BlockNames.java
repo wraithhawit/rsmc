@@ -45,7 +45,7 @@ public final class BlockNames {
      *
      * <p>All four CPU tiers currently share one placeholder texture, which is why this is not just
      * the block name. When the real art lands each tier gets its own and this collapses to
-     * identity -- but until then the asset check has to know that {@code cpu_4k.json} pointing at
+     * identity -- but until then the asset check has to know that {@code cpu_4x.json} pointing at
      * {@code cpu.png} is intended rather than a typo.
      */
     public static String textureOf(final String blockName) {

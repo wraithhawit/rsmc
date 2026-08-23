@@ -17,7 +17,6 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  */
 public final class RsmcItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(RSMC.MODID);
-
     /**
      * In the same order as {@link RsmcBlocks#all()}, which is the order they appear in the creative
      * tab. Built by walking the block registry rather than listed again here: a block without an

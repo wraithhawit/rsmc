@@ -9,8 +9,8 @@
   "block.rsmc.controller": "Crafter Controller",
   "block.rsmc.pattern_storage": "Pattern Storage",
 
-  "block.rsmc.cpu_1k": "1K Crafting CPU",
-  "block.rsmc.cpu_4k": "4K Crafting CPU",
-  "block.rsmc.cpu_16k": "16K Crafting CPU",
-  "block.rsmc.cpu_64k": "64K Crafting CPU"
+  "block.rsmc.cpu_1x": "1x Crafting CPU",
+  "block.rsmc.cpu_4x": "4x Crafting CPU",
+  "block.rsmc.cpu_16x": "16x Crafting CPU",
+  "block.rsmc.cpu_64x": "64x Crafting CPU"
 }
