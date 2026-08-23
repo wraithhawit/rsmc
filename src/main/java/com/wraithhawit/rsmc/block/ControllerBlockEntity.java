@@ -13,6 +13,8 @@ import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeCont
 import com.wraithhawit.rsmc.content.RsmcBlockEntities;
 import com.wraithhawit.rsmc.menu.StructurePatterns;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
+import com.wraithhawit.rsmc.structure.RefreshSchedule;
+import com.wraithhawit.rsmc.structure.StructureChanges;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
 import com.wraithhawit.rsmc.structure.StructurePower;
@@ -44,8 +46,15 @@ import net.minecraft.world.level.block.state.BlockState;
  * -- but it is the thing that invites it.
  */
 public class ControllerBlockEntity extends BlockEntity {
-    /** Once a second. See {@link #refreshStateOccasionally()}. */
-    private static final int REFRESH_INTERVAL_TICKS = 20;
+    /**
+     * When to re-derive the structure.
+     *
+     * <p>Was a flat "every 20 ticks" until 0.1.9, which walked up to 4096 positions once a second
+     * for a machine that was not doing anything -- measured at 0.19 ms/tick for one block. Now
+     * change-driven and debounced, with a slow safety scan; see {@link RefreshSchedule} for why
+     * the safety scan is not optional.
+     */
+    private final RefreshSchedule refresh = new RefreshSchedule();
 
     /**
      * How many patterns are handed to the network per refresh. See the comment where it is used.
@@ -147,7 +156,7 @@ public class ControllerBlockEntity extends BlockEntity {
         if (currentLevel == null || currentLevel.isClientSide()) {
             return;
         }
-        if (currentLevel.getGameTime() % REFRESH_INTERVAL_TICKS != 0) {
+        if (!this.refresh.shouldScan(currentLevel.getGameTime(), StructureChanges.generation())) {
             return;
         }
         final Result result = MultiblockShape.find(new LevelBlockSource(currentLevel),

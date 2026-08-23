@@ -1,5 +1,6 @@
 package com.wraithhawit.rsmc.block;
 
+import com.wraithhawit.rsmc.structure.StructureChanges;
 import javax.annotation.Nullable;
 
 import com.wraithhawit.rsmc.content.RsmcBlockEntities;
@@ -126,5 +127,27 @@ public class ControllerBlock extends Block implements EntityBlock, StructureBloc
                                                final BlockPos pos, final Player player,
                                                final BlockHitResult hit) {
         return PatternScreenOpener.open(level, pos, player);
+    }
+
+    /**
+     * Structure geometry changed somewhere. See {@link StructureChanges} for why one global
+     * counter is the right amount of machinery here.
+     *
+     * <p>Hooked on {@code onPlace}/{@code onRemove} rather than a player-facing event because
+     * these fire for every cause -- pistons, commands, other mods, world edit -- and a structure
+     * broken by a piston is exactly the case a player-event hook would miss.
+     */
+    @Override
+    protected void onPlace(final BlockState state, final Level level, final BlockPos pos,
+                           final BlockState oldState, final boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        StructureChanges.bump();
+    }
+
+    @Override
+    protected void onRemove(final BlockState state, final Level level, final BlockPos pos,
+                            final BlockState newState, final boolean movedByPiston) {
+        super.onRemove(state, level, pos, newState, movedByPiston);
+        StructureChanges.bump();
     }
 }

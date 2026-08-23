@@ -6,6 +6,55 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.9
+
+**#3's mechanism half: the Controller stops recomputing a structure that has not changed.**
+
+`refreshStateOccasionally` ran a full `MultiblockShape.find` — a flood fill and a box walk over up
+to 4096 positions — **every 20 ticks, forever, whether or not anything had moved**. Measured in a
+survival world at **0.19 ms/tick** for one block, which is the cost of a machine doing nothing.
+
+Two pieces replace it:
+
+- **`StructureChanges`** — one global counter, bumped from every structure block's `onPlace` and
+  `onRemove`. Hooked there rather than on a player-facing event because those fire for *every*
+  cause: pistons, commands, other mods, world edit. A box broken by a piston is exactly what a
+  player-event hook would miss.
+- **`RefreshSchedule`** — debounces five ticks after the last change. Placing a 16³ by hand is
+  thousands of block updates and a construction stick does it in one gesture; the window restarts
+  on every further change, so a burst costs one scan at the end of it rather than one per block.
+
+**Idle cost drops tenfold, and ordinary changes are noticed *faster*** — a quarter second instead
+of up to a full one.
+
+### Why the safety scan is not optional
+
+Change-driven alone is not sound. The counter only sees *rsmc* blocks, and a structure can be
+broken by something it never hears about — another mod placing a block inside the box, a fill
+command, anything exotic. Rare is not never, and a machine silently stuck in a wrong state is a
+bug report nobody can reproduce.
+
+So a scan still happens if none has for ten seconds. That is the trade: an order of magnitude less
+idle work, in exchange for worst-case staleness on an exotic change going from one second to ten.
+
+### This does not reintroduce the state machine
+
+The design rule from #3 is that rsmc keeps **no belief about the structure**, because Reborn
+Storage's remembered assembly state can drift from the world and it holds the patterns. Nothing
+here remembers a structure. `StructureChanges` is a single number saying "something, somewhere,
+moved" — an invalidation hint. Being wrong about it costs a redundant scan or a slightly late one,
+never a wrong answer, because the answer still comes from `MultiblockShape.find` reading the world.
+
+### The tests found a real bug immediately
+
+New `refreshCheck` — **15 assertions**, wired into `build`. On its first run, five failed:
+`lastScan` was seeded to `Long.MIN_VALUE`, and `now - Long.MIN_VALUE` **overflows** to a negative
+number, so "overdue" was never true and a freshly loaded Controller would have sat there never
+deriving its structure at all. It looked obviously correct. It is a boolean flag now.
+
+Also confirmed to have teeth from the other direction: reinstating an always-scan poll fails 8 of
+the 15.
+
 ## 0.1.8
 
 **Two fixes to 0.1.7, both found by using it.**

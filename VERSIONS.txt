@@ -8,6 +8,19 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.9
+-----
+  #3's mechanism half. The Controller used to run a full MultiblockShape.find -- flood fill plus
+  box walk, up to 4096 positions -- every 20 ticks forever, whether or not anything had changed;
+  measured at 0.19 ms/tick for a machine doing nothing. Now change-driven: StructureChanges is a
+  global counter bumped by every structure block's onPlace/onRemove (which catches pistons,
+  commands and other mods, unlike a player event), and RefreshSchedule debounces 5 ticks so a
+  construction stick placing a wall costs ONE scan, not hundreds. A 10-second safety scan stays,
+  because the counter only sees rsmc blocks and something exotic could still break a box. Idle
+  cost drops 10x and ordinary changes are noticed FASTER -- a quarter second instead of up to one.
+  New refreshCheck (15), wired into build. It found a real overflow on its first run: lastScan
+  seeded to Long.MIN_VALUE made "now - lastScan" negative, so a freshly loaded Controller would
+  never have scanned at all.
 0.1.8
 -----
   Two fixes to 0.1.7, both reported after using it. (1) The outline was NOT see-through:
