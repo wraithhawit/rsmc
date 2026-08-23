@@ -8,6 +8,18 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.7
+-----
+  #3, the player-facing half. Right-clicking the CONTROLLER of an unformed structure now outlines
+  the offending block for 15 seconds, drawn without depth testing so it is visible through the
+  machine's own walls -- a coordinate is a poor answer inside a 16-cube you are standing in.
+  Every other block still explains in chat, and now names what the position actually needed
+  ("it needs a Casing, or the Controller") instead of "wrong block for that position". The
+  flush-neighbour case gets its own line, because it is the one that reads like a bug.
+  NOTHING pops up while building: surfacing is entirely interaction-driven, on Wraith's call, so
+  a construction stick placing hundreds of blocks stays silent. First packet in the mod; the
+  handler is held behind ClientHighlightHandler so no client class is named from code a
+  dedicated server loads.
 0.1.6
 -----
   THE client hitch: 82.7% of the render thread was RS's PatternProviderItem.isValid, called per

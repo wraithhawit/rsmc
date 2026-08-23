@@ -11,7 +11,11 @@ import com.wraithhawit.rsmc.content.RsmcMenus;
 import com.wraithhawit.rsmc.content.RsmcItems;
 import com.wraithhawit.rsmc.test.StructureGameTests;
 
+import com.wraithhawit.rsmc.network.RsmcPayloads;
+
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
@@ -77,11 +81,13 @@ public class RSMC {
         RsmcCreativeTab.TABS.register(modEventBus);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(RegisterMenuScreensEvent.class, RsmcClient::registerScreens);
+            modEventBus.addListener(FMLClientSetupEvent.class, RsmcClient::setup);
         }
         NeoForge.EVENT_BUS.register(StructureInfoCommand.class);
         // Only fires when -Dneoforge.enabledGameTestNamespaces includes this mod, which the
         // runGameTestServer run configuration sets.
         modEventBus.addListener(RegisterCapabilitiesEvent.class, RsmcCapabilities::register);
+        modEventBus.addListener(RegisterPayloadHandlersEvent.class, RsmcPayloads::register);
         modEventBus.addListener(RegisterGameTestsEvent.class,
             event -> event.register(StructureGameTests.class));
         LOGGER.info("[rsmc] v{} loaded", version);

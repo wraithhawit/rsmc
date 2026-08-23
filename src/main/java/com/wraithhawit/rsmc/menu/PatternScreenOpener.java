@@ -1,5 +1,8 @@
 package com.wraithhawit.rsmc.menu;
 
+import com.wraithhawit.rsmc.block.ControllerBlock;
+import com.wraithhawit.rsmc.network.HighlightBlockPayload;
+import com.wraithhawit.rsmc.network.RsmcPayloads;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
 import com.wraithhawit.rsmc.structure.MultiblockShape.Result;
@@ -12,6 +15,8 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+
+import javax.annotation.Nullable;
 
 /**
  * Opens the pattern screen from any block in the structure.
@@ -46,7 +51,8 @@ public final class PatternScreenOpener {
         final Result result = MultiblockShape.find(
             new LevelBlockSource(level), pos.getX(), pos.getY(), pos.getZ());
         if (!result.formed()) {
-            explain(serverPlayer, result);
+            explain(serverPlayer, result,
+                level.getBlockState(pos).getBlock() instanceof ControllerBlock);
             return InteractionResult.CONSUME;
         }
         final StructurePatterns patterns = StructurePatterns.of(level, pos);
@@ -58,17 +64,49 @@ public final class PatternScreenOpener {
         return InteractionResult.CONSUME;
     }
 
-    private static void explain(final ServerPlayer player, final Result result) {
+    private static void explain(final ServerPlayer player, final Result result,
+                                final boolean fromController) {
         player.displayClientMessage(
-            Component.literal("No structure: " + describe(result)).withStyle(ChatFormatting.RED),
+            Component.literal("Not formed: " + describe(result)).withStyle(ChatFormatting.RED),
             false);
         final int[] pos = result.failurePos();
         if (pos != null) {
             player.displayClientMessage(
-                Component.literal("  at " + pos[0] + ", " + pos[1] + ", " + pos[2])
+                Component.literal("  at " + pos[0] + ", " + pos[1] + ", " + pos[2]
+                    + (fromController ? "" : "  (right-click the Controller to highlight it)"))
                     .withStyle(ChatFormatting.GRAY),
                 false);
         }
+        // The failure most likely to be reported as a bug. Two structures built flush are one
+        // connected region, that region is not a box, so BOTH stop working -- and nothing about
+        // "there is a gap in the box" hints at that. The rule is deliberate (see MultiblockShape),
+        // so the only thing that makes it survivable is saying it out loud at the moment it bites.
+        if (result.failure() == MultiblockShape.Failure.NOT_SOLID
+            || result.failure() == MultiblockShape.Failure.TOO_MANY_CONTROLLERS) {
+            player.displayClientMessage(
+                Component.literal("  If two crafters are touching, they count as one shape. "
+                    + "Leave a gap between them.").withStyle(ChatFormatting.DARK_GRAY),
+                false);
+        }
+        if (fromController && pos != null) {
+            RsmcPayloads.highlight(player,
+                new HighlightBlockPayload(new BlockPos(pos[0], pos[1], pos[2]), HIGHLIGHT_TICKS));
+        }
+    }
+
+    /** Long enough to walk round the box and look, short enough not to become scenery. */
+    private static final int HIGHLIGHT_TICKS = 20 * 15;
+
+    /** What a position needed to be, in the words the blocks are actually called. */
+    private static String needed(@Nullable final MultiblockShape.Role role) {
+        if (role == null) {
+            return "a different block";
+        }
+        return switch (role) {
+            case EDGE -> "a Frame";
+            case WALL -> "a Casing, or the Controller";
+            case INTERIOR -> "a Crafting CPU or a Pattern Storage";
+        };
     }
 
     private static String describe(final Result result) {
@@ -76,9 +114,11 @@ public final class PatternScreenOpener {
             return "unknown";
         }
         return switch (result.failure()) {
-            case NOT_SOLID -> "there is a gap in the box";
+            case NOT_SOLID -> "there is a gap in the box -- that position needs "
+                + needed(result.expected());
             case TOO_LARGE -> "bigger than " + MultiblockShape.MAX_EDGE + " blocks on some axis";
-            case WRONG_BLOCK -> "wrong block for that position";
+            case WRONG_BLOCK -> "wrong block for that position -- it needs "
+                + needed(result.expected());
             case NO_CPU -> "no Crafting CPU inside";
             case NO_PATTERN_STORAGE -> "no Pattern Storage inside";
             case NO_CONTROLLER -> "no Controller -- swap one wall Casing for one";

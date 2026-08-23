@@ -6,6 +6,61 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.7
+
+**#3's player-facing half: showing which block is wrong instead of describing it.**
+
+Right-clicking the **Controller** of an unformed structure now draws a red outline around the
+offending position for fifteen seconds. Every other block in the structure keeps explaining in
+chat, as it already did.
+
+The split is Wraith's, and it is better than what this was going to be. A coordinate is a poor
+answer when you are standing inside a 16³ box — reading three numbers and then finding that
+position by eye is exactly the friction the message was meant to remove. But a highlight on
+*every* block would fire constantly while building, so: the Controller is the block you
+deliberately placed to be the machine's face, and it is the one that answers "which block is
+wrong?".
+
+The outline is drawn at `AFTER_TRANSLUCENT_BLOCKS` and deliberately **without depth testing**, so
+it is visible through the structure's own walls. Someone asking which block is wrong is usually
+outside a box whose bad position is on the far side; an outline they cannot see through the
+machine answers nothing.
+
+### Nothing pops up while building
+
+Surfacing is entirely **interaction-driven** — there is no message on placement at all. A
+construction stick putting down hundreds of blocks stays silent, which is what Wraith asked for
+and which sidesteps the debounce problem the issue anticipated rather than solving it.
+
+### The chat message now says what the position needed
+
+`WRONG_BLOCK` used to read "wrong block for that position", which names the problem and withholds
+the answer. `Result.expected` has carried the required `Role` all along and nothing used it:
+
+```
+Not formed: wrong block for that position -- it needs a Casing, or the Controller
+  at 144 175 142  (right-click the Controller to highlight it)
+```
+
+And the flush-neighbour case gets its own line, because it is the one that reads like a bug:
+
+```
+  If two crafters are touching, they count as one shape. Leave a gap between them.
+```
+
+That rule is deliberate — a box gives every failure a coordinate where a blob cannot — so the
+thing that makes it survivable is saying it out loud at the moment it bites.
+
+### First packet in the mod
+
+`HighlightBlockPayload`, registered `optional()` so a client without rsmc can still connect;
+everything real is server-authoritative and the highlight is a convenience.
+
+Its handler is held in `ClientHighlightHandler` as a swappable field rather than named directly
+from `RsmcPayloads`. A client class named inside the registration lambda — even inside a lambda —
+lands in that class's constant pool and crashes a dedicated server at class load: a failure that
+never appears in single-player and always appears for the first person to run a server.
+
 ## 0.1.6
 
 **The client hitch was 82.7% of the render thread, and it was mine.**
