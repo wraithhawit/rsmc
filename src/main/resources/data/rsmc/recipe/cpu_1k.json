@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["FAF", "SCS", "FAF"],
+  "key": {
+    "F": {"item": "rsmc:frame"},
+    "A": {"item": "refinedstorage:advanced_processor"},
+    "S": {"item": "refinedstorage:autocrafting_upgrade"},
+    "C": {"item": "minecraft:crafter"}
+  },
+  "result": {"id": "rsmc:cpu_1k", "count": 1}
+}

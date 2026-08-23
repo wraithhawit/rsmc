@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["ICI", "CMC", "ICI"],
+  "key": {
+    "I": {"item": "refinedstorage:quartz_enriched_iron"},
+    "C": {"item": "refinedstorage:quartz_enriched_copper"},
+    "M": {"item": "refinedstorage:machine_casing"}
+  },
+  "result": {"id": "rsmc:frame", "count": 1}
+}

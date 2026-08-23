@@ -6,6 +6,68 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.10
+
+**#5: every block is craftable.**
+
+Frame and Casing as proposed — quartz enriched iron and copper around a machine casing, **yield
+1**, which is the entry cost Wraith already confirmed is deliberate and which is not re-litigated
+here. 1K CPU is Reborn Storage's recipe with `minecraft:crafting_table` swapped for
+`minecraft:crafter`. Pattern Storage is Reborn's as-is.
+
+### The CPU ladder mirrors RS exactly
+
+Refined Storage's storage parts share one shape from 4k up, each consuming **three** of the tier
+below plus four processors of the matching grade:
+
+```
+PEP     P = basic → improved → advanced processor
+SRS     S = 3× the previous tier
+PSP     E = quartz enriched iron,  R = redstone dust
+```
+
+The CPUs now use that shape and that ratio. The alternative was 4×, matching the 1/4/16/64 step
+weights so material scaled exactly with throughput and tiering up bought only compactness. 3× was
+chosen: it makes a 64K about 2.4× more material-efficient than building wide, so higher tiers are
+a genuine reward, and anyone who has laddered 1k→64k storage parts already knows the recipe
+without reading it.
+
+### The Controller had to be invented
+
+It was not in the proposal. It is a Casing — the block it replaces on a wall — with
+`refinedstorage:network_card` set in its face, which is literally the item that carries a network
+connection in RS, plus advanced processors behind it.
+
+### What the entry machine actually costs
+
+Worth stating, because it is higher than issue #5's table suggests. That table counted 34 machine
+casings for the smallest 3×3×4 (24 frames + 10 casings), but **the CPU and Pattern Storage
+recipes each consume 4 frames of their own**, so the real floor is ~42 machine casings — around
+340 quartz enriched iron, or roughly 255 iron and 85 quartz before anything else. Still the
+intended shape (entry cost dominated by frames, top end by casing and CPUs), just steeper at the
+bottom than the issue's arithmetic implied.
+
+### recipeCheck
+
+New, **48 assertions**, wired into `build`. It verifies every ingredient id against the **real
+Refined Storage jar** in `libs/`, because a typo'd item id does not crash and is not a compile
+error: Minecraft logs one line at datapack load, drops the recipe, and the only symptom is a block
+nobody can craft — found by a player, in a world, after shipping. Same class of silent failure
+`assetCheck` exists for.
+
+Confirmed to have teeth by typoing `network_card` into `netwrok_card`. It also rejects orphan
+recipes for blocks that no longer exist, and any ingredient from a mod that is not Refined Storage
+or vanilla, since rsmc depends on RS and nothing else.
+
+The RS half is **skipped rather than failed** when `libs/` is empty, so a fresh clone still passes
+`build`.
+
+### Still open on #5
+
+Whether the tier weights are right *now that costs exist* is a play-test question, not a
+code one. The numbers to watch: a 3×3×4 with one 1K CPU is 1 step/tick against a bare
+autocrafter's 0.1, and a 16³ packed with 64K CPUs is far past anything RS can reach.
+
 ## 0.1.9
 
 **#3's mechanism half: the Controller stops recomputing a structure that has not changed.**

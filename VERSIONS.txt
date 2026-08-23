@@ -8,6 +8,20 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.10
+------
+  #5: every block is craftable. Frame and Casing as proposed (quartz enriched iron/copper round a
+  machine casing, yield 1 -- the entry cost Wraith confirmed is deliberate). 1K CPU is Reborn's
+  recipe with crafting_table swapped for minecraft:crafter; Pattern Storage is Reborn's as-is.
+  The CPU ladder mirrors RS's storage parts EXACTLY -- same PEP/SRS/PSP shape, 3 of the tier below
+  plus 4 processors of the matching grade -- chosen over 4x so tiering up is a genuine reward and
+  so anyone who has built 1k->64k storage parts already knows the recipe. Controller was not in
+  the proposal and needed inventing: a Casing with refinedstorage:network_card in its face, which
+  is literally the item that carries a network connection in RS. New recipeCheck (48), wired into
+  build: it verifies every ingredient id against the REAL Refined Storage jar, because a typo'd
+  item does not crash -- the recipe is silently dropped at datapack load and the block just cannot
+  be made. Confirmed by typoing network_card. Skips the RS half gracefully on a fresh clone, where
+  libs/ is empty.
 0.1.9
 -----
   #3's mechanism half. The Controller used to run a full MultiblockShape.find -- flood fill plus
