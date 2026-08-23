@@ -8,6 +8,21 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.12
+------
+  FIX: an unformed Crafter Controller could not be broken, and nothing could be placed next to it.
+  Reported in game as Refined Storage's own toast, "You are not allowed to break the Crafter
+  Controller". Nothing in rsmc was denying it: RS runs a global BlockEvent.BreakEvent handler over
+  any position exposing a network-node capability, and SecurityHelper.isAllowed reads
+  "network == null ? false : ..." -- NO NETWORK MEANS DENIED, with no owner and nothing to
+  protect. The Controller only joined a network from ensureCapacity, which syncNode reached only
+  after its "not formed" early exit, so an unformed one never joined. canPlaceNetworkNode checks
+  all six neighbours the same way, so the structure could be neither finished nor removed. It now
+  joins while unformed, at zero capacity and IDLE, exactly as ShellBlockEntity has always done --
+  the Frame and Casing were never affected for that reason. Only on the unformed path: joining
+  early on a formed structure forced an immediate resize rebuild that delayed activation by a
+  tick, which apoweredstructuregoesactive caught. New gametest (11 total), confirmed to fail with
+  the fix removed.
 0.1.11
 ------
   Four changes from playing with 0.1.10. (1) Crafter Casing was one ingredient away from Crafter

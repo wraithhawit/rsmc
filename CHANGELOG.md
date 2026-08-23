@@ -6,6 +6,69 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.12
+
+**An unformed Crafter Controller could not be broken, and nothing could be placed beside it.**
+
+Reported in game as a toast: *"No permission — You are not allowed to break the Crafter
+Controller."* That is **Refined Storage's** message, not rsmc's and not vanilla's, which is what
+made it worth tracing rather than guessing at.
+
+### What was actually happening
+
+RS registers a global `BlockEvent.BreakEvent` handler that runs over **any** position exposing a
+network-node capability — which rsmc's Controller does. It asks the provider for permission, and
+that lands in:
+
+```java
+Network network = node.getNetwork();
+return network == null ? false : isAllowed(player, permission, network);
+```
+
+**No network means denied**, unconditionally. There is no owner, no team and nothing to protect,
+and the answer is still no.
+
+rsmc initialised its container in exactly one place — `ensureCapacity` — which `syncNode` only
+reached *after* its `if (!result.formed()) return;` early exit. So an unformed Controller never
+joined a network, and RS refused every build action on it.
+
+`canPlaceNetworkNode` checks all six neighbours of anything being placed in the same way, so it
+was a deadlock: the structure could be neither **finished** nor **removed**. Wraith hit it because
+the 0.1.11 CPU rename unformed an existing crafter.
+
+### The fix, and why not the other one
+
+Wraith asked whether security could apply only once the structure is formed. It could — but the
+**Frame and Casing blocks around it are already always-protected**: `ShellBlockEntity.clearRemoved`
+initialises unconditionally, which is exactly why they were never affected and why the Controller
+being different went unnoticed. Exempting only the Controller would have made it the odd one out
+inside its own structure, and would not have lifted the deadlock for anyone who really did have a
+Security Manager — the shell blocks would still refuse.
+
+So the Controller now does what the blocks around it have always done: **joins on placement rather
+than on forming**, at zero pattern capacity with an IDLE step behaviour. That is also just more
+correct. The Controller is the structure's network face from the moment it is placed; whether the
+box around it is finished is a question about crafting, not connectivity.
+
+**Only on the unformed path.** Joining early on an already-formed structure made it join at
+capacity zero and then immediately rebuild to resize, which delayed activation by a tick — caught
+by `apoweredstructuregoesactive`. A formed structure still joins once, at its real capacity.
+
+### Two things the gametests caught on the way
+
+The first attempt built a *fresh* container provider instead of reusing the one the capability had
+already handed to Refined Storage. RS then held a container from the old provider while removal
+offered the new one, and crashed on the way out: *"The removed container should be present in the
+removed entries, but isn't"* — the exact failure the `joinedNetwork` field was written to prevent.
+
+The second attempt was the activation delay above. Neither would have been visible from a build or
+a headless suite.
+
+New gametest, `anUnformedControllerIsStillBreakable` — **11 total**. It asserts on the network,
+which is the condition RS actually tests, rather than driving a fake player through a break, which
+would be testing RS. Frame and Casing are checked alongside as the control, since they always
+passed. Confirmed to fail with the fix removed.
+
 ## 0.1.11
 
 **Four changes from playing with 0.1.10.**

@@ -175,6 +175,12 @@ public class ControllerBlockEntity extends BlockEntity {
             // whatever it was last told about.
             this.node.setStepBehavior(StructureStepBehavior.IDLE);
             this.node.setActive(false);
+            // Only here, never on the formed path. A structure that is already formed joins below
+            // at its real pattern capacity in one step; joining early at capacity zero would force
+            // an immediate rebuild to resize, which delayed activation by a tick and was caught by
+            // apoweredstructuregoesactive. See joinNetworkIfNeeded for why the unformed case has
+            // to join at all.
+            this.joinNetworkIfNeeded(currentLevel);
             return;
         }
         this.node.setEnergyUsage(StructurePower.energyUsage(result));
@@ -198,6 +204,54 @@ public class ControllerBlockEntity extends BlockEntity {
      * entities and get pushed into the new node immediately afterwards. Had they lived on the node,
      * this would be a migration, with somewhere for them to fall out.
      */
+    /**
+     * Joins the network even when the structure has not formed.
+     *
+     * <h2>The trap this closes</h2>
+     *
+     * <p>Until 0.1.12 the container was initialised in exactly one place -- {@link #ensureCapacity}
+     * -- which {@link #syncNode} only reached <em>after</em> its "not formed" early exit. So an
+     * unformed Controller never joined a network, and {@code node.getNetwork()} stayed null.
+     *
+     * <p>That is not harmless, because Refined Storage's security asks this block for permission.
+     * {@code SecurityHelper.isAllowed} reads:
+     *
+     * <pre>{@code
+     * Network network = node.getNetwork();
+     * return network == null ? false : isAllowed(player, permission, network);
+     * }</pre>
+     *
+     * <p><b>No network means denied</b>, unconditionally -- there is nothing to secure, no owner
+     * and no team, and the answer is still no. RS then applies that answer in two places: a global
+     * {@code BlockEvent.BreakEvent} handler, and {@code canPlaceNetworkNode}, which checks all six
+     * neighbours of anything being placed.
+     *
+     * <p>The result was a deadlock. An unformed Controller could not be broken ("You are not
+     * allowed to break the Crafter Controller"), and no network block could be placed next to it
+     * -- so the structure could not be completed <em>or</em> removed without commands. Reported by
+     * Wraith after the 0.1.11 CPU rename unformed an existing crafter.
+     *
+     * <p>Joining while unformed is also simply more correct. The Controller is the structure's
+     * network face from the moment it is placed; whether the box around it is finished is a
+     * question about crafting, not about connectivity. It joins with zero pattern capacity and an
+     * IDLE step behaviour, so it contributes nothing until the box is real.
+     */
+    private void joinNetworkIfNeeded(final Level currentLevel) {
+        if (this.joinedNetwork) {
+            return;
+        }
+        // containerProvider(), NOT a fresh buildContainerProvider(). The capability accessor may
+        // already have built one and handed it to Refined Storage, and replacing the field then
+        // leaves RS holding a container from the old provider while removal offers the new one --
+        // which is a hard crash on the way out: "The removed container should be present in the
+        // removed entries, but isn't". The gametests caught exactly that. ShellBlockEntity has
+        // always done it this way; this now matches.
+        this.containerProvider().initialize(currentLevel, null);
+        this.joinedNetwork = true;
+        // The starting node is built with zero capacity, so nothing is claimed that is not true.
+        this.builtCapacity = 0;
+    }
+
     private void ensureCapacity(final Level currentLevel, final int capacity) {
         if (capacity == this.builtCapacity && this.containerProvider != null) {
             return;

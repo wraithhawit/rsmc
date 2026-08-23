@@ -7,6 +7,7 @@ import com.refinedmods.refinedstorage.neoforge.api.RefinedStorageNeoForgeApi;
 
 import javax.annotation.Nullable;
 
+import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.wraithhawit.rsmc.RSMC;
 import com.wraithhawit.rsmc.block.ControllerBlock;
 import com.wraithhawit.rsmc.block.ControllerState;
@@ -191,6 +192,63 @@ public final class StructureGameTests {
      * catch it -- and the symptom in game would be "cabling only works at the Controller", which is
      * the thing it was dropped to avoid.
      */
+    /**
+     * An unformed Controller must still be on a network, or it cannot be broken.
+     *
+     * <h2>The bug this reproduces</h2>
+     *
+     * <p>Reported from in game after 0.1.11: <em>"You are not allowed to break the Crafter
+     * Controller"</em>, Refined Storage's own security toast, on a lone Controller.
+     *
+     * <p>Nothing about rsmc was denying it. RS runs a global {@code BlockEvent.BreakEvent} handler
+     * over any position exposing a network-node capability, and {@code SecurityHelper.isAllowed}
+     * reads {@code network == null ? false : ...} — <b>no network means denied</b>, with no owner
+     * and nothing to protect. The Controller only joined a network from {@code ensureCapacity},
+     * which {@code syncNode} reached only after its "not formed" early exit, so an unformed one
+     * never joined and became permanently unbreakable. {@code canPlaceNetworkNode} checks all six
+     * neighbours the same way, so nothing could be placed beside it either — the structure could
+     * be neither finished nor removed.
+     *
+     * <p>Asserting on the network rather than on the toast because the network is the condition RS
+     * actually tests; a test that drove a fake player through the break would be testing RS.
+     *
+     * <p>The Frame and Casing are checked too. They initialise unconditionally in
+     * {@code clearRemoved} and always passed — which is exactly why the Controller being different
+     * went unnoticed, and why they belong here as the control.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void anUnformedControllerIsStillBreakable(final GameTestHelper helper) {
+        final BlockPos controller = new BlockPos(0, 0, 0);
+        helper.setBlock(controller, RsmcBlocks.CONTROLLER.get());
+        helper.setBlock(new BlockPos(2, 0, 0), RsmcBlocks.FRAME.get());
+        helper.setBlock(new BlockPos(4, 0, 0), RsmcBlocks.CASING.get());
+
+        // Long enough for the refresh to run and for RS to drain its queued initialisation, which
+        // happens on the server tick rather than immediately.
+        helper.runAfterDelay(20, () -> {
+            for (final BlockPos pos : List.of(controller, new BlockPos(2, 0, 0),
+                new BlockPos(4, 0, 0))) {
+                final NetworkNodeContainerProvider provider = helper.getLevel().getCapability(
+                    RefinedStorageNeoForgeApi.INSTANCE.getNetworkNodeContainerProviderCapability(),
+                    helper.absolutePos(pos),
+                    null);
+                if (provider == null) {
+                    helper.fail("no container provider at " + pos);
+                    return;
+                }
+                for (final InWorldNetworkNodeContainer container : provider.getContainers()) {
+                    if (container.getNode().getNetwork() == null) {
+                        helper.fail(helper.getBlockState(pos).getBlock()
+                            + " has no network while unformed, so Refined Storage denies every"
+                            + " break and every placement beside it");
+                        return;
+                    }
+                }
+            }
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = "empty8", timeoutTicks = 100)
     public static void refinedStorageSeesTheShell(final GameTestHelper helper) {
         for (final Block block : List.of(RsmcBlocks.CONTROLLER.get(), RsmcBlocks.FRAME.get(),
