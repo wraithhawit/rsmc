@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "rsmbac:block/cpu_4x"
+    }
+  }
+}

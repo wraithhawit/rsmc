@@ -18,7 +18,7 @@ libs/refinedstorage-neoforge-2.0.9.jar
 That is the whole of it. The jar is `compileOnly` — never bundled, never shaded — and it is also
 what gets staged into `run/<runName>/mods` so a dev launch comes up with RS present.
 
-Any 2.0.x build will do. Unlike rstweaks, rsmc matches no bytecode: it compiles against
+Any 2.0.x build will do. Unlike rstweaks, rsmbac matches no bytecode: it compiles against
 `@API`-annotated interfaces, so the exact build does not have to match the one you play with.
 
 ## Then

@@ -8,6 +8,18 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.2.0
+-----
+  RENAMED. modid rsmc -> rsmbac, name -> "Refined Storage - Multiblock Autocrafter". Raoul
+  rebranded crafters to autocrafters upstream and the mod name should match; the BLOCKS keep their
+  names (Crafter Controller and so on) on Wraith's call. Java package com.wraithhawit.rsmc ->
+  .rsmbac and class RSMC -> RSMBAC, so nothing anywhere still says the old name.
+  MINOR RATHER THAN PATCH, deviating from the usual patch-per-build rule: every block and item id
+  changed namespace, which is a hard break for any existing world, and 0.1.15 would undersell it.
+  CHANGELOG.md and VERSIONS.txt are deliberately NOT rewritten below this line -- they record what
+  happened when the mod was called rsmc, and renaming history would make it false.
+  Existing worlds lose every rsmbac block, as with the 0.1.11 CPU rename and for the same reason;
+  accepted, there is no playthrough to protect.
 0.1.14
 ------
   Tests for #2 before closing it, and an honest account of their limit. Two gametests (13 total):

@@ -1,4 +1,4 @@
-# Refined Storage Multiblock Crafter
+# Refined Storage - Multiblock Autocrafter
 
 A crafting structure for [Refined Storage](https://github.com/refinedmods/refinedstorage) 2.
 Build a hollow box of frame, casing, CPU and pattern storage blocks — up to 16×16×16 — and it
@@ -83,7 +83,7 @@ needed to fill.
 
 ## Scope
 
-rsmc accelerates **crafting patterns** — the ones RS runs internally.
+rsmbac accelerates **crafting patterns** — the ones RS runs internally.
 
 **Processing patterns** push ingredients into a machine and wait for it, so their speed is the
 machine's, not the crafter's. Those still want an ordinary pattern provider next to the machine.
@@ -123,7 +123,7 @@ the genre.
 
 **This is a recode, not a port.** No Reborn Storage code is here and none will be. The block
 textures currently in the repo *are* theirs, as temporary placeholders, marked as such in
-`assets/rsmc/textures/block/PLACEHOLDERS.md` and tracked by issue #7.
+`assets/rsmbac/textures/block/PLACEHOLDERS.md` and tracked by issue #7.
 
 ### And the recode is the point
 
@@ -136,7 +136,7 @@ with the world. Chunks load in an order nobody controls, parts attach out of ord
 meet and one swallows the other. When the object that can drift is also the one holding your
 patterns, a desync is data loss.
 
-rsmc has **no controller object, no assembly state, no registry and no merge**:
+rsmbac has **no controller object, no assembly state, no registry and no merge**:
 
 - the structure is **derived from the world** every time it is needed, never remembered, so there is
   no stored belief that can be wrong

@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["FCF", "SAS", "FSF"],
+  "key": {
+    "F": {"item": "rsmbac:frame"},
+    "C": {"tag": "c:chests/wooden"},
+    "S": {"item": "refinedstorage:1k_storage_part"},
+    "A": {"item": "refinedstorage:advanced_processor"}
+  },
+  "result": {"id": "rsmbac:pattern_storage", "count": 1}
+}

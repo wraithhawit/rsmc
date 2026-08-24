@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["PSP", "SCS", "PEP"],
+  "key": {
+    "P": {"item": "refinedstorage:improved_processor"},
+    "S": {"item": "rsmbac:cpu_4x"},
+    "C": {"item": "minecraft:crafter"},
+    "E": {"item": "refinedstorage:quartz_enriched_iron"}
+  },
+  "result": {"id": "rsmbac:cpu_16x", "count": 1}
+}

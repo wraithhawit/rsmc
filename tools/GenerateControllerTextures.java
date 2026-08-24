@@ -19,7 +19,7 @@ import javax.imageio.ImageIO;
  * do not, and nobody notices for a month.
  *
  * <p>Building on the Casing texture is the point: the earlier placeholder used RS's actual
- * {@code grid/front.png}, which made an rsmc Controller look like a Grid closely enough to be
+ * {@code grid/front.png}, which made an rsmbac Controller look like a Grid closely enough to be
  * mistaken for one in game. This reads as our own block with a display on it.
  */
 public final class GenerateControllerTextures {
@@ -36,7 +36,7 @@ public final class GenerateControllerTextures {
     }
 
     public static void main(final String[] args) throws IOException {
-        final File dir = new File("src/main/resources/assets/rsmc/textures/block");
+        final File dir = new File("src/main/resources/assets/rsmbac/textures/block");
         final BufferedImage casing = ImageIO.read(new File(dir, "casing.png"));
 
         write(dir, "controller_front_unformed.png", face(casing, State.UNFORMED));

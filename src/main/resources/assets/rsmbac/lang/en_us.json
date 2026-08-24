@@ -1,0 +1,16 @@
+{
+  "itemGroup.rsmbac": "Refined Storage - Multiblock Autocrafter",
+
+  "container.rsmbac.patterns": "MultiBlock Crafter",
+  "gui.rsmbac.patterns.search_help": "Searches the patterns in this crafter by what they make.",
+
+  "block.rsmbac.frame": "Crafter Frame",
+  "block.rsmbac.casing": "Crafter Casing",
+  "block.rsmbac.controller": "Crafter Controller",
+  "block.rsmbac.pattern_storage": "Pattern Storage",
+
+  "block.rsmbac.cpu_1x": "1x Crafting CPU",
+  "block.rsmbac.cpu_4x": "4x Crafting CPU",
+  "block.rsmbac.cpu_16x": "16x Crafting CPU",
+  "block.rsmbac.cpu_64x": "64x Crafting CPU"
+}

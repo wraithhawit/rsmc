@@ -1,12 +1,12 @@
 {
   "values": [
-    "rsmc:frame",
-    "rsmc:casing",
-    "rsmc:controller",
-    "rsmc:cpu_1x",
-    "rsmc:cpu_4x",
-    "rsmc:cpu_16x",
-    "rsmc:cpu_64x",
-    "rsmc:pattern_storage"
+    "rsmbac:frame",
+    "rsmbac:casing",
+    "rsmbac:controller",
+    "rsmbac:cpu_1x",
+    "rsmbac:cpu_4x",
+    "rsmbac:cpu_16x",
+    "rsmbac:cpu_64x",
+    "rsmbac:pattern_storage"
   ]
 }

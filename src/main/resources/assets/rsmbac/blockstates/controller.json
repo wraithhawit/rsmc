@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north,state=unformed": { "model": "rsmbac:block/controller" },
+    "facing=east,state=unformed": { "model": "rsmbac:block/controller", "y": 90 },
+    "facing=south,state=unformed": { "model": "rsmbac:block/controller", "y": 180 },
+    "facing=west,state=unformed": { "model": "rsmbac:block/controller", "y": 270 },
+    "facing=north,state=inactive": { "model": "rsmbac:block/controller_inactive" },
+    "facing=east,state=inactive": { "model": "rsmbac:block/controller_inactive", "y": 90 },
+    "facing=south,state=inactive": { "model": "rsmbac:block/controller_inactive", "y": 180 },
+    "facing=west,state=inactive": { "model": "rsmbac:block/controller_inactive", "y": 270 },
+    "facing=north,state=active": { "model": "rsmbac:block/controller_active" },
+    "facing=east,state=active": { "model": "rsmbac:block/controller_active", "y": 90 },
+    "facing=south,state=active": { "model": "rsmbac:block/controller_active", "y": 180 },
+    "facing=west,state=active": { "model": "rsmbac:block/controller_active", "y": 270 }
+  }
+}

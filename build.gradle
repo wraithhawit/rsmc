@@ -29,14 +29,14 @@ tasks.register('shapeCheck', JavaExec) {
     group = 'verification'
     description = 'Runs the multiblock shape self-tests headlessly.'
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
-    mainClass = 'com.wraithhawit.rsmc.test.HeadlessShapeCheck'
+    mainClass = 'com.wraithhawit.rsmbac.test.HeadlessShapeCheck'
 }
 
 tasks.register('recipeCheck', JavaExec) {
     group = 'verification'
     description = 'Proves every block is craftable and every ingredient really exists.'
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
-    mainClass = 'com.wraithhawit.rsmc.test.HeadlessRecipeCheck'
+    mainClass = 'com.wraithhawit.rsmbac.test.HeadlessRecipeCheck'
     workingDir = projectDir
 }
 
@@ -44,14 +44,14 @@ tasks.register('refreshCheck', JavaExec) {
     group = 'verification'
     description = 'Runs the structure refresh-schedule self-tests headlessly.'
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
-    mainClass = 'com.wraithhawit.rsmc.test.HeadlessRefreshCheck'
+    mainClass = 'com.wraithhawit.rsmbac.test.HeadlessRefreshCheck'
 }
 
 tasks.register('assetCheck', JavaExec) {
     group = 'verification'
     description = 'Proves every registered block has its blockstate, models, loot table and lang.'
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
-    mainClass = 'com.wraithhawit.rsmc.test.HeadlessAssetCheck'
+    mainClass = 'com.wraithhawit.rsmbac.test.HeadlessAssetCheck'
     // Reads src/main/resources by relative path, so it must run from the project root.
     workingDir = projectDir
 }
@@ -77,7 +77,7 @@ tasks.register('requireRefinedStorageJar') {
         if (fileTree(dir: 'libs', include: ['refinedstorage-neoforge-*.jar']).empty) {
             throw new GradleException(
                 "No refinedstorage-neoforge-*.jar in libs/, so this run would start "
-                    + "without the mod rsmc is an addon for.\n"
+                    + "without the mod rsmbac is an addon for.\n"
                     + "Copy Refined Storage ${refined_storage_version} out of a Minecraft "
                     + "instance's mods folder into ${projectDir}/libs/ and try again. "
                     + "See SETUP.md.")
@@ -109,7 +109,7 @@ runs {
     server { argument '--nogui' }
 
     // ./gradlew runGameTestServer -- boots a dedicated server, runs every @GameTest in
-    // the rsmc namespace and exits non-zero if any fail. Structure detection is the part
+    // the rsmbac namespace and exits non-zero if any fail. Structure detection is the part
     // of this mod most worth testing without a human: it is pure geometry over a real
     // level, which a gametest can build and tear down in a tick.
     gameTestServer {
@@ -134,7 +134,7 @@ dependencies {
     // against. compileOnly because the pack supplies it at runtime; we must never bundle
     // or shade it.
     //
-    // Unlike rstweaks, nothing here is matched against exact bytecode -- rsmc mixins into
+    // Unlike rstweaks, nothing here is matched against exact bytecode -- rsmbac mixins into
     // nothing and talks to RS through published, @API-annotated interfaces. A 2.0.x
     // update should compile unchanged.
     compileOnly fileTree(dir: 'libs', include: ['*.jar'])

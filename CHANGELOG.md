@@ -6,6 +6,49 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.2.0
+
+**Renamed: `rsmc` → `rsmbac`, "Refined Storage - Multiblock Autocrafter".**
+
+Refined Storage rebranded crafters to *autocrafters* upstream, and this mod's name should follow.
+The **blocks keep their names** — Crafter Controller, Crafter Frame, Crafter Casing — on Wraith's
+call; only the mod identity moved.
+
+The Java package went with it: `com.wraithhawit.rsmc` → `com.wraithhawit.rsmbac`, class `RSMC` →
+`RSMBAC`, `mod_group_id` updated. Nothing anywhere still says the old name. Leaving the package
+behind would have meant `RSMC.MODID = "rsmbac"` reading as a leftover forever, and every new file
+inheriting it.
+
+### Minor rather than patch, deviating from the usual rule
+
+The standing rule is patch-per-testable-build, minor only for a milestone. This is neither a
+feature nor a milestone, but **every block and item id changed namespace** — a hard break for any
+existing world — and `0.1.15` would undersell that to the point of being misleading. Recorded as a
+deliberate deviation rather than a slip.
+
+### History is not rewritten
+
+`CHANGELOG.md` and `VERSIONS.txt` entries below this one still say `rsmc`, on purpose. They record
+what happened when the mod *was* called that. Renaming them would make the history false — a
+0.1.12 entry describing a fix to "rsmbac" would be describing something that did not exist yet.
+Living documents (`README.md`, `ATTRIBUTION.md`, `SETUP.md`) were updated; records were not.
+
+### Existing worlds
+
+Lose every block, as with the 0.1.11 CPU rename and for the same reason — a namespace no registry
+knows is deleted on load. Accepted: there is no playthrough to protect. The mechanism if it ever
+matters is in 0.1.11's entry (`DeferredRegister.addAlias`, blocks *and* items separately).
+
+### One thing the mechanical rename nearly got wrong
+
+The first pass used a careful pattern requiring a letter after `rsmc.`, which silently skipped
+`"block.rsmc."` and `"itemGroup.rsmc"` — the quote is not a letter. `assetCheck` caught all eight
+missing translation keys immediately.
+
+The fix was to stop being clever: `rsmbac` does not contain the substring `rsmc`, so a blanket
+replace is both correct and idempotent. Worth remembering — a rename where the new name contains
+the old one is the case that needs care, and this was not it.
+
 ## 0.1.14
 
 **Tests for #2 before closing it — and an honest account of what they cannot reach.**

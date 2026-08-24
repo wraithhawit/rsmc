@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": ["CPC", "CMC", "CPC"],
+  "key": {
+    "C": {"item": "refinedstorage:quartz_enriched_copper"},
+    "P": {"item": "refinedstorage:basic_processor"},
+    "M": {"item": "refinedstorage:machine_casing"}
+  },
+  "result": {"id": "rsmbac:casing", "count": 1}
+}

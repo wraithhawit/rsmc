@@ -1,7 +1,7 @@
 modLoader="javafml"
 loaderVersion="${loader_version_range}"
 license="${mod_license}"
-issueTrackerURL="https://github.com/wraithhawit/rsmc/issues"
+issueTrackerURL="https://github.com/wraithhawit/rsmbac/issues"
 
 [[mods]]
 modId="${mod_id}"
@@ -16,7 +16,7 @@ pattern provider beside the machine.
 '''
 
 # No [[mixins]] entries, and that is the point. Refined Storage models crafting speed
-# as a public interface (StepBehavior, @API STABLE), so rsmc registers a network node
+# as a public interface (StepBehavior, @API STABLE), so rsmbac registers a network node
 # through the documented API rather than patching anything. An RS update should not be
 # able to break this the way a mixin can.
 
@@ -38,7 +38,7 @@ pattern provider beside the machine.
 # node registers against a fully-built RS.
 #
 # The range is wider than rstweaks pins its own, deliberately. rstweaks matches exact
-# method descriptors and a refactor upstream is a hard failure, so it pins tight. rsmc
+# method descriptors and a refactor upstream is a hard failure, so it pins tight. rsmbac
 # compiles against @API-annotated interfaces, which RS does not break inside a minor
 # line, so pinning tight here would refuse to load for no reason.
 [[dependencies.${mod_id}]]
