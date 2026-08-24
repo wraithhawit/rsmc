@@ -8,6 +8,8 @@ import com.refinedmods.refinedstorage.neoforge.api.RefinedStorageNeoForgeApi;
 import javax.annotation.Nullable;
 
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
+import com.wraithhawit.rsmc.block.ControllerBlockEntity;
+import com.wraithhawit.rsmc.structure.StructureStepBehavior;
 import com.wraithhawit.rsmc.RSMC;
 import com.wraithhawit.rsmc.block.ControllerBlock;
 import com.wraithhawit.rsmc.block.ControllerState;
@@ -216,6 +218,125 @@ public final class StructureGameTests {
      * {@code clearRemoved} and always passed — which is exactly why the Controller being different
      * went unnoticed, and why they belong here as the control.
      */
+    /**
+     * The structure tells Refined Storage its speed, and the number is the sum of its CPU tiers.
+     *
+     * <h2>Why this is the test issue #2 needed</h2>
+     *
+     * <p>{@code StepBehavior} is Refined Storage's entire crafting throughput model — a stock
+     * autocrafter is 0.1 to 2.5 steps/tick and 2.5 is the ceiling — and rsmc exists to answer
+     * {@code getSteps} with a bigger number. That single call is the mod.
+     *
+     * <p>Nothing proved it. {@code smallestStructureForms} asserts what {@code MultiblockShape}
+     * computes, which is arithmetic over blocks; {@code aPoweredStructureGoesActive} asserts the
+     * screen turns blue. Both pass whether or not {@code setStepBehavior} is ever called. If it
+     * were dropped, the crafter would form, light up, accept patterns, craft — and run at Refined
+     * Storage's default speed, which is the one symptom nobody would think to look for.
+     *
+     * <p>Three CPU tiers rather than one, because a sum is the claim: 1 + 4 + 16 is 21, and it is
+     * distinct from every plausible mistake — not the count (3), not the maximum (16), not the
+     * first (1).
+     *
+     * <h2>What this does NOT prove, stated because the first version of it pretended otherwise</h2>
+     *
+     * <p>It asserts on the behaviour the Controller <em>recorded</em>, not on what
+     * {@code PatternProviderNetworkNode} received. Deleting the {@code node.setStepBehavior(...)}
+     * call entirely leaves this test green — verified, not assumed.
+     *
+     * <p>That gap is not fixable from here. RS keeps {@code stepBehavior} private with no getter,
+     * and {@code setAccessible} is refused across its module, so the value it holds cannot be read
+     * by any test in this mod. What covers the handoff is the structure demonstrably crafting at
+     * speed in game; what covers everything up to it is this.
+     *
+     * <p>The name says "is the sum of its CPU tiers" rather than "tells Refined Storage" for
+     * exactly that reason.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200)
+    public static void theStructureSpeedIsTheSumOfItsCpuTiers(final GameTestHelper helper) {
+        // A 2x1x2 interior: exactly four slots for three CPUs and one Pattern Storage.
+        //
+        // The interior must be FILLED -- every interior position holds a CPU or a Pattern Storage,
+        // and a gap is NOT_SOLID. Two runs of this test read "0 steps/tick" before that landed,
+        // both times because the box had not formed at all, which is correctly IDLE. The failure
+        // message below now says so rather than leaving it to be rediscovered.
+        buildShellSized(helper, 1, 4, 2, 3);
+        helper.setBlock(new BlockPos(2, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(2, 1, 2), RsmcBlocks.CPUS.get(CpuTier.FOUR_X).get());
+        helper.setBlock(new BlockPos(3, 1, 1), RsmcBlocks.CPUS.get(CpuTier.SIXTEEN_X).get());
+        helper.setBlock(new BlockPos(3, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+
+        final BlockPos controller = controllerPos(helper);
+        if (controller == null) {
+            helper.fail("the test shell did not place a Controller");
+            return;
+        }
+        final BlockPos cable = controller.relative(Direction.WEST);
+        helper.setBlock(cable, rsBlock("cable"));
+        helper.setBlock(cable.relative(Direction.WEST), rsBlock("creative_controller"));
+
+        helper.runAfterDelay(60L, () -> {
+            if (!(helper.getBlockEntity(controller) instanceof ControllerBlockEntity blockEntity)) {
+                helper.fail("no ControllerBlockEntity at " + controller);
+                return;
+            }
+            final StructureStepBehavior behavior = blockEntity.stepBehavior();
+            if (behavior.stepsPerTick() != 21) {
+                final Result shape = find(helper);
+                helper.fail("told Refined Storage " + behavior.stepsPerTick()
+                    + " steps/tick, expected 21 from a 1x + 4x + 16x interior"
+                    + (shape.formed() ? "" : "  -- and the structure is not formed: "
+                        + shape.failure() + ", so the test's geometry is wrong, not the mod"));
+                return;
+            }
+            if (!behavior.active()) {
+                helper.fail("powered and formed, but the step behaviour is inactive");
+                return;
+            }
+            // The two methods RS actually calls. A behaviour that holds the right number and
+            // answers canStep(false) still crafts nothing.
+            if (!behavior.canStep(null) || behavior.getSteps(null) != 21) {
+                helper.fail("canStep/getSteps disagree with the recorded behaviour: "
+                    + behavior.canStep(null) + " / " + behavior.getSteps(null));
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Losing power stops the structure, rather than letting it craft on at the same rate.
+     *
+     * <p>The other half of the claim above: {@code getSteps} must go to zero, not merely have
+     * {@code active} flipped somewhere the task engine never reads. Same caveat — this proves the
+     * behaviour object is right, not that RS was handed it.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200)
+    public static void anUnpoweredStructureReportsZeroSteps(final GameTestHelper helper) {
+        buildShell(helper, 1);
+        helper.setBlock(new BlockPos(2, 1, 1), RsmcBlocks.CPUS.get(CpuTier.SIXTY_FOUR_X).get());
+        helper.setBlock(new BlockPos(2, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+
+        final BlockPos controller = controllerPos(helper);
+        if (controller == null) {
+            helper.fail("the test shell did not place a Controller");
+            return;
+        }
+        // Deliberately no cable: formed, but attached to nothing that can power it.
+        helper.runAfterDelay(60L, () -> {
+            if (!(helper.getBlockEntity(controller) instanceof ControllerBlockEntity blockEntity)) {
+                helper.fail("no ControllerBlockEntity at " + controller);
+                return;
+            }
+            final StructureStepBehavior behavior = blockEntity.stepBehavior();
+            if (behavior.getSteps(null) != 0 || behavior.canStep(null)) {
+                helper.fail("unpowered, but told Refined Storage it can step "
+                    + behavior.getSteps(null) + " times");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = "empty8", timeoutTicks = 100)
     public static void anUnformedControllerIsStillBreakable(final GameTestHelper helper) {
         final BlockPos controller = new BlockPos(0, 0, 0);

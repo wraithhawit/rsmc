@@ -57,6 +57,18 @@ public class ControllerBlockEntity extends BlockEntity {
     private final RefreshSchedule refresh = new RefreshSchedule();
 
     /**
+     * The last speed handed to Refined Storage.
+     *
+     * <p>Kept because {@code PatternProviderNetworkNode.stepBehavior} is private with only a
+     * setter, so there is otherwise no way to see what RS was actually told -- and that number is
+     * the entire mod. If {@code setStepBehavior} were never called, or called with the wrong
+     * value, every other test would still pass and the crafter would silently run at Refined
+     * Storage's default speed. This is what {@code theStructureTellsRefinedStorageItsSpeed}
+     * asserts on.
+     */
+    private StructureStepBehavior stepBehavior = StructureStepBehavior.IDLE;
+
+    /**
      * How many patterns are handed to the network per refresh. See the comment where it is used.
      *
      * <p>Eight a second fills a storage block in under seven, which is faster than anyone fills one
@@ -116,6 +128,16 @@ public class ControllerBlockEntity extends BlockEntity {
         return provider;
     }
 
+    /** What Refined Storage was last told this structure's speed is. */
+    public StructureStepBehavior stepBehavior() {
+        return this.stepBehavior;
+    }
+
+    private void setStepBehavior(final StructureStepBehavior behavior) {
+        this.stepBehavior = behavior;
+        this.node.setStepBehavior(behavior);
+    }
+
     public PatternProviderNetworkNode node() {
         return this.node;
     }
@@ -173,7 +195,7 @@ public class ControllerBlockEntity extends BlockEntity {
         if (!result.formed()) {
             // A broken structure crafts nothing, rather than crafting slowly or continuing to craft
             // whatever it was last told about.
-            this.node.setStepBehavior(StructureStepBehavior.IDLE);
+            this.setStepBehavior(StructureStepBehavior.IDLE);
             this.node.setActive(false);
             // Only here, never on the formed path. A structure that is already formed joins below
             // at its real pattern capacity in one step; joining early at capacity zero would force
@@ -189,7 +211,7 @@ public class ControllerBlockEntity extends BlockEntity {
         this.pushPatternsIfChanged(currentLevel, patterns);
         final boolean active = this.hasEnergy();
         this.node.setActive(active);
-        this.node.setStepBehavior(new StructureStepBehavior(result.stepsPerTick(), active));
+        this.setStepBehavior(new StructureStepBehavior(result.stepsPerTick(), active));
     }
 
     /**

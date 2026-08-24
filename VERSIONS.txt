@@ -8,6 +8,17 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.14
+------
+  Tests for #2 before closing it, and an honest account of their limit. Two gametests (13 total):
+  the structure's speed is the SUM of its CPU tiers (1x + 4x + 16x = 21, chosen because it is
+  distinct from the count, the maximum and the first), and an unpowered structure reports zero
+  steps rather than stepping anyway. ControllerBlockEntity now records the StructureStepBehavior
+  it sets, because PatternProviderNetworkNode.stepBehavior is private with no getter.
+  THE LIMIT, VERIFIED NOT ASSUMED: deleting the node.setStepBehavior call leaves both tests green.
+  They prove the computation, not the handoff -- RS's field cannot be read by any test in this mod
+  (no getter, and setAccessible is refused across its module). The tests are named for what they
+  actually prove. What covers the handoff is the structure crafting at speed in game.
 0.1.13
 ------
   /rsmc info was lying. On a formed structure it said "It will not craft yet -- the pattern

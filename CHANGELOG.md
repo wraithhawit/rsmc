@@ -6,6 +6,47 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.14
+
+**Tests for #2 before closing it — and an honest account of what they cannot reach.**
+
+Two new gametests, **13 total**:
+
+- **`theStructureSpeedIsTheSumOfItsCpuTiers`** — a 1x + 4x + 16x interior reports **21**. Three
+  tiers rather than one because the sum is the claim, and 21 is distinct from every plausible
+  mistake: not the count (3), not the maximum (16), not the first (1).
+- **`anUnpoweredStructureReportsZeroSteps`** — `getSteps` goes to zero and `canStep` is false,
+  rather than `active` being flipped somewhere the task engine never reads.
+
+`ControllerBlockEntity` now records the `StructureStepBehavior` it sets, since
+`PatternProviderNetworkNode.stepBehavior` is private with only a setter.
+
+### The limit, verified rather than assumed
+
+**Deleting the `node.setStepBehavior(...)` call entirely leaves both tests green.** That was
+checked, not guessed.
+
+So they prove the *computation* — the sum, the active gating, `canStep`/`getSteps` agreeing — and
+not the *handoff*. RS keeps the field private with no getter, and `setAccessible` is refused
+across its module, so no test in this mod can read what RS actually holds. The first version of
+this was called `theStructureTellsRefinedStorageItsSpeed`, which claimed exactly the thing it
+could not show; the name now says what is true.
+
+This is the same failure the project has hit before: a check that confirms our own bookkeeping
+instead of the effect. Writing it down because it was caught only by reinstating the bug — the
+step that turns a test into evidence.
+
+What covers the handoff is the structure demonstrably crafting at speed in game. That is weaker
+than a test and it is what exists.
+
+### Two runs of geometry before it went green
+
+The first attempt read `0 steps/tick` twice — both times because the box had not formed, which is
+correctly IDLE. `buildShell` gives a **two-slot** interior, and the interior must be *filled*: a
+gap is `NOT_SOLID`. The failure message now reports the shape's `failure()` when the speed is
+wrong, so the next person gets told "your geometry is wrong, not the mod" instead of rediscovering
+it.
+
 ## 0.1.13
 
 **`/rsmc info` was lying about the mod's own state.**
