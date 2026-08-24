@@ -4,6 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.refinedmods.refinedstorage.api.autocrafting.Pattern;
+import com.refinedmods.refinedstorage.api.resource.ResourceAmount;
+import com.refinedmods.refinedstorage.api.resource.ResourceKey;
+import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
+import com.refinedmods.refinedstorage.common.api.RefinedStorageClientApi;
 import com.refinedmods.refinedstorage.common.api.autocrafting.PatternOutputRenderingScreen;
 import com.refinedmods.refinedstorage.common.support.Sprites;
 import com.refinedmods.refinedstorage.common.support.widget.TextMarquee;
@@ -156,13 +161,66 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
                 matching.add(slot);
                 continue;
             }
-            final ItemStack stack = slot.getItem();
-            if (!stack.isEmpty()
-                && stack.getHoverName().getString().toLowerCase(Locale.ROOT).contains(this.query)) {
+            if (this.patternMatches(slot.getItem())) {
                 matching.add(slot);
             }
         }
         return matching;
+    }
+
+
+    /**
+     * Whether a pattern makes or uses something matching the query.
+     *
+     * <h2>Why not the item's name</h2>
+     *
+     * <p>It used to be {@code stack.getHoverName()}, which is <b>"Crafting Pattern" for every
+     * pattern ever encoded</b>. Searching for the thing you wanted to craft found nothing, and
+     * searching "pattern" found everything. Reported from in game: the box held every recipe and
+     * "allthemodium solar sail package" matched none of them.
+     *
+     * <p>What a player means by searching a pattern screen is the resource, so that is what is
+     * matched: the pattern's <em>outputs</em> first, and its <em>inputs</em> too, which costs
+     * nothing extra and answers "what uses iron ingots". Refined Storage's own Autocrafter Manager
+     * offers exactly these as search modes and never matches the pattern item's own name either.
+     *
+     * <h2>On resolving patterns while typing</h2>
+     *
+     * <p>{@code getPattern} resolves the recipe, and resolving patterns is what caused the 0.1.6
+     * client hitch — 82.7% of the render thread, from a per-frame {@code isValid} call. This is
+     * not that: {@link #layout()} runs on a keystroke or a scroll, not per frame, and RS caches
+     * resolved patterns by their UUID, so a repeat costs a map lookup. If a very large structure
+     * ever feels sluggish while typing, cache the searchable text per slot — do not go back to
+     * matching the item name.
+     */
+    private boolean patternMatches(final ItemStack stack) {
+        if (stack.isEmpty() || this.minecraft == null || this.minecraft.level == null) {
+            return false;
+        }
+        return RefinedStorageApi.INSTANCE.getPattern(stack, this.minecraft.level)
+            .map(pattern -> this.matchesOutputs(pattern) || this.matchesInputs(pattern))
+            .orElse(false);
+    }
+
+    private boolean matchesOutputs(final Pattern pattern) {
+        return pattern.layout().outputs().stream()
+            .map(ResourceAmount::resource)
+            .anyMatch(this::resourceMatches);
+    }
+
+    private boolean matchesInputs(final Pattern pattern) {
+        return pattern.layout().ingredients().stream()
+            .flatMap(ingredient -> ingredient.inputs().stream())
+            .anyMatch(this::resourceMatches);
+    }
+
+    private boolean resourceMatches(final ResourceKey key) {
+        return RefinedStorageClientApi.INSTANCE
+            .getResourceRendering(key.getClass())
+            .getDisplayName(key)
+            .getString()
+            .toLowerCase(Locale.ROOT)
+            .contains(this.query);
     }
 
     /**

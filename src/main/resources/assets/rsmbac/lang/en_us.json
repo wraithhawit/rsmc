@@ -2,7 +2,7 @@
   "itemGroup.rsmbac": "Refined Storage - Multiblock Autocrafter",
 
   "container.rsmbac.patterns": "MultiBlock Crafter",
-  "gui.rsmbac.patterns.search_help": "Searches the patterns in this crafter by what they make.",
+  "gui.rsmbac.patterns.search_help": "Searches the patterns in this crafter by what they make, and by what they use.",
 
   "block.rsmbac.frame": "Crafter Frame",
   "block.rsmbac.casing": "Crafter Casing",

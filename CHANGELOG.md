@@ -6,6 +6,46 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.2.1
+
+**Pattern search matched the wrong thing entirely.**
+
+It filtered on `stack.getHoverName()` — which is **"Crafting Pattern" for every pattern ever
+encoded**. So searching for the thing you wanted to craft found nothing, and searching "pattern"
+found everything. Reported from in game: a crafter holding every recipe, and "allthemodium solar
+sail package" matching none of them.
+
+It now matches the pattern's **outputs** and its **inputs**, through
+`RefinedStorageApi.getPattern(stack, level)` and
+`RefinedStorageClientApi.getResourceRendering(...).getDisplayName(...)`. Those are the same two
+things Refined Storage's own Autocrafter Manager offers as search modes — and RS never matches the
+pattern item's own name in any mode either, which is the tell that it was never the right key.
+
+Inputs come free with outputs and answer a real question: *what in here uses iron ingots?*
+
+### The tooltip was already right
+
+`gui.rsmbac.patterns.search_help` read **"Searches the patterns in this crafter by what they
+make."** It had said that since the screen shipped. The help text described the intent and the
+code did something else — the third time in this session that a comment promised behaviour the
+code never had, after the see-through outline in 0.1.7 and `/rsmc info` in 0.1.13.
+
+Now extended to mention inputs, so it is accurate rather than merely aspirational.
+
+### Not covered by a test, and cannot be
+
+The match needs `RefinedStorageClientApi` for display names, which does not exist on the dedicated
+server a gametest runs on. Recorded rather than papered over with an assertion that would pass
+whatever the code did.
+
+### On resolving patterns while typing
+
+`getPattern` resolves the recipe, and resolving patterns per frame is exactly what caused the
+0.1.6 client hitch — 82.7% of the render thread. This is not that: `layout()` runs on a keystroke
+or a scroll, never per frame, and RS caches resolved patterns by UUID so a repeat is a map lookup.
+The comment in `patternMatches` says what to do if a very large structure ever feels sluggish
+(cache the searchable text per slot) and what not to do (go back to matching the item name).
+
 ## 0.2.0
 
 **Renamed: `rsmc` → `rsmbac`, "Refined Storage - Multiblock Autocrafter".**

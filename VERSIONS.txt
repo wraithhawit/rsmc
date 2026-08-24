@@ -8,6 +8,17 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.2.1
+-----
+  FIX: pattern search matched the item's NAME, which is "Crafting Pattern" for every pattern ever
+  encoded. Searching for the thing you wanted to craft found nothing; searching "pattern" found
+  everything. Reported in game with a full crafter and "allthemodium solar sail package" matching
+  none of it. Now matches the pattern's OUTPUTS and its INPUTS, via
+  RefinedStorageApi.getPattern + ResourceRendering.getDisplayName -- the same pair RS's own
+  Autocrafter Manager offers as search modes, and RS never matches the pattern item's name either.
+  The search-help tooltip already claimed "by what they make", so the text was right and the code
+  was not. Not covered by a test: the matching needs RefinedStorageClientApi, which does not exist
+  on the server a gametest runs on.
 0.2.0
 -----
   RENAMED. modid rsmc -> rsmbac, name -> "Refined Storage - Multiblock Autocrafter". Raoul
