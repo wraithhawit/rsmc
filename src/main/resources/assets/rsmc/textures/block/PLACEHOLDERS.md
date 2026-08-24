@@ -1,7 +1,7 @@
 # These textures are placeholders
 
 Every `.png` in this folder is Reborn Storage's, copied unchanged so the blocks have *something*
-to render while the mod is built. **They are not the final art** and are tracked by issue #1.
+to render while the mod is built. **They are not the final art** and are tracked by issue #7.
 
 Reborn Storage is MIT with no assets carve-out, so copying and modifying them is permitted; the
 condition is that the notice ships with the result, which `ATTRIBUTION.md` does. Nothing here is

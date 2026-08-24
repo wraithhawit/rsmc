@@ -6,6 +6,41 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.1.13
+
+**`/rsmc info` was lying about the mod's own state.**
+
+On a formed structure it printed:
+
+> It will not craft yet -- the pattern provider is not implemented (issue #2).
+
+True when it was written. **#2 shipped in v0.0.24** — ninety versions ago — and the line stayed.
+That is worse than printing nothing: a diagnostic command is the one place a player trusts, and
+this one sent them looking for an unfinished feature when the real answer was a missing cable or
+an unpowered network.
+
+Replaced with what is actually knowable:
+
+- the structure's **energy draw**, and
+- its **real state**. `ACTIVE` says it is running; `INACTIVE` names the two things that stop it
+  (no network, not enough energy); `UNFORMED` admits the Controller has not caught up yet.
+
+That last case is deliberate rather than defensive. The command derives the shape here and now,
+while the Controller updates on its refresh schedule and joins the network a tick later, so the
+two genuinely can disagree for a moment. Saying "try again in a moment" is more honest than
+pretending the block already agrees with a shape computed microseconds ago.
+
+### Two more stale pointers, same class
+
+The placeholder textures were said to be "tracked by issue #1" in both `PLACEHOLDERS.md` and the
+README. **#1 closed at v0.0.1** when the blocks shipped; textures were split out to **#7** at the
+time and neither file was updated.
+
+Worth noting the pattern rather than just the fix: every one of these was a claim about the
+project written in a file that has no reason to be re-read once it is correct. A comment that
+describes code is checked whenever the code changes. A comment that describes *the roadmap* is
+checked never.
+
 ## 0.1.12
 
 **An unformed Crafter Controller could not be broken, and nothing could be placed beside it.**

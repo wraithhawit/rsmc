@@ -8,6 +8,16 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.1.13
+------
+  /rsmc info was lying. On a formed structure it said "It will not craft yet -- the pattern
+  provider is not implemented (issue #2)", which was true when written and stale for ninety
+  versions after #2 shipped in v0.0.24. Worse than saying nothing: it sent a player looking for a
+  missing feature instead of a missing cable. Replaced with the structure's energy draw and its
+  real state -- ACTIVE says it is running, INACTIVE names the two things that stop it (no network,
+  no power), UNFORMED admits the Controller has not caught up yet rather than pretending the block
+  agrees with the shape just computed. Also fixed two more stale pointers: the placeholder textures
+  are tracked by issue #7, not the long-closed #1, in both PLACEHOLDERS.md and the README.
 0.1.12
 ------
   FIX: an unformed Crafter Controller could not be broken, and nothing could be placed next to it.

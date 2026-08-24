@@ -2,6 +2,8 @@ package com.wraithhawit.rsmc;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
+import com.wraithhawit.rsmc.block.ControllerBlock;
+import com.wraithhawit.rsmc.block.ControllerState;
 import com.wraithhawit.rsmc.menu.StructurePatterns;
 import com.wraithhawit.rsmc.structure.LevelBlockSource;
 import com.wraithhawit.rsmc.structure.MultiblockShape;
@@ -12,8 +14,6 @@ import com.wraithhawit.rsmc.structure.StructurePower;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import com.wraithhawit.rsmc.block.ControllerBlock;
-import com.wraithhawit.rsmc.block.ControllerState;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,6 +23,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+
+import javax.annotation.Nullable;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -188,12 +190,47 @@ public final class StructureInfoCommand {
             + " of " + (result.patternStorages() * StructurePower.PATTERNS_PER_STORAGE));
         line(source, ChatFormatting.AQUA, "  speed     " + result.stepsPerTick()
             + " steps/tick  (a fully upgraded RS autocrafter is 2.5)");
-        // Said plainly, because a formed structure that does nothing is the single most confusing
-        // state this mod can be in, and it is where the mod currently stops.
-        line(source, ChatFormatting.YELLOW,
-            "  It will not craft yet -- the pattern provider is not implemented (issue #2).");
-        line(source, ChatFormatting.YELLOW,
-            "  Connecting a cable to any face does work.");
+        line(source, ChatFormatting.GRAY,
+            "  energy    " + StructurePower.energyUsage(result) + " FE/t to run");
+        // A formed structure that does nothing is the single most confusing state this mod can be
+        // in, so the reason is named rather than left to be inferred from a screen colour. Until
+        // 0.1.13 this said "the pattern provider is not implemented (issue #2)" -- true when it
+        // was written and stale for ninety versions after that shipped, which is worse than
+        // silence: it sent a player looking for a missing feature instead of a missing cable.
+        final ControllerState state = controllerStateAt(player, controller);
+        switch (state) {
+            case ACTIVE -> line(source, ChatFormatting.GREEN,
+                "  Running. Put patterns in and it will craft.");
+            case INACTIVE -> line(source, ChatFormatting.YELLOW,
+                "  Not running: no network, or not enough energy. Connect a cable to any face"
+                    + " and give the network power.");
+            case UNFORMED -> line(source, ChatFormatting.YELLOW,
+                "  The Controller has not caught up with the structure yet; try again in a"
+                    + " moment.");
+        }
+    }
+
+
+    /**
+     * What the Controller block itself currently believes, which is not always what
+     * {@link MultiblockShape#find} just computed.
+     *
+     * <p>The two can disagree for a moment: the shape is derived here and now, while the
+     * Controller updates on its refresh schedule and only joins the network on a later tick. That
+     * gap is real and brief, and reporting it as UNFORMED with "try again in a moment" is more
+     * honest than pretending the block agrees.
+     */
+    private static ControllerState controllerStateAt(final ServerPlayer player,
+                                                     @Nullable final int[] controller) {
+        if (controller == null) {
+            return ControllerState.UNFORMED;
+        }
+        final BlockPos pos = new BlockPos(controller[0], controller[1], controller[2]);
+        final BlockState state = player.level().getBlockState(pos);
+        if (!state.hasProperty(ControllerBlock.STATE)) {
+            return ControllerState.UNFORMED;
+        }
+        return state.getValue(ControllerBlock.STATE);
     }
 
     /** How many pattern slots in the structure actually hold something. */

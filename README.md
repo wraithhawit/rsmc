@@ -123,7 +123,7 @@ the genre.
 
 **This is a recode, not a port.** No Reborn Storage code is here and none will be. The block
 textures currently in the repo *are* theirs, as temporary placeholders, marked as such in
-`assets/rsmc/textures/block/PLACEHOLDERS.md` and tracked by issue #1.
+`assets/rsmc/textures/block/PLACEHOLDERS.md` and tracked by issue #7.
 
 ### And the recode is the point
 
