@@ -5,11 +5,30 @@ Build a hollow box of frame, casing, CPU and pattern storage blocks — up to 16
 crafts as one machine. Faster than a wall of autocrafters, and it is one structure instead of a
 hundred blocks.
 
-Minecraft 1.21.1, NeoForge. Requires Refined Storage 2.0.9+.
+## Download
 
-> **Status: early.** The blocks exist and the structure rules work against a real level; the
-> network node and the pattern GUI are not written yet. See
-> [What works today](#what-works-today).
+**[Latest release →](https://github.com/wraithhawit/rsmc/releases/latest)**
+
+Drop the `.jar` into your `mods` folder. **Delete any older `rsmbac-*.jar` first** — do not rely
+on load order to pick the newest. Install it on the server; in singleplayer that means installing
+it normally, since the structure and everything it crafts run on the integrated server.
+
+Confirm it actually loaded before judging any result — the log line is `[rsmbac] vX.Y.Z loaded`,
+and `/rsmbac info` prints the version on every path.
+
+| | |
+|---|---|
+| Requires | Minecraft 1.21.1, NeoForge 21.1.234+, **Refined Storage 2.0.9+** |
+| In game | Look at any block of the structure and run `/rsmbac info` — it describes the structure, or names the failure, its position and what that position wanted |
+| Config | None. Nothing here is tunable yet |
+| Worlds | A world built with 0.1.x loses these blocks: the mod id changed `rsmc` → `rsmbac` in 0.2.0 and no registry knows the old namespace |
+
+> **Status: it crafts, and it is young.** The structure, the network node, the pattern screen
+> and the recipes all work in a real world. The textures are still Reborn Storage's
+> placeholders. See [What works today](#what-works-today).
+
+Bug reports and questions go in [Issues](https://github.com/wraithhawit/rsmc/issues) — the repo
+is still named `rsmc`, from before the rename.
 
 ## Why this can exist without patching Refined Storage
 
@@ -93,22 +112,29 @@ You cannot parallelise a furnace by building a bigger cube.
 
 - [x] Structure detection and validation — flood fill, bounding box, per-position roles, size limits
 - [x] Throughput model — CPU tiers, weight summing
-- [x] **The seven blocks** — Frame, Casing, four CPU tiers, Pattern Storage, with items, creative
-      tab, loot tables and block entities where they are needed
-- [x] Headless suites, run on every `build` — 24 shape cases, 50 asset checks
-- [x] Gametests against a real level — 3, run by `runGameTestServer`
-- [ ] The network node — `PatternProvider` with the structure's `StepBehavior` (#2)
-- [ ] Structure lifecycle: form, break, tell the player why (#3)
-- [ ] Pattern GUI (#4)
-- [ ] Recipes (#5)
-- [ ] Real textures — the ones in the repo are Reborn Storage's placeholders (#1)
+- [x] **The eight blocks** — Frame, Casing, Controller, four CPU tiers, Pattern Storage, with
+      items, creative tab, loot tables and block entities where they are needed
+- [x] The network node — `PatternProvider` answering with the structure's `StepBehavior` (#2)
+- [x] Structure lifecycle: form, break, tell the player why (#3) — the offending block is
+      outlined through the walls, not just named as a coordinate
+- [x] Pattern GUI (#4), searchable by what a pattern makes or uses
+- [x] Recipes for every block (#5), every ingredient id verified against the real RS jar
+- [x] Headless suites, run on every `build` — 30 shape cases, 71 asset checks, 49 recipe
+      scenarios, 15 refresh scenarios
+- [x] Gametests against a real level — 14, run by `runGameTestServer`
+- [ ] Real textures — the ones in the repo are Reborn Storage's placeholders (#7)
+- [ ] Refined Storage's colouring system (#8), which is not cosmetic in RS: differently
+      coloured blocks refuse to connect
+- [ ] Pattern encoding built into the manager screen (#10)
 
 ## Building
 
 ```
-./gradlew build              # compiles, and runs both headless suites
+./gradlew build              # compiles, and runs all four headless suites
 ./gradlew shapeCheck         # structure rules, no Minecraft launch
 ./gradlew assetCheck         # every block has its models, loot table and lang
+./gradlew recipeCheck        # every recipe ingredient exists in the real RS jar
+./gradlew refreshCheck       # the change-driven rescan schedule
 ./gradlew runGameTestServer  # structure rules against a real level
 ./gradlew runClient          # dev client, with Refined Storage staged into run/client/mods
 ```
