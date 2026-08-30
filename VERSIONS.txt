@@ -8,6 +8,30 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+
+0.3.0
+-----
+  FLUID SUBSTITUTION PATTERNS WORK IN THE MULTIBLOCK NOW. Reported in game as "I can't craft 1000
+  cakes using RFS", and the planner said exactly why: "required with no pattern and none in
+  storage: [minecraft:milk_bucket]". The pattern was reaching the node UNRESOLVED.
+  THE CAUSE IS WHERE RFS PUTS ITS HOOK. Refined Fluid Substitution resolves patterns in a mixin on
+  Refined Storage's own AutocrafterBlockEntity -- rfs$updateFluidSubstitutionPatterns reads that
+  block entity's pattern container and pushes resolved patterns into its node. Our Controller is not
+  an AutocrafterBlockEntity; it holds patterns in Pattern Storage blocks and pushes them itself, so
+  that mixin never runs for us. The two hooks RFS does put on shared classes only manage pattern
+  capacity. Nothing was broken on either side -- the integration simply did not exist.
+  FIXED BY CALLING RFS'S OWN RESOLVER, no mixin needed: FluidSubstitutionPatternResolver.resolve is
+  public static. The layout is read from the 2.0.0 bytecode rather than invented -- main pattern at
+  its container slot, helpers packed sequentially from containerSize, the tail nulled, capacity
+  grown to containerSize * 10 (upstream's MAX_HELPERS_PER_PATTERN is 9). Matching it means a pattern
+  behaves the same in the multiblock as in an Autocrafter.
+  OPTIONAL, AND PROVEN OPTIONAL. Every RFS type is named in one class, reached only through a
+  ModList.isLoaded gate in another, because the JVM resolves a class when a method referencing it
+  first runs -- one combined class would fail on its own availability check. All 13 gametests pass
+  with RFS absent, which is the property that matters for everyone not running it.
+  UNVERIFIED: the with-RFS path. No automated test can cover it -- the gametest runtime has no RFS
+  on its classpath -- so this needs confirming in game.
+
 0.2.4
 -----
   THE 0.2.3 GRACE PERIOD GETS A TEST SUITE, aimed at the bug it could introduce rather than the one

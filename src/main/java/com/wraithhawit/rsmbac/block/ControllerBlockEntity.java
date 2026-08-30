@@ -12,6 +12,7 @@ import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeCont
 
 import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.content.RsmcBlockEntities;
+import com.wraithhawit.rsmbac.integration.FluidSubstitution;
 import com.wraithhawit.rsmbac.menu.StructurePatterns;
 import com.wraithhawit.rsmbac.structure.JoinGrace;
 import com.wraithhawit.rsmbac.structure.LevelBlockSource;
@@ -338,6 +339,11 @@ public class ControllerBlockEntity extends BlockEntity {
                 : RefinedStorageApi.INSTANCE.getPattern(stack, currentLevel).orElse(null);
             this.node.setPattern(slot, pattern);
         });
+        // After the drain, because a fluid-substitution pattern needs its helper patterns rebuilt
+        // as a set: they are packed after the container and deduplicated across slots, so there is
+        // no per-slot version of this. Only reached when something was actually dirty, and a no-op
+        // unless Refined Fluid Substitution is installed.
+        FluidSubstitution.refresh(currentLevel, this.node, patterns);
     }
 
     private void updateScreen(final Level currentLevel, final Result result) {

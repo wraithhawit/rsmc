@@ -6,6 +6,61 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+
+## 0.3.0
+
+**Fluid Substitution Patterns work in the multiblock now.**
+
+Reported from in game as *"I can't craft 1000 cakes using RFS"*, and the planner said exactly why:
+
+```
+LP planner declined cake: no integer solution --
+required with no pattern and none in storage: [minecraft:milk_bucket]
+```
+
+The pattern was reaching the node **unresolved**, still asking for a literal bucket.
+
+### The cause is where RFS puts its hook
+
+Refined Fluid Substitution resolves patterns in a mixin on Refined Storage's own
+`AutocrafterBlockEntity`: `rfs$updateFluidSubstitutionPatterns` reads *that* block entity's pattern
+container and pushes the resolved patterns into its `PatternProviderNetworkNode`.
+
+Our Controller is not an `AutocrafterBlockEntity`. It keeps patterns in Pattern Storage blocks and
+pushes them into its own node, so that mixin never runs for us. The two hooks RFS *does* put on
+shared classes — `PatternProviderNetworkNodeMixin` and `AbstractNetworkNodeContainerBlockEntityMixin`
+— only manage pattern capacity.
+
+Nothing was broken on either side. The integration simply did not exist.
+
+### Fixed by calling RFS's own resolver
+
+No mixin needed — `FluidSubstitutionPatternResolver.resolve(ItemStack, Level)` is `public static`.
+
+The slot layout is **read from the 2.0.0 bytecode rather than invented**: main pattern at its own
+container slot, helper patterns packed sequentially from `containerSize` upward, the tail nulled,
+and capacity grown to `containerSize * 10` (upstream's `MAX_HELPERS_PER_PATTERN` is 9, plus the
+pattern itself). Matching it means a pattern behaves identically in the multiblock and in an
+Autocrafter, and that a future RFS change is a diff against something rather than a redesign.
+
+Helpers are deduplicated by id, because upstream derives those deterministically and two slots
+substituting the same fluid produce the same helper — registering it twice would be two patterns
+making one thing.
+
+### Optional, and proven optional
+
+Every RFS type in the mod is named in `FluidSubstitutionPatterns` and reached only through a
+`ModList.isLoaded` gate in `FluidSubstitution`. The split is load-bearing: the JVM resolves a class
+when a method referencing it first executes, so a single combined class would fail on its own
+availability check.
+
+All 13 gametests pass with RFS absent — the property that matters for everyone not running it.
+
+### Unverified
+
+**The with-RFS path has no automated coverage.** The gametest runtime has no RFS on its classpath,
+so `available()` is false there and the integration never executes. This needs confirming in game.
+
 ## 0.2.4
 
 **The 0.2.3 grace period gets a test suite, aimed at the bug it could introduce.**
