@@ -8,6 +8,22 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.2.4
+-----
+  THE 0.2.3 GRACE PERIOD GETS A TEST SUITE, aimed at the bug it could introduce rather than the one
+  it fixed. Suppressing ACTIVE -> INACTIVE risks a screen that will NEVER go dark, which is worse
+  than the flicker it replaces, and nothing pinned the expiry. Decision extracted to JoinGrace
+  (pure arithmetic, time passed in, same shape as RefreshSchedule) and 12 scenarios added as
+  joinGraceCheck, wired into check.
+  Four of them are the expiry: suppressed one tick before the deadline, NOT suppressed at it, never
+  again after it, and an unplug an hour into a session is not a join. Two more pin that the clock
+  starts at the FIRST CALL rather than at tick zero -- a real save loads at an arbitrary game time
+  (3,069,920 in the report), so a window measured against the level clock would pass every test
+  starting at zero and never once fire in game.
+  BREAK-TESTED, not just run green: with the expiry deleted, exactly those four fail and the other
+  eight still pass. A suite that has never been shown to fail has not been shown to test anything.
+  No behaviour change from 0.2.3.
+
 0.2.3
 -----
   THE STUCK SCREEN, FOUND AND FIXED. 0.2.2's logging caught it on its first run:

@@ -6,6 +6,45 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.2.4
+
+**The 0.2.3 grace period gets a test suite, aimed at the bug it could introduce.**
+
+Suppressing `ACTIVE -> INACTIVE` risks a screen that will **never** go dark — worse than the
+flicker it replaces, because it lies in the direction that costs a player real time. Nothing pinned
+the expiry.
+
+The decision moved into `JoinGrace`: pure arithmetic with time passed in, the same shape as
+`RefreshSchedule`, so it needs no level. `joinGraceCheck` adds 12 scenarios and is wired into
+`check`.
+
+Four are the expiry itself:
+
+- suppressed one tick before the deadline
+- **not** suppressed at the deadline
+- never again after it
+- an unplug an hour into a session is not a join
+
+Two more pin that **the clock starts at the first call, not at tick zero**. A real save loads at an
+arbitrary game time — 3,069,920 in the report that found the original bug — so a window measured
+against the level clock would pass every test that starts at zero and never once fire in game.
+
+### Break-tested, not just run green
+
+With the expiry deleted, exactly those four fail and the other eight still pass:
+
+```
+FAIL  NOT suppressed at the deadline
+FAIL  and never again after it
+FAIL  and it still expires
+FAIL  an unplug an hour into the session is not a join
+4 of 12 scenarios failed
+```
+
+A suite that has never been shown to fail has not been shown to test anything.
+
+No behaviour change from 0.2.3.
+
 ## 0.2.3
 
 **The stuck screen, found and fixed.** 0.2.2's logging caught it on its first run:

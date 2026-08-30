@@ -47,6 +47,13 @@ tasks.register('refreshCheck', JavaExec) {
     mainClass = 'com.wraithhawit.rsmbac.test.HeadlessRefreshCheck'
 }
 
+tasks.register('joinGraceCheck', JavaExec) {
+    group = 'verification'
+    description = 'Proves the screen join-grace suppresses the load flicker and then expires.'
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
+    mainClass = 'com.wraithhawit.rsmbac.test.HeadlessJoinGraceCheck'
+}
+
 tasks.register('assetCheck', JavaExec) {
     group = 'verification'
     description = 'Proves every registered block has its blockstate, models, loot table and lang.'
@@ -57,7 +64,7 @@ tasks.register('assetCheck', JavaExec) {
 }
 
 tasks.named('check').configure {
-    dependsOn 'shapeCheck', 'assetCheck', 'refreshCheck', 'recipeCheck'
+    dependsOn 'shapeCheck', 'assetCheck', 'refreshCheck', 'recipeCheck', 'joinGraceCheck'
 }
 
 // Refined Storage is compileOnly, so nothing puts it on a run's classpath and a dev
