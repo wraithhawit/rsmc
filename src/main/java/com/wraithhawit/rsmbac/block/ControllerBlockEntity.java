@@ -10,6 +10,7 @@ import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
 
+import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.content.RsmcBlockEntities;
 import com.wraithhawit.rsmbac.menu.StructurePatterns;
 import com.wraithhawit.rsmbac.structure.LevelBlockSource;
@@ -349,7 +350,23 @@ public class ControllerBlockEntity extends BlockEntity {
         } else {
             wanted = this.hasEnergy() ? ControllerState.ACTIVE : ControllerState.INACTIVE;
         }
-        if (current.getValue(ControllerBlock.STATE) != wanted) {
+        final ControllerState showing = current.getValue(ControllerBlock.STATE);
+        if (showing != wanted) {
+            // Logged on every transition, because this is the one moment the server can prove what
+            // it decided and when. A stuck screen was reported once before and closed in 0.0.8 on a
+            // gametest that only ever exercised the server path -- there is no client in a gametest,
+            // so the half that can actually be stale was never observed, and the report came back.
+            //
+            // Reading it next time: a line ending "-> active" while the block still looks unpowered
+            // in game means the value was right and the update did not reach the client. NO line at
+            // all, across a whole session, means this method is not running -- and since the node's
+            // active flag is set from the same hasEnergy() a few statements earlier, that would also
+            // explain how a structure keeps crafting while its screen is frozen.
+            RSMBAC.LOGGER.info("[rsmbac] controller screen {} -> {} at {} (tick {}, node active={},"
+                    + " energy {}/{} FE)",
+                showing.getSerializedName(), wanted.getSerializedName(), this.worldPosition,
+                currentLevel.getGameTime(), this.node.isActive(),
+                this.energyStored(), this.node.getEnergyUsage());
             currentLevel.setBlock(this.worldPosition,
                 current.setValue(ControllerBlock.STATE, wanted), Block.UPDATE_ALL);
         }
@@ -414,12 +431,44 @@ public class ControllerBlockEntity extends BlockEntity {
         if (!RefinedStorageApi.INSTANCE.isEnergyRequired()) {
             return true;
         }
+        final long stored = this.energyStored();
+        // A missing network reads as -1 rather than 0, and is rejected here rather than being
+        // allowed to satisfy a structure whose draw happens to be zero.
+        return stored >= 0L && stored >= this.node.getEnergyUsage();
+    }
+
+    /**
+     * What the network is holding, or {@code -1} when there is no network to ask.
+     *
+     * <p>Extracted so {@link #hasEnergy} and the diagnostics read the <em>same</em> number. A
+     * diagnostic that computes the answer a second way tells you about itself rather than about
+     * the thing it is diagnosing, which is the rule the rest of the reporting here already follows.
+     */
+    private long energyStored() {
         final Network network = this.node.getNetwork();
-        if (network == null) {
-            return false;
-        }
-        return network.getComponent(EnergyNetworkComponent.class).getStored()
-            >= this.node.getEnergyUsage();
+        return network == null
+            ? -1L
+            : network.getComponent(EnergyNetworkComponent.class).getStored();
+    }
+
+    /**
+     * What the node actually believes right now, for {@code /rsmbac info} to print beside the
+     * screen.
+     *
+     * <p>These are the two halves that can disagree. Refined Storage's {@code doWork} returns
+     * immediately unless {@code isActive()}, so a structure that is crafting <em>proves</em> the
+     * node is active -- and if the screen says otherwise at the same moment, the screen is the
+     * wrong half. Without printing both, telling them apart takes a round trip per guess.
+     */
+    public record Diagnostics(boolean nodeActive, boolean stepBehaviorActive, int stepsPerTick,
+                              boolean energyRequired, long energyStored, long energyUsage) {
+    }
+
+    /** A snapshot of {@link Diagnostics}: reads state, changes none. */
+    public Diagnostics diagnostics() {
+        return new Diagnostics(this.node.isActive(), this.stepBehavior.active(),
+            this.stepBehavior.stepsPerTick(), RefinedStorageApi.INSTANCE.isEnergyRequired(),
+            this.energyStored(), this.node.getEnergyUsage());
     }
 
     @Override

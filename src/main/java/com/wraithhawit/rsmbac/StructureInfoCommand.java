@@ -3,6 +3,7 @@ package com.wraithhawit.rsmbac;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
 import com.wraithhawit.rsmbac.block.ControllerBlock;
+import com.wraithhawit.rsmbac.block.ControllerBlockEntity;
 import com.wraithhawit.rsmbac.block.ControllerState;
 import com.wraithhawit.rsmbac.menu.StructurePatterns;
 import com.wraithhawit.rsmbac.structure.LevelBlockSource;
@@ -166,6 +167,49 @@ public final class StructureInfoCommand {
             "  screen (server) " + screen.getSerializedName()
                 + (disagrees ? "  <-- server disagrees with the structure; your client is stale"
                     : ""));
+        reportNode(source, player, controllerPos, screen);
+    }
+
+    /**
+     * What the node believes, printed beside what the screen says.
+     *
+     * <p>The screen line alone cannot close the case a player actually reports -- "it looks
+     * unpowered but it is still crafting". Refined Storage's {@code PatternProviderNetworkNode
+     * .doWork} returns immediately unless {@code isActive()}, so crafting <em>proves</em>
+     * {@code active=true}; and the Controller sets that flag and the screen from the same
+     * {@code hasEnergy()} call, a few statements apart. The two therefore cannot legitimately
+     * differ, and printing both turns a theory into an observation:
+     *
+     * <ul>
+     *   <li>screen {@code active} + node {@code active=true}, block still looks dark in game --
+     *       both server halves are right and the <b>client</b> never got the update.
+     *   <li>screen {@code inactive} + node {@code active=true} -- the server itself is
+     *       inconsistent, and the block state is the half that is stale.
+     * </ul>
+     *
+     * <p>Reads the node through {@link ControllerBlockEntity#diagnostics()} rather than
+     * recomputing anything, for the reason this whole command exists.
+     */
+    private static void reportNode(final CommandSourceStack source, final ServerPlayer player,
+                                   final BlockPos controllerPos, final ControllerState screen) {
+        if (!(player.level().getBlockEntity(controllerPos)
+            instanceof ControllerBlockEntity controller)) {
+            return;
+        }
+        final ControllerBlockEntity.Diagnostics node = controller.diagnostics();
+        final boolean nodeSaysRunning = node.nodeActive() && node.stepBehaviorActive();
+        final boolean split = nodeSaysRunning != (screen == ControllerState.ACTIVE);
+        line(source, split ? ChatFormatting.RED : ChatFormatting.DARK_GRAY,
+            "  node (server)   active=" + node.nodeActive()
+                + "  steps/tick=" + node.stepsPerTick()
+                + (split ? "  <-- the node and the screen disagree; the screen is the stale half"
+                    : ""));
+        line(source, ChatFormatting.DARK_GRAY,
+            "  energy (server) " + (node.energyRequired()
+                ? (node.energyStored() < 0
+                    ? "no network"
+                    : node.energyStored() + " stored / " + node.energyUsage() + " needed")
+                : "not required"));
     }
 
     private static void reportFormed(final CommandSourceStack source, final ServerPlayer player,

@@ -6,6 +6,62 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.2.2
+
+**The stuck screen gets instrumented, not guessed at a third time.**
+
+Reported again from in game: the Controller looks unpowered while the structure keeps crafting
+normally. That pair cannot happen legitimately, and the reasoning is worth writing down because it
+is what narrows the search:
+
+- `PatternProviderNetworkNode.doWork` returns immediately unless `isActive()` — verified against
+  the 2.0.9 bytecode. So a structure that is **crafting proves `active=true`**.
+- `syncNode` sets that flag from `hasEnergy()`, and `updateScreen` picks the block state from
+  `hasEnergy()` a few statements later, in the same method, in the same tick.
+- The assets were checked and are complete: all 12 blockstate variants, three models, three
+  textures. The model path cannot produce this.
+
+So one of the two server halves is lying, or the client is. Nothing on hand could tell which.
+
+### What was added
+
+`updateScreen` now logs **every** transition — old value, new value, position, game tick, the
+node's active flag, and the energy numbers:
+
+```
+[rsmbac] controller screen inactive -> active at BlockPos{...} (tick 41203, node active=true, energy 4000/812 FE)
+```
+
+`/rsmbac info` gains two lines beside the existing `screen (server)`:
+
+```
+  screen (server) inactive
+  node (server)   active=true  steps/tick=2048  <-- the node and the screen disagree; the screen is the stale half
+  energy (server) 4000 stored / 812 needed
+```
+
+How to read the pair:
+
+| screen | node | meaning |
+|---|---|---|
+| `active` | `active=true` | both server halves right — the **client** never got the update |
+| `inactive` | `active=true` | the server is inconsistent; the block state is the stale half |
+| no log line all session | — | `updateScreen` is not running, which would explain both symptoms at once |
+
+### Why instrumentation and not a fix
+
+This was reported once before and closed in **0.0.8** on a gametest that passed. A gametest has no
+client, so it only ever exercised the half that was already correct — and the report came back.
+Shipping a second theory on top of the first is how that repeats.
+
+### One correctness tidy
+
+`hasEnergy` and the new diagnostics read the network's stored energy through a single
+`energyStored()` method, so the report cannot drift from the decision it reports on. Behaviour is
+unchanged: a missing network reads `-1` and is rejected, exactly as the old `network == null`
+branch did.
+
+
 ## 0.2.1
 
 **Pattern search matched the wrong thing entirely.**

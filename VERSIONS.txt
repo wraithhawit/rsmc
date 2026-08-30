@@ -8,6 +8,24 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.2.2
+-----
+  INSTRUMENTS THE STUCK SCREEN, rather than guessing at it a third time. Reported again: the
+  Controller looks unpowered while the structure keeps crafting normally. That pair cannot happen
+  legitimately -- RS's PatternProviderNetworkNode.doWork returns immediately unless isActive(), so
+  crafting PROVES the node is active, and syncNode sets that flag and updateScreen sets the block
+  state from the same hasEnergy() a few statements apart. Assets were checked and are complete
+  (all 12 variants, three models, three textures), so the model path is not it.
+  updateScreen now logs every transition with the old and new value, the position, the game tick,
+  the node's active flag and the energy numbers. /rsmbac info gains "node (server)" and
+  "energy (server)" lines beside the existing "screen (server)" one, and flags it red when the node
+  and the screen disagree.
+  WHY NOT A FIX: this was reported once before and closed in 0.0.8 on a gametest that passed --
+  but a gametest has no client, so it only ever exercised the half that was already correct, and
+  the report came back. Buying the observation first.
+  Also: hasEnergy and the diagnostics now read the network's energy through one method, so the
+  report cannot drift from the decision it is reporting on.
+
 0.2.1
 -----
   FIX: pattern search matched the item's NAME, which is "Crafting Pattern" for every pattern ever
