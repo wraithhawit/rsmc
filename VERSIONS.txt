@@ -8,6 +8,23 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.2.3
+-----
+  THE STUCK SCREEN, FOUND AND FIXED. 0.2.2's logging caught it on its first run:
+    active -> inactive (tick 3069920, node active=false, energy       -1/176795 FE)
+    inactive -> active (tick 3069926, node active=true,  energy MAX_VALUE/176795 FE)
+  -1 is "no network to ask". On world load the block entity ticks before joinNetworkIfNeeded has a
+  network to join, so hasEnergy() is false for a few ticks and the screen is driven to INACTIVE and
+  straight back. Six ticks on the server -- and PERMANENT on any client whose chunk snapshot lands
+  inside that window, because the server returns to ACTIVE and then sees no further change to
+  broadcast. Looks unpowered, crafts normally, cleared by relogging: the exact report, twice.
+  FIX: a join grace period. ACTIVE -> INACTIVE is suppressed only while there is genuinely no
+  network and only within 40 ticks of the block entity's first screen update. Bounded deliberately
+  in both directions -- a screen that will not go dark is the worse bug, so a structure whose cable
+  was pulled while its chunk was unloaded still reports honestly two seconds after load.
+  The 0.2.2 logging stays in. It cost one run to find a bug that had survived two reports and a
+  passing gametest, and it is what will settle the next one.
+
 0.2.2
 -----
   INSTRUMENTS THE STUCK SCREEN, rather than guessing at it a third time. Reported again: the

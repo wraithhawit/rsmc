@@ -6,6 +6,41 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.2.3
+
+**The stuck screen, found and fixed.** 0.2.2's logging caught it on its first run:
+
+```
+active -> inactive (tick 3069920, node active=false, energy       -1/176795 FE)
+inactive -> active (tick 3069926, node active=true,  energy MAX_VALUE/176795 FE)
+```
+
+`-1` is `energyStored()`'s "there is no network to ask". On world load the block entity ticks
+before `joinNetworkIfNeeded` has a network to join, so `hasEnergy()` is false for a few ticks and
+the screen is driven to `INACTIVE` and straight back.
+
+Six ticks on the server — and **permanent on the client**. If a client's chunk snapshot lands
+inside that window it is told `INACTIVE`; the server returns to `ACTIVE`, sees no further change,
+and has nothing left to broadcast. The two never reconcile. That is the report exactly — looks
+unpowered, crafts normally — and it is why relogging cleared it.
+
+### The fix
+
+A join grace period. `ACTIVE -> INACTIVE` is suppressed **only** while:
+
+- there is genuinely no network (`energyStored() < 0`), **and**
+- it is within 40 ticks of this block entity's first screen update
+
+Bounded hard in both directions on purpose: a screen that will not go dark is the worse bug. A
+structure whose cable was pulled while its chunk was unloaded still reports honestly two seconds
+after load, and every other transition is untouched.
+
+### The instrumentation stays
+
+It cost one run to find a bug that had survived two reports and a passing gametest. Removing it
+would be removing the thing that will settle the next one.
+
+
 ## 0.2.2
 
 **The stuck screen gets instrumented, not guessed at a third time.**

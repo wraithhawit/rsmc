@@ -351,6 +351,9 @@ public class ControllerBlockEntity extends BlockEntity {
             wanted = this.hasEnergy() ? ControllerState.ACTIVE : ControllerState.INACTIVE;
         }
         final ControllerState showing = current.getValue(ControllerBlock.STATE);
+        if (this.stillJoining(currentLevel, showing, wanted)) {
+            return;
+        }
         if (showing != wanted) {
             // Logged on every transition, because this is the one moment the server can prove what
             // it decided and when. A stuck screen was reported once before and closed in 0.0.8 on a
@@ -436,6 +439,52 @@ public class ControllerBlockEntity extends BlockEntity {
         // allowed to satisfy a structure whose draw happens to be zero.
         return stored >= 0L && stored >= this.node.getEnergyUsage();
     }
+
+    /**
+     * Whether to leave the screen alone because the node has not finished joining a network yet.
+     *
+     * <p><strong>The load-time flicker this suppresses is what the stuck screen was.</strong>
+     * 0.2.2's logging caught it on the first run:
+     *
+     * <pre>
+     * active -&gt; inactive (tick 3069920, node active=false, energy      -1/176795 FE)
+     * inactive -&gt; active (tick 3069926, node active=true,  energy MAX_VALUE/176795 FE)
+     * </pre>
+     *
+     * <p>{@code -1} is {@link #energyStored}'s "there is no network to ask". On world load the
+     * block entity ticks before {@code joinNetworkIfNeeded} has a network to join, so
+     * {@code hasEnergy()} is false for a few ticks and the screen is driven to INACTIVE and
+     * straight back. Six ticks on the server, and permanent on any client whose chunk snapshot
+     * lands inside the window: it is shown INACTIVE, the server returns to ACTIVE and sees no
+     * further change to broadcast, and the two never reconcile. That is exactly the report --
+     * looks unpowered, crafts normally -- and why relogging cleared it.
+     *
+     * <p><b>Bounded two ways, because a screen that will not go dark is the worse bug.</b> This
+     * only ever suppresses ACTIVE -&gt; INACTIVE, only while there is genuinely no network, and only
+     * within {@link #JOIN_GRACE_TICKS} of this block entity's first tick. A structure whose cable
+     * was pulled while its chunk was unloaded therefore reports honestly two seconds after load,
+     * rather than sitting lit forever. Every other transition is untouched.
+     */
+    private boolean stillJoining(final Level currentLevel, final ControllerState showing,
+                                 final ControllerState wanted) {
+        if (this.firstTick < 0L) {
+            this.firstTick = currentLevel.getGameTime();
+        }
+        return showing == ControllerState.ACTIVE
+            && wanted == ControllerState.INACTIVE
+            && this.energyStored() < 0L
+            && currentLevel.getGameTime() - this.firstTick < JOIN_GRACE_TICKS;
+    }
+
+    /**
+     * How long after loading a missing network is treated as "not joined yet" rather than as
+     * "unplugged". Two seconds: the observed gap was six ticks, and joining is not something that
+     * takes longer the bigger the structure is -- it is one network rebuild.
+     */
+    private static final long JOIN_GRACE_TICKS = 40L;
+
+    /** Game time of this block entity's first screen update, or -1 before it has had one. */
+    private long firstTick = -1L;
 
     /**
      * What the network is holding, or {@code -1} when there is no network to ask.
