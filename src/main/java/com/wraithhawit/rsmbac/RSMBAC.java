@@ -18,6 +18,8 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -70,6 +72,12 @@ public class RSMBAC {
 
     public RSMBAC(final IEventBus modEventBus, final ModContainer modContainer) {
         version = modContainer.getModInfo().getVersion().toString();
+        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        // Refreshed on load and on reload, so an edit takes effect without a restart. The cached
+        // field is read every tick; going through ModConfigSpec.get() there would put a map lookup
+        // on the only hot path this mod has.
+        modEventBus.addListener((ModConfigEvent.Loading event) -> Config.refresh());
+        modEventBus.addListener((ModConfigEvent.Reloading event) -> Config.refresh());
         // Order matters here, and only in one place: RsmcItems and RsmcBlockEntities both read
         // RsmcBlocks' fields while their own static initialisers run, so blocks must be the first
         // of the three touched. Registering them in this order is what guarantees that -- the

@@ -212,6 +212,36 @@ public final class StructureInfoCommand {
                 : "not required"));
     }
 
+    /**
+     * What the tick budget is currently allowing, and whether it is holding anything back.
+     *
+     * <p>Worth printing because a throttled structure and a slow one look identical from in front of
+     * it. If crafting seems slower than the speed line says, this is the line that explains it — and
+     * if it says the budget is not throttling, the slowness is somewhere else entirely.
+     */
+    private static void reportBudget(final CommandSourceStack source, final ServerPlayer player,
+                                     @Nullable final int[] controller) {
+        if (controller == null || Config.maxCraftingMillisPerTick <= 0) {
+            line(source, ChatFormatting.DARK_GRAY,
+                "  budget    off (maxCraftingMillisPerTick = 0)");
+            return;
+        }
+        final BlockPos pos = new BlockPos(controller[0], controller[1], controller[2]);
+        if (!(player.level().getBlockEntity(pos) instanceof ControllerBlockEntity entity)) {
+            return;
+        }
+        final int rate = entity.stepBehavior().stepsPerTick();
+        final int allowed = entity.currentAllowance();
+        final boolean throttling = allowed < rate;
+        line(source, throttling ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY,
+            "  budget    " + Config.maxCraftingMillisPerTick + "ms/tick -> " + allowed
+                + " of " + rate + " steps"
+                + (throttling
+                    ? "  (throttling to keep the tick short; raise maxCraftingMillisPerTick to"
+                        + " favour crafting speed)"
+                    : "  (not throttling)"));
+    }
+
     private static void reportFormed(final CommandSourceStack source, final ServerPlayer player,
                                      final Result result) {
         line(source, ChatFormatting.GREEN, "Structure formed.");
@@ -236,6 +266,7 @@ public final class StructureInfoCommand {
             + " steps/tick  (a fully upgraded RS autocrafter is 2.5)");
         line(source, ChatFormatting.GRAY,
             "  energy    " + StructurePower.energyUsage(result) + " FE/t to run");
+        reportBudget(source, player, controller);
         // A formed structure that does nothing is the single most confusing state this mod can be
         // in, so the reason is named rather than left to be inferred from a screen colour. Until
         // 0.1.13 this said "the pattern provider is not implemented (issue #2)" -- true when it

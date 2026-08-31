@@ -7,6 +7,73 @@ exact build.
 this one carries the reasoning, that one is the index.
 
 
+## 0.4.0
+
+**The crafting tick budget.**
+
+A maxed structure asks Refined Storage for **175,552 steps per tick**, and RS performs them
+synchronously before the tick can end. So a 150ms crafting tick *is* a 150ms tick: the server runs
+at about 6 TPS, and every mob, machine and chunk in the world gets those same 6 ticks. Reported as
+*"my world TPS is always under 10 while the crafter runs — is there no way around that?"*
+
+There is, and it costs almost nothing. Ticks already run back to back and the crafter fills them, so
+it gets ~100% of wall-clock time today. Under a 45ms budget it gets 45/50ths instead:
+
+| | now | budgeted |
+|---|---|---|
+| tick length | ~200ms | 50ms |
+| **TPS** | **5** | **20** |
+| crafting share of wall clock | ~100% | 90% |
+
+**About a tenth less crafting per second, for four times the tick rate.** A 100k craft goes from
+~34s to ~37s and the world runs normally while it happens.
+
+### Why the comparison to AE2 was right
+
+ExtendedAE's Assembler Matrix gives each crafter block a fixed set of threads on a cooldown
+(`TileAssemblerMatrixCrafter`: `CraftingThread[] threads`, `MAX_THREAD`, `COOL_TIME`). Its per-tick
+cost is proportional to the **number of threads**, never to the number of crafts completed — so a big
+job takes *more ticks*, never a longer one. Base AE2 does the same, bounding itself by
+`getCoProcessors()`.
+
+RS's engine is iterative (`for (i = 0; i < steps; i++) pattern.step(...)`), so we cannot adopt that
+shape without replacing the engine. A budget applies the same idea to the engine we have.
+
+### The control law is asymmetric on purpose
+
+**Back off immediately and proportionally; recover an eighth at a time.** A long tick is the thing
+being prevented, so one overshoot corrects on the very next tick rather than decaying towards a
+correct value while the world stutters. Recovery is gentle because a structure hovering at the limit
+would otherwise visibly pulse.
+
+Proportional control needs no model of what a step costs — just as well, since a step that finds
+nothing to do costs almost nothing and one that substitutes a worn tool costs a great deal.
+
+### Nothing happens when nothing is wrong
+
+While ticks fit inside the budget the allowance climbs back to the structure's full rate and stays
+there. A small structure, an idle one, or a big one on a server with headroom is **completely
+unaffected**. Only a structure that is *currently* overrunning is throttled, and only while it is.
+
+`maxCraftingMillisPerTick`, default **45**, and **0 restores the old behaviour exactly**. First
+config this mod has had. `/rsmbac info` gains a budget line, because a throttled structure and a
+slow one look identical from in front of it.
+
+### Tested, and break-tested
+
+14 headless checks (`./gradlew budgetCheck`). Deleting the recovery fails exactly the three
+assertions about recovering:
+
+```
+FAIL  recovers all the way to the full rate when ticks fit
+FAIL  and stops there rather than overshooting
+FAIL  and stops reporting itself throttled
+```
+
+That is the silent failure this needed pinning against — a crafter that backed off and never came
+back, on a server that looks perfectly healthy.
+
+
 ## 0.3.0
 
 **Fluid Substitution Patterns work in the multiblock now.**

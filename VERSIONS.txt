@@ -9,6 +9,40 @@ The rule is adopted from rstweaks, where it was learned the hard way: versions 0
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
 
+0.4.0
+-----
+  THE CRAFTING TICK BUDGET. A maxed structure asks RS for 175,552 steps per tick and RS performs
+  them synchronously before the tick can end -- so a 150ms crafting tick IS a 150ms tick, the server
+  runs at ~6 TPS, and every mob, machine and chunk gets those same 6 ticks. Reported as "my world
+  TPS is always under 10 while the crafter runs; is there no way around that?"
+  There is, and it costs almost nothing. Ticks already run back to back and the crafter fills them,
+  so it gets ~100% of wall-clock time today. Under a 45ms budget it gets 45/50ths instead: about a
+  tenth less crafting per second for FOUR TIMES the tick rate. A 100k craft goes from ~34s to ~37s
+  and the world runs normally while it happens.
+  WHY THE COMPARISON TO AE2 WAS RIGHT. ExtendedAE's Assembler Matrix gives each crafter block a
+  fixed set of threads on a cooldown (TileAssemblerMatrixCrafter: CraftingThread[] threads,
+  MAX_THREAD, COOL_TIME) -- its per-tick cost is proportional to the number of threads and never to
+  the number of crafts completed, so a big job takes MORE TICKS, never a longer one. Base AE2 does
+  the same, bounding itself by getCoProcessors(). RS's engine is iterative
+  (for i in 0..steps: pattern.step) so we cannot adopt that shape without replacing the engine; a
+  budget applies the same idea to the engine we have.
+  CONTROL LAW, ASYMMETRIC ON PURPOSE: back off immediately and proportionally, recover an eighth at
+  a time. A long tick is the thing being prevented, so one overshoot corrects on the next tick
+  rather than decaying while the world stutters; recovery is gentle because a structure hovering at
+  the limit would otherwise visibly pulse. Proportional control needs no model of what a step costs,
+  which is just as well -- a step that finds nothing costs almost nothing and one that substitutes a
+  worn tool costs a great deal.
+  NOTHING HAPPENS WHEN NOTHING IS WRONG. While ticks fit, the allowance climbs back to the full rate
+  and stays, so a small structure, an idle one, or a big one on a server with headroom is completely
+  unaffected. Only a structure currently overrunning is throttled, and only while it does.
+  maxCraftingMillisPerTick, default 45, 0 restores the old behaviour exactly. First config this mod
+  has had. /rsmbac info gains a budget line, because a throttled structure and a slow one look
+  identical from in front of it.
+  14 headless checks (budgetCheck), BREAK-TESTED: deleting the recovery fails exactly the three
+  assertions about recovering, which is the silent failure -- a crafter that backed off and never
+  came back, on a server that looks healthy.
+
+
 0.3.0
 -----
   FLUID SUBSTITUTION PATTERNS WORK IN THE MULTIBLOCK NOW. Reported in game as "I can't craft 1000

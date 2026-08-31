@@ -54,6 +54,13 @@ tasks.register('joinGraceCheck', JavaExec) {
     mainClass = 'com.wraithhawit.rsmbac.test.HeadlessJoinGraceCheck'
 }
 
+tasks.register('budgetCheck', JavaExec) {
+    group = 'verification'
+    description = 'Proves the crafting tick budget backs off, recovers, and settles.'
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath
+    mainClass = 'com.wraithhawit.rsmbac.test.HeadlessBudgetCheck'
+}
+
 tasks.register('assetCheck', JavaExec) {
     group = 'verification'
     description = 'Proves every registered block has its blockstate, models, loot table and lang.'
@@ -64,7 +71,7 @@ tasks.register('assetCheck', JavaExec) {
 }
 
 tasks.named('check').configure {
-    dependsOn 'shapeCheck', 'assetCheck', 'refreshCheck', 'recipeCheck', 'joinGraceCheck'
+    dependsOn 'shapeCheck', 'assetCheck', 'refreshCheck', 'recipeCheck', 'joinGraceCheck', 'budgetCheck'
 }
 
 // Refined Storage is compileOnly, so nothing puts it on a run's classpath and a dev

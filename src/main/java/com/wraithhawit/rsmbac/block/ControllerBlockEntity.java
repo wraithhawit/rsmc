@@ -10,10 +10,12 @@ import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
 
+import com.wraithhawit.rsmbac.Config;
 import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.content.RsmcBlockEntities;
 import com.wraithhawit.rsmbac.integration.FluidSubstitution;
 import com.wraithhawit.rsmbac.menu.StructurePatterns;
+import com.wraithhawit.rsmbac.structure.CraftingBudget;
 import com.wraithhawit.rsmbac.structure.JoinGrace;
 import com.wraithhawit.rsmbac.structure.LevelBlockSource;
 import com.wraithhawit.rsmbac.structure.RefreshSchedule;
@@ -139,6 +141,18 @@ public class ControllerBlockEntity extends BlockEntity {
     private void setStepBehavior(final StructureStepBehavior behavior) {
         this.stepBehavior = behavior;
         this.node.setStepBehavior(behavior);
+        // The budget compares against what RS was last told, and syncNode has just told it
+        // something directly. Without this a structure that grew or lost power would keep the old
+        // comparison and skip the next update.
+        this.toldSteps = behavior.stepsPerTick();
+    }
+
+    /** What Refined Storage was last told, which is the structure's rate minus any throttling. */
+    private int toldSteps = -1;
+
+    /** What the tick budget currently allows, for {@code /rsmbac info}. */
+    public int currentAllowance() {
+        return this.budget.currentAllowance(this.stepBehavior.stepsPerTick());
     }
 
     public PatternProviderNetworkNode node() {
@@ -146,7 +160,7 @@ public class ControllerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Performs crafting. Every tick, no throttling.
+     * Performs crafting, inside a slice of the tick.
      *
      * <p><strong>This is what makes the structure craft at all.</strong> Refined Storage does not
      * drive a pattern provider from the network -- the provider's own block entity is ticked and
@@ -162,8 +176,35 @@ public class ControllerBlockEntity extends BlockEntity {
         if (currentLevel == null || currentLevel.isClientSide()) {
             return;
         }
+        final long budgetNanos = Config.budgetNanos();
+        // The STRUCTURE's rate, never the throttled one. this.stepBehavior is only ever written by
+        // syncNode, so it stays the ceiling; reading back what we last told Refined Storage would
+        // ratchet the allowance downwards and never let it recover.
+        final int rate = this.stepBehavior.stepsPerTick();
+        final int allowed = this.budget.allowedSteps(rate, budgetNanos);
+        // Told to RS only when it changed. Cheap either way, but a write per tick to a field the
+        // crafting engine reads is worth not doing for no reason.
+        if (allowed != this.toldSteps) {
+            this.node.setStepBehavior(
+                new StructureStepBehavior(allowed, this.stepBehavior.active()));
+            this.toldSteps = allowed;
+        }
+        final long started = System.nanoTime();
         this.node.doWork();
+        // nanoTime rather than the game clock: this is an elapsed interval, and a monotonic source
+        // cannot hand back a negative one if the wall clock moves under us.
+        this.budget.record(System.nanoTime() - started, allowed, rate, budgetNanos);
     }
+
+    /**
+     * Keeps the structure's crafting inside a slice of the tick. See {@link CraftingBudget}.
+     *
+     * <p>Per structure rather than global on purpose: two structures each get their own slice, so a
+     * second one does not silently halve the first. That is the wrong answer for a server with many
+     * of them and the right one for the case this exists to fix, which is a single enormous crafter
+     * flattening the tick on its own.
+     */
+    private final CraftingBudget budget = new CraftingBudget();
 
     /**
      * Keeps the node and the screen in step with the blocks that are actually there.
