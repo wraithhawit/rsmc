@@ -22,6 +22,7 @@ public final class BlockNames {
     public static final String FRAME = "frame";
     public static final String CASING = "casing";
     public static final String CONTROLLER = "controller";
+    public static final String PORT = "port";
     public static final String PATTERN_STORAGE = "pattern_storage";
 
     private BlockNames() {
@@ -33,6 +34,7 @@ public final class BlockNames {
         names.add(FRAME);
         names.add(CASING);
         names.add(CONTROLLER);
+        names.add(PORT);
         for (final CpuTier tier : CpuTier.values()) {
             names.add(tier.blockName());
         }
@@ -53,8 +55,8 @@ public final class BlockNames {
             return "cpu";
         }
         // The Controller has three faces, one per screen state, generated from the Casing texture
-        // by tools/GenerateControllerTextures.java. The asset check tracks the unformed one; the
-        // other two are named after it and land in the same commit.
+        // by tools/GenerateTextures.java -- as is the Port, from the same source. The asset check
+        // tracks the unformed one; the other two are named after it and land in the same commit.
         return CONTROLLER.equals(blockName) ? "controller_front_unformed" : blockName;
     }
 }

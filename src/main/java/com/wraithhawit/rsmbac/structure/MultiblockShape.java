@@ -22,7 +22,8 @@ import javax.annotation.Nullable;
  *   <li><strong>Edges</strong> -- two or more coordinates at an extreme, which is every edge and
  *       corner of the box -- must be {@link BlockKind#FRAME}.
  *   <li><strong>Walls</strong> -- exactly one coordinate at an extreme -- must be
- *       {@link BlockKind#CASING}.
+ *       {@link BlockKind#CASING}, the one {@link BlockKind#CONTROLLER}, or a
+ *       {@link BlockKind#PORT}.
  *   <li><strong>Interior</strong> -- no coordinate at an extreme -- must be a
  *       {@link BlockKind#CPU} or a {@link BlockKind#PATTERN_STORAGE}, and there must be at least
  *       one of each.
@@ -74,7 +75,7 @@ public final class MultiblockShape {
     /**
      * One block of the structure.
      *
-     * @param kind which of the four block types it is
+     * @param kind which of the five block types it is
      * @param tier the CPU tier; null for everything that is not a CPU
      */
     public record Component(BlockKind kind, @Nullable CpuTier tier) {
@@ -87,7 +88,7 @@ public final class MultiblockShape {
         }
     }
 
-    /** The four block types, and the role each one fills. */
+    /** The five block types, and the role each one fills. */
     public enum BlockKind {
         /** Edges and corners of the box. */
         FRAME,
@@ -96,10 +97,20 @@ public final class MultiblockShape {
         /**
          * Takes the place of one wall panel. Exactly one per structure, never on an edge.
          *
-         * <p>The structure's single point of contact with the world: the only block that carries a
-         * network node, and the position everything else is derived around.
+         * <p>The structure's brain: the only block carrying the pattern provider node, and the
+         * position everything else is derived around. (Every shell block carries a plain relay node
+         * so that a cable can attach to any face -- that is connectivity, not the provider.)
          */
         CONTROLLER,
+        /**
+         * Also takes the place of a wall panel, and unlike the Controller there may be any number
+         * of them, including none.
+         *
+         * <p>Where patterns arrive from automation. It holds nothing itself: it routes into the
+         * Pattern Storage blocks, which are interior and so unreachable by any pipe -- which is the
+         * entire reason this block exists rather than the storages simply exposing an inventory.
+         */
+        PORT,
         /** Interior. Adds crafting speed. Tiered. */
         CPU,
         /** Interior. Holds patterns. One tier only. */
@@ -115,7 +126,10 @@ public final class MultiblockShape {
     public enum Role {
         /** Two or more coordinates at an extreme. Wants a {@link BlockKind#FRAME}. */
         EDGE,
-        /** Exactly one coordinate at an extreme. Wants a {@link BlockKind#CASING} or the CONTROLLER. */
+        /**
+         * Exactly one coordinate at an extreme. Wants a {@link BlockKind#CASING}, the CONTROLLER,
+         * or a {@link BlockKind#PORT}.
+         */
         WALL,
         /** No coordinate at an extreme. Wants a CPU or a pattern storage. */
         INTERIOR
@@ -293,7 +307,9 @@ public final class MultiblockShape {
     private static boolean fits(final Role role, final BlockKind kind) {
         return switch (role) {
             case EDGE -> kind == BlockKind.FRAME;
-            case WALL -> kind == BlockKind.CASING || kind == BlockKind.CONTROLLER;
+            case WALL -> kind == BlockKind.CASING
+                || kind == BlockKind.CONTROLLER
+                || kind == BlockKind.PORT;
             case INTERIOR -> kind.isInterior();
         };
     }

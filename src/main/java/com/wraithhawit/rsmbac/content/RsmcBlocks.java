@@ -7,6 +7,7 @@ import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.block.ControllerBlock;
 import com.wraithhawit.rsmbac.block.CpuBlock;
 import com.wraithhawit.rsmbac.block.PatternStorageBlock;
+import com.wraithhawit.rsmbac.block.PortBlock;
 import com.wraithhawit.rsmbac.block.ShellBlock;
 import com.wraithhawit.rsmbac.structure.CpuTier;
 import com.wraithhawit.rsmbac.structure.MultiblockShape.BlockKind;
@@ -18,7 +19,10 @@ import net.minecraft.world.level.material.MapColor;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
-/** Every block rsmbac adds: the two shell blocks, four CPU tiers, and the pattern storage. */
+/**
+ * Every block rsmbac adds: the two shell blocks, the Controller, the Pattern Port, four CPU tiers
+ * and the pattern storage.
+ */
 public final class RsmcBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(RSMBAC.MODID);
     public static final DeferredBlock<ShellBlock> FRAME =
@@ -29,6 +33,9 @@ public final class RsmcBlocks {
 
     public static final DeferredBlock<ControllerBlock> CONTROLLER =
         BLOCKS.register(BlockNames.CONTROLLER, () -> new ControllerBlock(properties()));
+
+    public static final DeferredBlock<PortBlock> PORT =
+        BLOCKS.register(BlockNames.PORT, () -> new PortBlock(properties()));
 
     public static final DeferredBlock<PatternStorageBlock> PATTERN_STORAGE =
         BLOCKS.register(BlockNames.PATTERN_STORAGE, () -> new PatternStorageBlock(properties()));
@@ -52,7 +59,7 @@ public final class RsmcBlocks {
     }
 
     /**
-     * Shared by all seven. They are the same material at different jobs, so a difference in
+     * Shared by all nine. They are the same material at different jobs, so a difference in
      * hardness or tool between them would be a difference the player has to learn for no reason.
      */
     private static BlockBehaviour.Properties properties() {
@@ -69,6 +76,7 @@ public final class RsmcBlocks {
         blocks.add(FRAME);
         blocks.add(CASING);
         blocks.add(CONTROLLER);
+        blocks.add(PORT);
         for (final CpuTier tier : CpuTier.values()) {
             blocks.add(CPUS.get(tier));
         }

@@ -1,13 +1,21 @@
 package com.wraithhawit.rsmbac.test;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
 import com.refinedmods.refinedstorage.neoforge.api.RefinedStorageNeoForgeApi;
 
 import javax.annotation.Nullable;
 
+import com.refinedmods.refinedstorage.api.resource.ResourceAmount;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
+import com.refinedmods.refinedstorage.common.autocrafting.PatternState;
+import com.refinedmods.refinedstorage.common.autocrafting.ProcessingPatternState;
+import com.refinedmods.refinedstorage.common.autocrafting.patterngrid.PatternType;
+import com.refinedmods.refinedstorage.common.content.DataComponents;
+import com.refinedmods.refinedstorage.common.support.resource.ItemResource;
 import com.wraithhawit.rsmbac.block.ControllerBlockEntity;
 import com.wraithhawit.rsmbac.structure.StructureStepBehavior;
 import com.wraithhawit.rsmbac.RSMBAC;
@@ -34,8 +42,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.registries.DeferredBlock;
 
 /**
@@ -711,6 +721,217 @@ public final class StructureGameTests {
                 }
             }
         }
+    }
+
+    // ---- the Pattern Port ----
+    //
+    // These are the only tests the item handler has, and they have to be here rather than in a
+    // headless suite: the handler is reached through a NeoForge block capability, which is a
+    // registration in a live game and not something a plain JVM can stand up. A shape check
+    // proving a Port fills a wall slot proves nothing about whether a hopper can find it.
+    //
+    // buildShell puts the Controller at (0,1,1) -- the first wall slot in its iteration order --
+    // so (1,0,2) is a free wall slot in every one of these.
+
+    /**
+     * A pattern pushed into the Port ends up in a Pattern Storage block.
+     *
+     * <p>The whole feature in one test: capability registered, handler found, structure walked,
+     * free slot located, pattern written where the screen and the Controller will both see it.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void aPatternPipedIntoThePortLandsInStorage(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 0, 2), RsmcBlocks.PORT.get());
+
+        final IItemHandler handler = portHandler(helper, new BlockPos(1, 0, 2));
+        if (handler == null) {
+            helper.fail("no item handler capability on the Pattern Port");
+            return;
+        }
+        final ItemStack leftover = handler.insertItem(0, encodedPattern(), false);
+        if (!leftover.isEmpty()) {
+            helper.fail("the port refused a pattern into a formed structure");
+            return;
+        }
+        if (!(helper.getBlockEntity(new BlockPos(1, 1, 2))
+            instanceof PatternStorageBlockEntity storage)) {
+            helper.fail("no pattern storage where one was placed");
+            return;
+        }
+        if (storage.patterns().getItem(0).isEmpty()) {
+            helper.fail("the port accepted a pattern and it is not in the storage block");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The insert slot always reads empty, and that is a property worth pinning.
+     *
+     * <p>It is what stops a Refined Storage External Storage pointed at the Port from listing the
+     * crafter's patterns as network items and handing them out. A handler that started reporting
+     * its contents here would pass every other test in this file.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void thePortNeverShowsWhatItHolds(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 0, 2), RsmcBlocks.PORT.get());
+
+        final IItemHandler handler = portHandler(helper, new BlockPos(1, 0, 2));
+        if (handler == null) {
+            helper.fail("no item handler capability on the Pattern Port");
+            return;
+        }
+        handler.insertItem(0, encodedPattern(), false);
+        handler.insertItem(0, encodedPattern(), false);
+        if (handler.getSlots() != 2) {
+            helper.fail("expected two virtual slots, got " + handler.getSlots());
+            return;
+        }
+        if (!handler.getStackInSlot(0).isEmpty()) {
+            helper.fail("the insert slot is advertising its contents");
+            return;
+        }
+        if (handler.getStackInSlot(1).isEmpty()) {
+            helper.fail("the extract slot shows nothing after two patterns went in");
+            return;
+        }
+        // One at a time, never the whole inventory: the extract slot is a window, not a listing.
+        if (handler.getStackInSlot(1).getCount() != 1) {
+            helper.fail("the extract slot is showing more than one pattern");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** What goes in comes back out, last one first, and the rest stay put. */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void thePortHandsBackTheLastPattern(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 0, 2), RsmcBlocks.PORT.get());
+
+        final IItemHandler handler = portHandler(helper, new BlockPos(1, 0, 2));
+        if (handler == null) {
+            helper.fail("no item handler capability on the Pattern Port");
+            return;
+        }
+        handler.insertItem(0, encodedPattern(), false);
+        handler.insertItem(0, encodedPattern(), false);
+        if (handler.extractItem(1, 1, false).isEmpty()) {
+            helper.fail("extracting from a port holding two patterns gave nothing");
+            return;
+        }
+        if (!(helper.getBlockEntity(new BlockPos(1, 1, 2))
+            instanceof PatternStorageBlockEntity storage)) {
+            helper.fail("no pattern storage where one was placed");
+            return;
+        }
+        if (!storage.patterns().getItem(1).isEmpty()) {
+            helper.fail("extract took a pattern but slot 1 is still occupied");
+            return;
+        }
+        if (storage.patterns().getItem(0).isEmpty()) {
+            helper.fail("extract took the wrong one -- slot 0 should be untouched");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * An unformed structure refuses, rather than swallowing.
+     *
+     * <p>The direction that matters. A Port that accepted patterns into a half-built box would be
+     * quietly destroying them, and nothing else in this file would notice.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void anUnformedStructureRefusesPatterns(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 0, 2), RsmcBlocks.PORT.get());
+        // No Pattern Storage anywhere, so the box is not a structure.
+
+        final IItemHandler handler = portHandler(helper, new BlockPos(1, 0, 2));
+        if (handler == null) {
+            helper.fail("no item handler capability on the Pattern Port");
+            return;
+        }
+        // A properly encoded one, so the refusal can only be about the structure. A blank pattern
+        // is refused by RS's own filter, and this test would then pass without proving anything.
+        final ItemStack offered = encodedPattern();
+        final ItemStack leftover = handler.insertItem(0, offered, false);
+        if (leftover.isEmpty() || leftover.getCount() != offered.getCount()) {
+            helper.fail("an unformed structure swallowed a pattern");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** Patterns and nothing else, whatever a pipe thinks it is doing. */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void thePortTakesPatternsAndNothingElse(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 0, 2), RsmcBlocks.PORT.get());
+
+        final IItemHandler handler = portHandler(helper, new BlockPos(1, 0, 2));
+        if (handler == null) {
+            helper.fail("no item handler capability on the Pattern Port");
+            return;
+        }
+        final ItemStack cobble = new ItemStack(Items.COBBLESTONE, 8);
+        if (handler.isItemValid(0, cobble)) {
+            helper.fail("the port says it would take cobblestone");
+            return;
+        }
+        if (handler.insertItem(0, cobble, false).getCount() != 8) {
+            helper.fail("the port took cobblestone");
+            return;
+        }
+        // And the extract slot is not an insert slot wearing a hat.
+        if (handler.insertItem(1, encodedPattern(), false).isEmpty()) {
+            helper.fail("the extract slot accepted an insert");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @Nullable
+    private static IItemHandler portHandler(final GameTestHelper helper, final BlockPos relative) {
+        return helper.getLevel().getCapability(
+            Capabilities.ItemHandler.BLOCK, helper.absolutePos(relative), null);
+    }
+
+    /**
+     * A pattern that a pattern slot will actually take.
+     *
+     * <p><strong>{@code new ItemStack(rsItem("pattern"))} is not one.</strong> RS's filter is
+     * {@code PatternProviderItem.isValid}, which resolves the stack and asks whether a pattern came
+     * back -- a blank pattern item resolves to nothing and is refused, which
+     * {@link #onlyPatternsFitInPatternSlots} asserts on purpose. The first version of the Port
+     * tests used a blank one and failed with "the port refused a pattern into a formed structure",
+     * which was the Port being right and the test being wrong.
+     *
+     * <p>Processing rather than crafting, because a processing pattern carries its own inputs and
+     * outputs and resolves without a recipe lookup -- so this does not depend on any particular
+     * recipe existing in whatever pack the tests run against.
+     */
+    private static ItemStack encodedPattern() {
+        final ItemStack stack = new ItemStack(rsItem("pattern"));
+        stack.set(DataComponents.INSTANCE.getPatternState(),
+            new PatternState(UUID.randomUUID(), PatternType.PROCESSING));
+        stack.set(DataComponents.INSTANCE.getProcessingPatternState(), new ProcessingPatternState(
+            List.of(Optional.of(new ProcessingPatternState.ProcessingIngredient(
+                new ResourceAmount(new ItemResource(Items.COBBLESTONE), 1L), List.of()))),
+            List.of(Optional.of(new ResourceAmount(new ItemResource(Items.STONE), 1L)))));
+        return stack;
     }
 
     /** Runs the real detection against the real level, seeded at the structure's own corner. */

@@ -12,6 +12,7 @@ import com.wraithhawit.rsmbac.content.RsmcBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -38,8 +39,13 @@ import net.minecraft.world.level.block.state.BlockState;
  * already thousands of block updates.
  *
  * <p>The alternatives were both worse: cabling only to the Controller is jank, and a dedicated
- * "port" block is a ninth block and a ninth shape rule to buy back something that was never
- * costing anything.
+ * block just to be cabled to is a whole extra block and shape rule bought to save something that
+ * was never costing anything.
+ *
+ * <p><strong>That last line is about cables, and only cables.</strong> rsmbac does now have a
+ * dedicated wall block -- the Pattern Port -- but it is not the block this paragraph turned down.
+ * It exists because Pattern Storage blocks are interior, so no pipe can ever touch one; that is a
+ * reachability problem with no other answer, where connectivity had a free one.
  */
 public class ShellBlockEntity extends BlockEntity {
     /**
@@ -54,7 +60,24 @@ public class ShellBlockEntity extends BlockEntity {
     private NetworkNodeContainerProvider containerProvider;
 
     public ShellBlockEntity(final BlockPos pos, final BlockState state) {
-        super(RsmcBlockEntities.SHELL.get(), pos, state);
+        this(RsmcBlockEntities.SHELL.get(), pos, state);
+    }
+
+    /**
+     * For a shell block that is more than a doorway.
+     *
+     * <p>{@link PortBlockEntity} is one: it wants everything here -- the relay node, the join, the
+     * removal -- and adds an item handler on top. Subclassing rather than copying means the network
+     * half cannot drift between the two.
+     */
+    protected ShellBlockEntity(final BlockEntityType<?> type, final BlockPos pos,
+                               final BlockState state) {
+        super(type, pos, state);
+    }
+
+    /** What this container is called in Refined Storage's network graph. */
+    protected String containerName() {
+        return "shell";
     }
 
     /**
@@ -67,7 +90,7 @@ public class ShellBlockEntity extends BlockEntity {
                 RefinedStorageApi.INSTANCE.createNetworkNodeContainerProvider();
             final InWorldNetworkNodeContainer container = RefinedStorageApi.INSTANCE
                 .createNetworkNodeContainer(this, this.node)
-                .name("shell")
+                .name(this.containerName())
                 .build();
             provider.addContainer(container);
             this.containerProvider = provider;

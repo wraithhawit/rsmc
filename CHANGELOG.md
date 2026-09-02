@@ -6,6 +6,110 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.5.0
+
+**The Pattern Port, and the pattern-push latency it exposed.**
+
+Reported as "for convenience sake would it be possible to allow rsmbac to pipe patterns in?"
+
+### Why a block was needed rather than a capability
+
+Patterns live in Pattern Storage blocks, and those are *interior* by the shape rules — every one of
+their six faces touches another structure block. No pipe, hopper, exporter or anything else can ever
+be adjacent to one, so exposing an inventory on them would be exposing it where nothing can reach.
+Insertion has to arrive at a wall block and be routed inward.
+
+The Controller could have carried that and needed no new block. Rejected because its outward face is
+a screen showing what the structure is doing, and a pipe stuck to it hides the one thing it is there
+to show.
+
+The **Pattern Port** is a wall block like the Controller, except that there may be any number of
+them, including none. It relays a network connection like any other shell block, right-clicking it
+opens the pattern screen, and it accepts patterns.
+
+### Two virtual slots, taken from Reborn Storage
+
+Their 1.12.2 `TileIoPort` is `getSlots() == 2` with `getSlotLimit() == 1`: slot 0 insert-only and
+always reading empty, slot 1 extract-only and reading the single most recently filled pattern. That
+is a better design than the obvious one in two separate ways.
+
+**Nothing can drain the structure.** The obvious design exposes the pattern inventory as a handler
+with one slot per pattern. Do that and a Refined Storage External Storage pointed at the Port lists
+every pattern in the crafter as a network item — and either hands them out, or, with extraction
+blocked, lists thousands of items it will not give you. A one-stack window has neither problem:
+automation can take patterns back out, one at a time, and can never see more than one.
+
+**Nothing walks the slots.** `ItemHandlerHelper.insertItem` tries every slot in turn until one
+accepts. A maxed structure holds around 148,000 pattern slots, so a real handler would have every
+hopper walking all of them on every failed push — the same shape as the `canPlaceItem` cost that was
+once 16% of the server thread. Two slots cannot be walked. Finding the free one is answered from a
+bound each storage block already keeps: `firstFreeHint` is a lower bound on the first empty slot and
+`lastOccupiedHint` an upper bound on the last full one, both widened by one comparison in the
+inventory listener and self-correcting when read.
+
+The idea and the slot shape are Reborn Storage's. The art is not: `port.png` is generated from our
+own Casing by `tools/GenerateTextures.java`, which is the Controller-face generator renamed now that
+it has a second customer.
+
+**An unformed structure refuses, it does not swallow.** `StructurePatterns.of` returns an empty view
+for a box that is not a legal structure, an empty view has no free slot, and the stack goes back to
+the pipe. That direction is the whole point — a Port that accepted patterns into a broken structure
+would be destroying them — so it is verified by breaking it: with `insertItem` changed to swallow,
+two gametests fail; with it restored, all 18 pass.
+
+### The latency this exposed
+
+**Patterns took up to ten seconds to reach the network, and had since 0.1.9.**
+
+That release made the Controller's refresh change-driven, keyed on `StructureChanges` — which counts
+blocks being placed and removed. A pattern arriving in a storage block is not a block change, so it
+triggered nothing, and the only thing that ever pushed one was the ten-second safety scan. At eight
+patterns per refresh that is eight patterns every ten seconds: **filling one 54-slot storage block
+took over a minute**, during which the patterns sit in the world, visible in the screen, and are not
+craftable. `PATTERN_PUSHES_PER_REFRESH` has said "eight a second" the whole time and had been wrong
+for four minor versions.
+
+By hand that reads as sluggish, which is presumably why it was never reported. Through a Port fed by
+a pipe it reads as broken, which is why it is fixed here rather than left.
+
+`PatternChanges` is the counter, and `RefreshSchedule` treats it **differently from geometry on
+purpose**: rate-limited, not debounced. Debouncing is right for a construction stick, where every
+further change restarts a quiet timer so a burst costs one scan. It is exactly wrong for a pipe,
+which never stops — the window would restart forever and the only scan that ever happened would be
+the ten-second safety one, which is the behaviour being fixed. So a pattern latches a pending flag
+and scans at most once per second, and any scan clears the debt whatever triggered it.
+
+### Also
+
+- `ShellBlock` and `ShellBlockEntity` had contradictory class docs — one said the shell has no block
+  entity, the next explained why Refined Storage forces one. The shell has carried one since the
+  cabling work; the docs now say so. `ShellBlockEntity` also turned down "a dedicated port block" in
+  its last paragraph, which was about *cable attachment* and not about this; reworded rather than
+  left to read as a decision being reversed.
+- `MultiblockShape` called the Controller "the only block that carries a network node", which stopped
+  being true when the shell got its relays. It is the only block carrying the *pattern provider*.
+
+### Verification
+
+- 36 headless shape cases (was 30): a Port fills a wall slot, any number of them form, one on an
+  edge or in the interior is `WRONG_BLOCK`, and a box of Ports with no Controller is still
+  `NO_CONTROLLER`.
+- 22 refresh scenarios (was 15), including that a continuous feed scans once a second rather than
+  once per safety interval, and that a geometry scan settles the pattern debt too.
+- 79 asset checks, 56 recipe scenarios.
+- 18 gametests (was 13). The five new ones have to be gametests: the handler is reached through a
+  NeoForge block capability, which is a registration in a live game and nothing a plain JVM can
+  stand up. A shape check proving a Port fills a wall slot proves nothing about whether a hopper can
+  find it.
+
+**A note on the gametests, because they failed first.** They used
+`new ItemStack(rsItem("pattern"))`, and RS's filter is `PatternProviderItem.isValid`, which resolves
+the stack and asks whether a pattern came back — a *blank* pattern resolves to nothing and is
+correctly refused. Three tests failed with "the port refused a pattern into a formed structure",
+which was the Port being right and the test being wrong. `encodedPattern()` now builds a real
+processing pattern; processing rather than crafting so that it resolves without depending on any
+particular recipe existing.
+
 
 ## 0.4.0
 

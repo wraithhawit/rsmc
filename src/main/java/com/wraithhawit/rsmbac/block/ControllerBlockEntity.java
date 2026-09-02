@@ -17,6 +17,7 @@ import com.wraithhawit.rsmbac.integration.FluidSubstitution;
 import com.wraithhawit.rsmbac.menu.StructurePatterns;
 import com.wraithhawit.rsmbac.structure.CraftingBudget;
 import com.wraithhawit.rsmbac.structure.JoinGrace;
+import com.wraithhawit.rsmbac.structure.PatternChanges;
 import com.wraithhawit.rsmbac.structure.LevelBlockSource;
 import com.wraithhawit.rsmbac.structure.RefreshSchedule;
 import com.wraithhawit.rsmbac.structure.StructureChanges;
@@ -78,6 +79,12 @@ public class ControllerBlockEntity extends BlockEntity {
      *
      * <p>Eight a second fills a storage block in under seven, which is faster than anyone fills one
      * by hand, and slow enough that the listener storm never lands in one tick.
+     *
+     * <p><strong>"A second" was untrue between 0.1.9 and 0.5.0.</strong> That release made the
+     * refresh change-driven, and a pattern arriving is not a block change -- so the only thing that
+     * ever ran this was the ten-second safety scan, making the real rate eight patterns per ten
+     * seconds and a full storage block over a minute. {@link PatternChanges} is the counter that
+     * makes the sentence above true again; without it a Pattern Port looks broken rather than slow.
      */
     private static final int PATTERN_PUSHES_PER_REFRESH = 8;
 
@@ -222,7 +229,8 @@ public class ControllerBlockEntity extends BlockEntity {
         if (currentLevel == null || currentLevel.isClientSide()) {
             return;
         }
-        if (!this.refresh.shouldScan(currentLevel.getGameTime(), StructureChanges.generation())) {
+        if (!this.refresh.shouldScan(currentLevel.getGameTime(),
+            StructureChanges.generation(), PatternChanges.generation())) {
             return;
         }
         final Result result = MultiblockShape.find(new LevelBlockSource(currentLevel),

@@ -3,6 +3,7 @@
     "rsmbac:frame",
     "rsmbac:casing",
     "rsmbac:controller",
+    "rsmbac:port",
     "rsmbac:cpu_1x",
     "rsmbac:cpu_4x",
     "rsmbac:cpu_16x",

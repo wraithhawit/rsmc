@@ -7,6 +7,7 @@
   "block.rsmbac.frame": "Crafter Frame",
   "block.rsmbac.casing": "Crafter Casing",
   "block.rsmbac.controller": "Crafter Controller",
+  "block.rsmbac.port": "Pattern Port",
   "block.rsmbac.pattern_storage": "Pattern Storage",
 
   "block.rsmbac.cpu_1x": "1x Crafting CPU",

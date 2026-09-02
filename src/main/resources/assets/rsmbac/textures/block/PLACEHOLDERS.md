@@ -33,20 +33,26 @@ Four CPU tiers are needed (`cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x`), not the si
 Reference material from Cable Tiers and Refined Storage is unpacked in `texture-refs/` at the repo
 root.
 
-## The Controller faces are no longer anybody else's
+## The Controller faces and the Pattern Port are no longer anybody else's
 
-`controller_front_unformed.png`, `controller_front_inactive.png` and `controller_front_active.png`
-are generated from `casing.png` by `tools/GenerateControllerTextures.java` — run
-`java tools/GenerateControllerTextures.java` from the repo root.
+`controller_front_unformed.png`, `controller_front_inactive.png`, `controller_front_active.png` and
+`port.png` are generated from `casing.png` by `tools/GenerateTextures.java` — run
+`java tools/GenerateTextures.java` from the repo root.
 
 The first attempt used Refined Storage's actual `grid/front.png`, which made an rsmbac Controller look
 enough like a Grid to be mistaken for one: a bug report about a crafter screen staying lit turned
 out to be a Refined Storage Grid, which was behaving perfectly. Looking like our own block is a
 correctness property, not a decoration.
 
-Generated rather than drawn because all three are the Casing texture with one inset screen, and the
-only difference is what the screen is doing. Three near-identical hand-edited 16x16 images is how
-they drift apart.
+Generated rather than drawn because all four are the Casing texture with one inset panel, and the
+only difference is what is in the panel — a dot-matrix screen in three states, or an opening. Four
+near-identical hand-edited 16x16 images is how they drift apart, and this way they all follow the
+real Casing art for free when it lands.
+
+Reborn Storage has an `io.png` for their IO Port, and it would have been usable under the same
+licence as everything else in this table. Ours is generated instead because it makes the Port and
+the Controller read as a pair in the same wall: the same inset panel, one with a display in it and
+one with a hole.
 
 ## The pattern screen's GUI texture
 

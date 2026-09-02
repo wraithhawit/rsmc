@@ -52,16 +52,31 @@ pure mixin mod. This one is blocks.
 
 ## The structure
 
-A **hollow rectangular box** with a working core, up to 16 blocks on each axis, built from four
+A **hollow rectangular box** with a working core, up to 16 blocks on each axis, built from five
 block types. Where a block goes is decided entirely by where it sits in the box:
 
 | position | how many coordinates at an extreme | block |
 |---|---|---|
 | edges and corners | 2 or 3 | **Frame** |
-| flat wall panels | 1 | **Casing** |
+| flat wall panels | 1 | **Casing**, the one **Controller**, or a **Pattern Port** |
 | interior | 0 | **CPU** or **Pattern Storage** |
 
-The interior needs at least one CPU and at least one Pattern Storage.
+The interior needs at least one CPU and at least one Pattern Storage. Exactly one wall panel must be
+a Controller; Pattern Ports are optional and there may be any number of them.
+
+### Piping patterns in
+
+A **Pattern Port** takes the place of a wall panel and accepts patterns from a hopper, an RS
+Exporter, or any item pipe. It has to be its own block rather than an inventory on something that
+already exists: Pattern Storage is *interior*, so all six of its faces touch other structure blocks
+and nothing can ever be adjacent to one.
+
+To automation it looks like two slots. Push patterns into **slot 0**, which always reads empty so a
+pipe always sees room. **Slot 1** hands back the most recently added pattern, one at a time — so
+patterns can be pulled out again, and nothing pointed at the Port can see or drain what the crafter
+is holding.
+
+An unformed structure **refuses** an insert rather than accepting it, and the item stays in the pipe.
 
 ### The 3×3×4 minimum is derived, not chosen
 
@@ -112,16 +127,17 @@ You cannot parallelise a furnace by building a bigger cube.
 
 - [x] Structure detection and validation — flood fill, bounding box, per-position roles, size limits
 - [x] Throughput model — CPU tiers, weight summing
-- [x] **The eight blocks** — Frame, Casing, Controller, four CPU tiers, Pattern Storage, with
-      items, creative tab, loot tables and block entities where they are needed
+- [x] **The nine blocks** — Frame, Casing, Controller, Pattern Port, four CPU tiers, Pattern
+      Storage, with items, creative tab, loot tables and block entities where they are needed
 - [x] The network node — `PatternProvider` answering with the structure's `StepBehavior` (#2)
 - [x] Structure lifecycle: form, break, tell the player why (#3) — the offending block is
       outlined through the walls, not just named as a coordinate
 - [x] Pattern GUI (#4), searchable by what a pattern makes or uses
 - [x] Recipes for every block (#5), every ingredient id verified against the real RS jar
-- [x] Headless suites, run on every `build` — 30 shape cases, 71 asset checks, 49 recipe
-      scenarios, 15 refresh scenarios
-- [x] Gametests against a real level — 14, run by `runGameTestServer`
+- [x] Patterns piped in through a **Pattern Port**, and pulled back out one at a time
+- [x] Headless suites, run on every `build` — 36 shape cases, 79 asset checks, 56 recipe
+      scenarios, 22 refresh scenarios
+- [x] Gametests against a real level — 18, run by `runGameTestServer`
 - [ ] Real textures — the ones in the repo are Reborn Storage's placeholders (#7)
 - [ ] Refined Storage's colouring system (#8), which is not cosmetic in RS: differently
       coloured blocks refuse to connect

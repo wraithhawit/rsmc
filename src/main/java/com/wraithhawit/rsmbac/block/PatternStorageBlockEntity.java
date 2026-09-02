@@ -5,6 +5,7 @@ import com.refinedmods.refinedstorage.common.support.BlockEntityWithDrops;
 import com.refinedmods.refinedstorage.common.util.ContainerUtil;
 
 import com.wraithhawit.rsmbac.content.RsmcBlockEntities;
+import com.wraithhawit.rsmbac.structure.PatternChanges;
 import com.wraithhawit.rsmbac.structure.StructurePower;
 
 import net.minecraft.core.BlockPos;
@@ -56,13 +57,79 @@ public class PatternStorageBlockEntity extends BlockEntity implements BlockEntit
      */
     private final BitSet dirtySlots = new BitSet(StructurePower.PATTERNS_PER_STORAGE);
 
+    /**
+     * A lower bound on the first empty slot. Never past one, so scanning forward from here finds
+     * the true answer, and the scan is amortised to nothing.
+     *
+     * <p>A hint rather than the answer, because keeping the answer exact would mean recomputing it
+     * on every change; keeping a bound means the only maintenance is "if something changed below
+     * the hint, the hint moves there", which is one comparison in the listener.
+     *
+     * <p>It exists for the Pattern Port. Filling a slot by hand picks the slot, but an insert
+     * arriving from a pipe has to find one -- and the obvious way to find one is what Refined
+     * Storage's own {@code ItemHandlerHelper.insertItem} does, which is to try every slot in turn.
+     * A maxed structure has around 148,000 of them, and a hopper would walk all of them every time
+     * it failed. See {@link com.wraithhawit.rsmbac.block.PortBlockEntity}.
+     */
+    private int firstFreeHint;
+
+    /**
+     * The mirror image: an upper bound on the last occupied slot, scanned downwards.
+     *
+     * <p>Starts at the last slot, which is "unknown" expressed as a bound that is always true.
+     */
+    private int lastOccupiedHint = StructurePower.PATTERNS_PER_STORAGE - 1;
+
     public PatternStorageBlockEntity(final BlockPos pos, final BlockState state) {
         super(RsmcBlockEntities.PATTERN_STORAGE.get(), pos, state);
         this.patterns.setListener(slot -> {
             this.dirtySlots.set(slot);
+            this.widenHints(slot);
+            // Tells every Controller that something worth pushing has happened. Without it the
+            // only thing that ever noticed a new pattern was the ten-second safety scan -- see
+            // PatternChanges, which exists entirely because of that.
+            PatternChanges.bump();
             this.setChanged();
         });
         this.markAllDirty();
+    }
+
+    /**
+     * Restores both bounds after a change at one slot.
+     *
+     * <p>Deliberately does not look at what the slot now holds. A bound only has to stay a bound,
+     * and both of these are cheap to widen and self-correcting when read -- so the listener stays
+     * one comparison each and cannot be wrong about a stack it did not inspect.
+     */
+    private void widenHints(final int slot) {
+        if (slot < this.firstFreeHint) {
+            this.firstFreeHint = slot;
+        }
+        if (slot > this.lastOccupiedHint) {
+            this.lastOccupiedHint = slot;
+        }
+    }
+
+    /**
+     * The first empty slot, or -1 when this block is full.
+     *
+     * <p>Advances the hint as it goes, so a run of inserts costs one step each rather than a scan
+     * each, and a full block answers after a single comparison.
+     */
+    public int firstFreeSlot() {
+        final int size = this.patterns.getContainerSize();
+        while (this.firstFreeHint < size && !this.patterns.getItem(this.firstFreeHint).isEmpty()) {
+            this.firstFreeHint++;
+        }
+        return this.firstFreeHint < size ? this.firstFreeHint : -1;
+    }
+
+    /** The last occupied slot, or -1 when this block is empty. */
+    public int lastOccupiedSlot() {
+        while (this.lastOccupiedHint >= 0 && this.patterns.getItem(this.lastOccupiedHint).isEmpty()) {
+            this.lastOccupiedHint--;
+        }
+        return this.lastOccupiedHint;
     }
 
     /** Puts one slot back on the list of things to push. */
@@ -108,6 +175,12 @@ public class PatternStorageBlockEntity extends BlockEntity implements BlockEntit
         if (tag.contains(TAG_PATTERNS)) {
             ContainerUtil.read(tag.getCompound(TAG_PATTERNS), this.patterns, registries);
         }
+        // The contents were replaced wholesale, so both bounds go back to the widest thing that is
+        // certainly true. Not left to the listener: whether a bulk read fires one is Refined
+        // Storage's business, and a hint that is silently wrong loses patterns off the end of a
+        // port rather than failing visibly.
+        this.firstFreeHint = 0;
+        this.lastOccupiedHint = this.patterns.getContainerSize() - 1;
     }
 
     @Override

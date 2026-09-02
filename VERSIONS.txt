@@ -8,6 +8,28 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.5.0
+-----
+  THE PATTERN PORT. A wall block that patterns can be piped into, any number per structure. It had to
+  be a block: Pattern Storage is interior, so all six of its faces touch other structure blocks and no
+  pipe can ever reach one. The Controller could have carried the handler instead and needed no new
+  block, but its face is a screen showing what the crafter is doing, and a pipe on it hides that.
+  TWO VIRTUAL SLOTS, from Reborn Storage's TileIoPort. Slot 0 inserts and always reads empty; slot 1
+  extracts and shows only the last pattern in. Better than one slot per pattern in two ways: an RS
+  External Storage pointed at it cannot see or drain the crafter's patterns, and nothing walks 148,000
+  slots looking for a free one -- each storage block answers from a bound it already keeps.
+  AN UNFORMED STRUCTURE REFUSES rather than swallowing, which is verified by breaking it: with the
+  insert changed to swallow, two gametests fail.
+  AND THE LATENCY IT EXPOSED. Patterns had taken up to ten seconds to reach the network since 0.1.9,
+  because the Controller's refresh is driven by StructureChanges and a pattern arriving is not a block
+  change -- so only the ten-second safety scan ever pushed one. Eight patterns per ten seconds means a
+  54-slot storage block took over a minute to become craftable. PatternChanges is the counter that
+  fixes it, rate-limited rather than debounced: a debounce is right for a construction stick and
+  exactly wrong for a pipe, which never stops and would restart the window forever.
+  Textures: port.png is generated from our own Casing, alongside the Controller faces, by
+  tools/GenerateTextures.java (renamed from GenerateControllerTextures now it has two customers).
+  36 shape cases, 22 refresh scenarios, 79 asset checks, 56 recipe scenarios, 18 gametests.
+
 
 0.4.0
 -----

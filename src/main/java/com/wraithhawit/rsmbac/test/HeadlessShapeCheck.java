@@ -46,6 +46,11 @@ public final class HeadlessShapeCheck {
         twoControllersIsAnError();
         aControllerOnAnEdgeIsWrong();
         theControllerPositionIsReported();
+        aPortTakesAWallSlot();
+        anyNumberOfPortsIsFine();
+        aPortOnAnEdgeIsWrong();
+        aPortInTheInteriorIsWrong();
+        aPortIsNotAController();
 
         System.out.println("shape checks: " + checks);
         if (failures > 0) {
@@ -231,6 +236,60 @@ public final class HeadlessShapeCheck {
             System.out.println("FAILED controller position: got "
                 + (pos == null ? "null" : pos[0] + "," + pos[1] + "," + pos[2]));
         }
+    }
+
+    private static void aPortTakesAWallSlot() {
+        // A Casing swapped for a Pattern Port, which is what building one actually looks like.
+        final World world = shell(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        world.put(1, 0, 2, BlockKind.PORT);
+        expectFormed("port in a wall", world.find(0, 0, 0));
+    }
+
+    private static void anyNumberOfPortsIsFine() {
+        // Unlike the Controller there is no count rule, so every wall slot but the Controller's
+        // being a Port has to form. Worth pinning: the natural way to write the wall rule is to
+        // copy the Controller's, and the Controller's is "exactly one".
+        final World world = shellWithoutController(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        world.put(1, 0, 1, BlockKind.CONTROLLER);
+        for (final int[] wall : new int[][] {
+            {1, 0, 2}, {1, 2, 1}, {1, 2, 2}, {0, 1, 1}, {0, 1, 2}, {2, 1, 1}, {2, 1, 2},
+            {1, 1, 0}, {1, 1, 3}}) {
+            world.put(wall[0], wall[1], wall[2], BlockKind.PORT);
+        }
+        expectFormed("every spare wall a port", world.find(0, 0, 0));
+    }
+
+    private static void aPortOnAnEdgeIsWrong() {
+        final World world = shell(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        world.put(0, 0, 1, BlockKind.PORT);
+        expectFailure("port on an edge", world.find(0, 0, 0), Failure.WRONG_BLOCK);
+    }
+
+    private static void aPortInTheInteriorIsWrong() {
+        // The one that would be tempting to allow, and must not be: a Port inside the box has no
+        // face anything can reach, so it would be a block that looks placeable and does nothing.
+        final World world = shell(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
+        world.put(1, 1, 2, BlockKind.PORT);
+        final Result result = world.find(0, 0, 0);
+        expectFailure("port in the interior", result, Failure.WRONG_BLOCK);
+        expectPos("port in the interior position", result, 1, 1, 2);
+    }
+
+    private static void aPortIsNotAController() {
+        // Ports fill wall slots legally, so a box made entirely of them still has no way to reach
+        // a network -- and must say so, rather than forming and quietly crafting nothing.
+        final World world = shellWithoutController(0, 0, 0, 2, 2, 3);
+        world.cpu(1, 1, 1, CpuTier.ONE_X);
+        world.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        world.put(1, 0, 1, BlockKind.PORT);
+        expectFailure("ports but no controller", world.find(0, 0, 0), Failure.NO_CONTROLLER);
     }
 
     // ---- harness ----

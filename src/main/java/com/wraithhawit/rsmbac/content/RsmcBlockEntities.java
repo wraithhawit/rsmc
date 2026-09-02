@@ -3,6 +3,7 @@ package com.wraithhawit.rsmbac.content;
 import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.block.ControllerBlockEntity;
 import com.wraithhawit.rsmbac.block.PatternStorageBlockEntity;
+import com.wraithhawit.rsmbac.block.PortBlockEntity;
 import com.wraithhawit.rsmbac.block.ShellBlockEntity;
 
 import net.minecraft.core.registries.Registries;
@@ -11,11 +12,15 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * Three block entity types for eight blocks.
+ * Four block entity types for nine blocks.
  *
- * <p>The Controller is the structure's only point of contact with the network, so it is the only
- * shell block that needs one. Frame and Casing are plain blocks, as are the CPUs -- see
- * {@link com.wraithhawit.rsmbac.block.ShellBlock} for why that changed.
+ * <p>The CPUs are the only blocks with none: they contribute a number to the shape scan and nothing
+ * else. Every shell block carries one so that a cable can attach to any face -- see
+ * {@link com.wraithhawit.rsmbac.block.ShellBlock}.
+ *
+ * <p>The Port has a type of its own rather than sharing the shell's, and that is not tidiness:
+ * capabilities are registered per type, so sharing would put an item handler on every Frame and
+ * Casing in the world. See {@link com.wraithhawit.rsmbac.block.PortBlock#newBlockEntity}.
  */
 public final class RsmcBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
@@ -29,6 +34,11 @@ public final class RsmcBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ShellBlockEntity>> SHELL =
         BLOCK_ENTITIES.register("shell", () -> BlockEntityType.Builder
             .of(ShellBlockEntity::new, RsmcBlocks.FRAME.get(), RsmcBlocks.CASING.get())
+            .build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PortBlockEntity>> PORT =
+        BLOCK_ENTITIES.register("port", () -> BlockEntityType.Builder
+            .of(PortBlockEntity::new, RsmcBlocks.PORT.get())
             .build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PatternStorageBlockEntity>>

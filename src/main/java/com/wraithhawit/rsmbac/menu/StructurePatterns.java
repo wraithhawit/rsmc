@@ -122,6 +122,79 @@ public final class StructurePatterns implements Container {
         return this.storages.size();
     }
 
+    /**
+     * Whether every block this view points at is still the live block entity at its position.
+     *
+     * <p>A view is normally built and thrown away inside one call, so this never mattered. The
+     * Pattern Port keeps one between inserts -- rebuilding it means walking up to 2,744 interior
+     * positions, which is not something to do on every hopper tick -- and a kept view can go stale
+     * in a way {@link com.wraithhawit.rsmbac.structure.StructureChanges} does not see: a chunk
+     * unloading and reloading replaces the block entities without placing or breaking anything.
+     *
+     * <p>The consequence of missing that would be a port that silently wrote patterns into
+     * discarded objects, which is item loss. One field read per storage block is a cheap way not to
+     * have that failure mode at all.
+     */
+    public boolean storagesStillLive() {
+        for (final PatternStorageBlockEntity storage : this.storages) {
+            if (storage.isRemoved()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The structure's first empty pattern slot, or -1 when every one is full.
+     *
+     * <p>Each storage block keeps its own bound, so this is a walk over the blocks rather than over
+     * the slots: a maxed structure asks 2,744 questions instead of 148,000.
+     */
+    public int firstFreeSlot() {
+        int offset = 0;
+        for (final PatternStorageBlockEntity storage : this.storages) {
+            final int local = storage.firstFreeSlot();
+            if (local >= 0) {
+                return offset + local;
+            }
+            offset += storage.patterns().getContainerSize();
+        }
+        return -1;
+    }
+
+    /**
+     * The structure's last occupied pattern slot, or -1 when it holds nothing.
+     *
+     * <p>Walked forwards and kept rather than walked backwards, because the offsets accumulate
+     * forwards; the last block that answers is the last block that holds anything.
+     */
+    public int lastOccupiedSlot() {
+        int offset = 0;
+        int found = -1;
+        for (final PatternStorageBlockEntity storage : this.storages) {
+            final int local = storage.lastOccupiedSlot();
+            if (local >= 0) {
+                found = offset + local;
+            }
+            offset += storage.patterns().getContainerSize();
+        }
+        return found;
+    }
+
+    /**
+     * Whether this structure would take the given stack at all, asked without the slot.
+     *
+     * <p>{@code FilteredContainer.canPlaceItem} ignores the slot and tests the stack alone -- which
+     * is what {@link #canPlaceItem} memoises on. The Pattern Port deliberately comes through here
+     * instead: it already knows which slot it is filling, so it never benefits from that memo, and
+     * it holds a view for far longer than the one insert the memo's identity comparison was
+     * reasoned about. Bypassing it keeps that reasoning true where it is still relied upon.
+     */
+    public boolean accepts(final ItemStack stack) {
+        return !this.storages.isEmpty()
+            && this.storages.get(0).patterns().canPlaceItem(0, stack);
+    }
+
     /** Whether anything at all needs pushing, so the usual case costs one loop and no work. */
     public boolean hasDirtySlots() {
         for (final PatternStorageBlockEntity storage : this.storages) {

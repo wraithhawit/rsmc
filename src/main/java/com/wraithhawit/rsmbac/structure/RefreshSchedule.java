@@ -33,7 +33,14 @@ package com.wraithhawit.rsmbac.structure;
  * worst-case staleness for an exotic change goes from one second to ten. Ordinary changes are
  * noticed *faster* than before, in a quarter second rather than up to a full one.
  *
- * <p>Pure arithmetic over two longs, with time passed in, so it can be tested without a level.
+ * <h2>And patterns, which are neither</h2>
+ *
+ * <p>A pattern arriving in a storage block is not geometry, so {@link StructureChanges} never sees
+ * it -- and until 0.5.0 nothing else did either, so the only thing that ever pushed a new pattern
+ * to the network was the ten-second safety scan. {@link PatternChanges} is the third input, handled
+ * by rate-limiting rather than debouncing; see it for why that distinction is load-bearing.
+ *
+ * <p>Pure arithmetic over a few longs, with time passed in, so it can be tested without a level.
  */
 public final class RefreshSchedule {
     /** Quiet time after the last change before scanning. A quarter second. */
@@ -42,10 +49,26 @@ public final class RefreshSchedule {
     /** Longest a controller will go without scanning regardless. Ten seconds. */
     public static final int SAFETY_TICKS = 200;
 
+    /**
+     * How often a scan may be triggered by patterns moving. One second.
+     *
+     * <p>Rate-limited rather than debounced, which is the whole difference between this and
+     * {@link StructureChanges} -- see {@link PatternChanges} for why a debounce is the wrong shape
+     * for a source of changes that never stops.
+     *
+     * <p>One second is chosen against what the scan feeds: the Controller pushes eight patterns to
+     * the node per refresh, so this sets the fill rate at eight a second, which is what that
+     * constant always claimed and has not been true since 0.1.9.
+     */
+    public static final int PATTERN_TICKS = 20;
+
     private final int debounceTicks;
     private final int safetyTicks;
+    private final int patternTicks;
 
     private long seenGeneration;
+    private long seenPatternGeneration;
+    private boolean patternsPending;
     private long pendingSince = -1L;
     private long lastScan;
 
@@ -60,36 +83,58 @@ public final class RefreshSchedule {
     private boolean scanned;
 
     public RefreshSchedule() {
-        this(DEBOUNCE_TICKS, SAFETY_TICKS);
+        this(DEBOUNCE_TICKS, SAFETY_TICKS, PATTERN_TICKS);
     }
 
-    public RefreshSchedule(final int debounceTicks, final int safetyTicks) {
+    public RefreshSchedule(final int debounceTicks, final int safetyTicks, final int patternTicks) {
         this.debounceTicks = Math.max(0, debounceTicks);
         this.safetyTicks = Math.max(1, safetyTicks);
+        this.patternTicks = Math.max(1, patternTicks);
     }
 
     /**
      * Whether to scan this tick, recording that a scan happened when the answer is yes.
      *
-     * @param now        the current game time in ticks
-     * @param generation the current {@link StructureChanges#generation()}
+     * <p>Three reasons to say yes, and they are deliberately not the same shape:
+     *
+     * <ul>
+     *   <li><b>Geometry settled</b> -- debounced, so a burst of placements costs one scan.
+     *   <li><b>Patterns moved</b> -- rate-limited, so a continuous source costs one scan a second
+     *       rather than being debounced into never happening at all.
+     *   <li><b>Overdue</b> -- the safety interval, for changes neither counter can see.
+     * </ul>
+     *
+     * @param now               the current game time in ticks
+     * @param generation        the current {@link StructureChanges#generation()}
+     * @param patternGeneration the current {@link PatternChanges#generation()}
      */
-    public boolean shouldScan(final long now, final long generation) {
+    public boolean shouldScan(final long now, final long generation, final long patternGeneration) {
         if (generation != this.seenGeneration) {
             this.seenGeneration = generation;
             // Restart the window rather than extending it: a burst of placements should cost one
             // scan after the burst, not one per change and not one halfway through.
             this.pendingSince = now;
         }
+        if (patternGeneration != this.seenPatternGeneration) {
+            this.seenPatternGeneration = patternGeneration;
+            // Latched, not timestamped. A pattern that lands one tick after a scan must still be
+            // pushed a second later; recording "when" would let a later pattern move the goalposts.
+            this.patternsPending = true;
+        }
         final boolean settled =
             this.pendingSince >= 0 && now - this.pendingSince >= this.debounceTicks;
+        final boolean patternsDue = this.patternsPending
+            && (!this.scanned || now - this.lastScan >= this.patternTicks);
         // Checked even while a change is pending, so a player who never stops placing still gets
         // a periodically correct structure instead of one frozen until they pause.
         final boolean overdue = !this.scanned || now - this.lastScan >= this.safetyTicks;
-        if (!settled && !overdue) {
+        if (!settled && !patternsDue && !overdue) {
             return false;
         }
         this.pendingSince = -1L;
+        // Cleared on any scan, whatever caused it: the scan pushes whatever is dirty, so a scan
+        // triggered by geometry has already done the work a pattern scan would have done.
+        this.patternsPending = false;
         this.lastScan = now;
         this.scanned = true;
         return true;

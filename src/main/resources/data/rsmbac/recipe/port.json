@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [" I ", "PCP", " E "],
+  "key": {
+    "I": {"item": "refinedstorage:importer"},
+    "E": {"item": "refinedstorage:exporter"},
+    "P": {"item": "refinedstorage:basic_processor"},
+    "C": {"item": "rsmbac:casing"}
+  },
+  "result": {"id": "rsmbac:port", "count": 1}
+}
