@@ -388,6 +388,18 @@ public class ControllerBlockEntity extends BlockEntity {
                 : RefinedStorageApi.INSTANCE.getPattern(stack, currentLevel).orElse(null);
             this.node.setPattern(slot, pattern);
         });
+        // Anything handed back keeps the fast cadence alive.
+        //
+        // PatternChanges is a latch, not a level: RefreshSchedule clears it on every scan, so a
+        // single bump buys exactly ONE one-second refresh and the backlog then falls back to the
+        // ten-second safety scan -- eight patterns per ten seconds. That is the difference between
+        // a big structure becoming craftable in minutes and in hours, and it is invisible in any
+        // test that pushes fewer patterns than the budget.
+        //
+        // Bumping here says "there is still work", which is the level the schedule cannot see.
+        if (patterns.hasDirtySlots()) {
+            PatternChanges.bump();
+        }
         // After the drain, because a fluid-substitution pattern needs its helper patterns rebuilt
         // as a set: they are packed after the container and deduplicated across slots, so there is
         // no per-slot version of this. Only reached when something was actually dirty, and a no-op

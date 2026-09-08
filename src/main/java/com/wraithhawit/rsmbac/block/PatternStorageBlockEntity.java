@@ -137,9 +137,50 @@ public class PatternStorageBlockEntity extends BlockEntity implements BlockEntit
         this.dirtySlots.set(slot);
     }
 
-    /** Every slot needs pushing: after a load, or into a node that has just been rebuilt. */
+    /**
+     * Every slot <em>holding a pattern</em> needs pushing: after a load, or into a node that has
+     * just been rebuilt.
+     *
+     * <h2>Why the empty ones are skipped</h2>
+     *
+     * <p>This used to be {@code dirtySlots.set(0, PATTERNS_PER_STORAGE)} -- every slot, contents or
+     * not. The Controller drains that list against a fixed budget of eight slots per refresh, and
+     * <b>an empty slot spends a token exactly like a real pattern does</b>, to push a null into a
+     * node slot that is already null. So the time to make a structure craftable scaled with how big
+     * the box was built rather than with how many recipes were in it: a 16³ holding a hundred
+     * patterns paid for 148,176 pushes to deliver a hundred.
+     *
+     * <p>Reported from a survival world as patterns taking <b>about seven hours</b> to all appear,
+     * with the tell that they arrived in slot order -- "only the first 101 slots showup" -- which is
+     * what an ordered drain against a budget looks like from the outside.
+     *
+     * <p>Skipping them is sound rather than a shortcut, and the argument is narrow: this method
+     * means <em>the node was just built and holds nothing</em>. Pushing null into a slot that is
+     * already null cannot change what the network believes, so that push was never doing anything.
+     * <b>Removals are unaffected</b> -- taking a pattern out fires the inventory listener, which
+     * dirties that one slot and pushes the null through the ordinary path.
+     *
+     * <h2>Ordering, which is load-bearing</h2>
+     *
+     * <p>Reading the contents means this can only be called <em>after</em> there are contents. The
+     * constructor runs before {@link #loadAdditional}, so the call there now marks nothing on a
+     * loading block -- which is why {@link #loadAdditional} makes its own call at the end. Getting
+     * that wrong is silent: nothing is ever dirty, nothing is ever pushed, and the crafter is dead
+     * in a way no test that inserts a pattern at runtime would notice.
+     */
     public void markAllDirty() {
-        this.dirtySlots.set(0, StructurePower.PATTERNS_PER_STORAGE);
+        boolean any = false;
+        for (int slot = 0; slot < StructurePower.PATTERNS_PER_STORAGE; slot++) {
+            if (!this.patterns.getItem(slot).isEmpty()) {
+                this.dirtySlots.set(slot);
+                any = true;
+            }
+        }
+        if (any) {
+            // Without this the backlog is drained only by the ten-second safety scan -- eight
+            // patterns per ten seconds rather than eight per second. See PatternChanges.
+            PatternChanges.bump();
+        }
     }
 
     public boolean hasDirtySlots() {
@@ -181,6 +222,12 @@ public class PatternStorageBlockEntity extends BlockEntity implements BlockEntit
         // port rather than failing visibly.
         this.firstFreeHint = 0;
         this.lastOccupiedHint = this.patterns.getContainerSize() - 1;
+        // The constructor's call ran before any of this existed, so it marked nothing. This is the
+        // first moment the block knows what it holds, and therefore the only place a loaded pattern
+        // can be queued for pushing. Not left to the listener for the reason given just above:
+        // whether a bulk read fires one is Refined Storage's business, and here the cost of being
+        // wrong is a structure that never becomes craftable at all.
+        this.markAllDirty();
     }
 
     @Override

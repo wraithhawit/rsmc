@@ -1,8 +1,11 @@
 package com.wraithhawit.rsmbac.client;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import com.refinedmods.refinedstorage.api.autocrafting.Pattern;
 import com.refinedmods.refinedstorage.api.resource.ResourceAmount;
@@ -67,6 +70,24 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
     private SearchFieldWidget searchField;
     private String query = "";
     private int rows;
+
+    /**
+     * The slots {@link #layout} actually put on screen, in the order it placed them.
+     *
+     * <p>Bounded by the size of the window -- around ninety -- however many patterns the structure
+     * holds. Everything drawn per frame iterates this instead of the menu's full slot list.
+     */
+    private final List<Slot> placedSlots = new ArrayList<>();
+
+    /**
+     * The stacks in {@link #placedSlots}, by identity, for {@link #canDisplayOutput}.
+     *
+     * <p>An identity set because that is the question being asked: RS renders a pattern as the thing
+     * it makes only for the one stack instance sitting in a structure slot, so the very same pattern
+     * in the player's inventory below still draws as a pattern.
+     */
+    private final Set<ItemStack> outputStacks =
+        Collections.newSetFromMap(new IdentityHashMap<>());
 
     public PatternScreen(final PatternMenu menu, final Inventory inventory, final Component title) {
         // RS's own numbers, and the texture is RS's own file, so these are not values to choose.
@@ -133,6 +154,7 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
             slot.x = OFF_SCREEN;
             slot.y = OFF_SCREEN;
         }
+        this.placedSlots.clear();
         final int firstIndex = this.getScrollbarOffset() / SLOT_SIZE * COLUMNS;
         for (int i = 0; i < visibleRows * COLUMNS; i++) {
             final int index = firstIndex + i;
@@ -142,6 +164,10 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
             final Slot slot = visible.get(index);
             slot.x = 7 + 1 + i % COLUMNS * SLOT_SIZE;
             slot.y = TOP_HEIGHT + 1 + i / COLUMNS * SLOT_SIZE;
+            // Remembered rather than rediscovered every frame: rendering used to find these by
+            // walking every slot in the menu and testing for OFF_SCREEN. That is free at a hundred
+            // slots and ruinous at twenty thousand -- see renderRows.
+            this.placedSlots.add(slot);
         }
         this.updateScrollbar((visible.size() + COLUMNS - 1) / COLUMNS);
     }
@@ -275,10 +301,21 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
     protected void renderRows(final GuiGraphics graphics, final int x, final int y,
                               final int topHeight, final int rowCount,
                               final int mouseX, final int mouseY) {
-        for (final Slot slot : this.getMenu().patternSlots()) {
-            if (slot.x == OFF_SCREEN) {
-                continue;
+        // Over the slots actually placed, never over every slot in the structure.
+        //
+        // This loop and renderSlotContents used to walk the whole menu once each per frame, and
+        // canDisplayOutput -- called by RS while drawing each of the ~90 visible slots -- walked it
+        // again. At a reported 21,600 slots that is over two million container reads a frame, which
+        // is what four FPS in the pattern screen turned out to be. Everything below is bounded by
+        // what is on screen.
+        this.outputStacks.clear();
+        for (final Slot slot : this.placedSlots) {
+            final ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                this.outputStacks.add(stack);
             }
+        }
+        for (final Slot slot : this.placedSlots) {
             // RS's own slot sprite, the same call AutocrafterManagerScreen.renderGroup makes.
             // An earlier version drew the well with two graphics.fill rectangles, and that is where
             // the hard black grid lines came from: a Minecraft slot is a bevelled sprite, not a
@@ -300,10 +337,7 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
     private void renderSlotContents(final GuiGraphics graphics, final int mouseX, final int mouseY) {
         graphics.pose().pushPose();
         graphics.pose().translate((float) this.leftPos, (float) this.topPos, 0.0F);
-        for (final Slot slot : this.getMenu().patternSlots()) {
-            if (slot.x == OFF_SCREEN) {
-                continue;
-            }
+        for (final Slot slot : this.placedSlots) {
             this.renderSlot(graphics, slot);
             final boolean hovering = mouseX >= slot.x + this.leftPos
                 && mouseX < slot.x + this.leftPos + 16
@@ -324,9 +358,19 @@ public class PatternScreen extends AbstractStretchingScreen<PatternMenu>
      * this is the whole of it: implement the interface, and patterns in the structure show their
      * results the way they do in every other RS screen.
      */
+    /**
+     * <p>Answered from the stacks placed this frame rather than by
+     * {@code PatternMenu.containsPattern}, which is a linear scan of every slot in the structure.
+     * RS asks this once per slot it draws, so that scan was quadratic in the size of the crafter
+     * for a question that only ever concerns what is on screen.
+     *
+     * <p>Identity, exactly as RS's own {@code containsPattern} uses it -- see the note there. The
+     * set is rebuilt each frame in {@link #renderRows}, so a stack replaced by a sync packet is
+     * matched on the frame after it arrives rather than being missed until the next layout.
+     */
     @Override
     public boolean canDisplayOutput(final ItemStack stack) {
-        return this.getMenu().containsPattern(stack);
+        return this.outputStacks.contains(stack);
     }
 
     @Override

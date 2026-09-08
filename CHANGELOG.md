@@ -6,6 +6,99 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.6.0
+
+**Patterns took about seven hours to become craftable, and the pattern screen ran at four FPS.**
+
+Both reported from a survival world running a 10x11x13 structure with a few thousand patterns in it.
+Both turn out to be the same mistake in two places: **cost scaled with how big the box was built
+rather than with how many recipes were in it.**
+
+### The seven hours
+
+The reporter got to the right answer before the code did — *"assuming its not power nor connections
+like i thought before, instead its just hella slow at noticing the crafts"* — after a night spent
+chasing it as a power bug, ending at about a hundred Energizers and five Creative Controllers. It was
+never power. Two causes compounded.
+
+**Empty slots spent the push budget.** `markAllDirty` marked every slot in a storage block whether or
+not it held anything, and the Controller's budget of eight pushes per refresh is spent on an empty
+slot exactly as it is on a real pattern — to push a `null` into a node slot that was already `null`.
+A maxed structure holding a hundred patterns paid for 148,176 pushes to deliver a hundred.
+
+It now marks only occupied slots. That is sound rather than a shortcut, and the argument is narrow:
+the method means *the node was just rebuilt and holds nothing*, so pushing null into a slot that is
+already null cannot change what the network believes. **Removals are unaffected** — taking a pattern
+out fires the inventory listener, which dirties that one slot and pushes the null through the
+ordinary path.
+
+There is an ordering trap in doing this, and it is silent. Reading contents means the call has to
+happen *after* there are contents, and the block entity constructor runs before `loadAdditional`. A
+naive change leaves a loading block marking nothing, and the file already notes that whether a bulk
+read fires listeners is Refined Storage's business — so nothing would ever be dirty, nothing would
+ever be pushed, and the crafter would be dead in a way no test that inserts a pattern at runtime
+would notice. `loadAdditional` now makes its own call at the end.
+
+**And `PatternChanges` is a latch, not a level.** `RefreshSchedule` clears it on every scan, so the
+single bump a world load produces bought exactly *one* one-second refresh. The backlog behind it then
+drained at the ten-second safety scan — eight patterns per ten seconds. That is where seven hours
+came from: it is what ~20,000 patterns costs at 0.8 a second.
+
+The pusher now re-bumps while dirty slots remain, which is the "there is still work" level the
+schedule has no way to see. Two new refresh scenarios pin both halves: that one bump is one fast
+scan, and that a re-bumped backlog drains ten times faster than one that is not.
+
+Together, for the reported structure: **about seven hours to about six minutes.**
+
+### The four FPS
+
+`renderRows` and `renderSlotContents` each walked every slot in the structure once per frame, and
+`canDisplayOutput` — which RS calls while drawing each of the ~90 visible slots — walked it *again*
+via `PatternMenu.containsPattern`. At 21,600 slots that is over two million container reads a frame.
+
+`layout()` already knew which slots it placed; it now remembers them, and everything drawn per frame
+iterates that list instead. `canDisplayOutput` answers from an identity set of the stacks placed this
+frame, rebuilt per frame so a stack replaced by a sync packet is matched immediately rather than
+being missed until the next layout. Identity is kept deliberately, exactly as RS uses it, so a
+pattern in a structure slot draws as its output while the same pattern in the player's inventory
+still draws as a pattern.
+
+`containsPattern` is deleted rather than left around. RS gets away with the linear version because an
+Autocrafter Manager has hundreds of slots; here it was most of a four-FPS screen.
+
+### A structure too big for one window now says so
+
+A container slot index is a `short` on the wire in both directions — `ClientboundContainerSetSlotPacket`
+writes one and `ServerboundContainerClickPacket` reads one — so a menu with more than 32,767 slots
+hands out indices that arrive negative, and a click lands on the wrong pattern. Worse, the content
+packet for that many patterns exceeds Minecraft's 8 MiB ceiling, which disconnects the player and
+reads as the world corrupting rather than as a limit being hit.
+
+**This is Minecraft's limit, not Refined Storage's.** RS's `PatternProviderNetworkNode` is a plain
+`Pattern[]` sized at construction with no bound, and there is no such constant anywhere in its
+autocrafting package. RS's own Autocrafter Manager builds one slot per pattern exactly as we do and
+never trips it, because an Autocrafter holds nine patterns and nobody owns 3,641 of them. We hold 54
+per block and reach it at 607.
+
+So it is applied to the **screen**, never to capacity. The node is happy at any size and a large
+structure crafts perfectly well; it is only *looking at* the patterns that cannot be expressed.
+Clamping capacity would cripple crafting to fix a window — and would in fact break pushing outright,
+because `pushPatternsIfChanged` refuses to write while the view and the node disagree on size, so a
+clamp on one of them means nothing is ever pushed again. Right-clicking too large a structure now
+explains the number and says it still crafts.
+
+This is temporary. The windowed menu — a fixed set of slots whose backing indices remap on scroll —
+removes the reason for all three of these limits, and retires this guard with it.
+
+### Verified by breaking it
+
+The new gametest asserts that re-pushing two patterns held in 108 slots costs two pushes. With the
+old `markAllDirty` restored it reports `re-pushing 2 patterns held in 108 slots cost 108 pushes`, so
+the test detects the bug rather than agreeing with whatever the code happens to do.
+
+36 shape cases, 25 refresh scenarios, 79 asset checks, 56 recipe scenarios, 14 budget checks,
+19 gametests.
+
 ## 0.5.0
 
 **The Pattern Port, and the pattern-push latency it exposed.**

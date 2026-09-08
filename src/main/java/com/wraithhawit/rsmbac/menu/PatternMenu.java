@@ -123,22 +123,13 @@ public class PatternMenu extends AbstractBaseContainerMenu implements ScreenSize
         return this.patterns.getContainerSize();
     }
 
-    /**
-     * Whether this exact stack is a pattern sitting in one of the structure's slots.
-     *
-     * <p>Lifted from {@code AutocrafterManagerContainerMenu.containsPattern}, <strong>reference
-     * equality and all</strong>. That looks like a bug and is not: it identifies the one stack
-     * instance being drawn, so a pattern in a structure slot renders as its output while the very
-     * same pattern in the player's inventory below still renders as a pattern.
-     */
-    public boolean containsPattern(final ItemStack stack) {
-        for (final Slot slot : this.patternSlots) {
-            if (slot.getItem() == stack) {
-                return true;
-            }
-        }
-        return false;
-    }
+    // "Is this stack in a structure slot", which RS asks while drawing each pattern, used to live
+    // here as a linear scan of every slot -- lifted from AutocrafterManagerContainerMenu, reference
+    // equality and all. RS gets away with that because an Autocrafter Manager has hundreds of slots;
+    // here it is asked ~90 times a frame against tens of thousands, and it was most of a four-FPS
+    // pattern screen. PatternScreen.canDisplayOutput now answers it from the stacks it placed this
+    // frame, which is the only set the question can be about, and this is gone rather than left
+    // around to be called again by accident.
 
     // Shift-click is RS's TransferManager, declared in the constructor. The base class's
     // quickMoveStack already delegates to it, so there is nothing to override.

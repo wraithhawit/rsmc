@@ -34,6 +34,8 @@ public final class HeadlessRefreshCheck {
         aContinuousPatternFeedKeepsScanning();
         aPatternLandingJustAfterAScanIsNotForgotten();
         aGeometryScanAlsoSettlesThePatternDebt();
+        aSingleBumpBuysExactlyOneFastScan();
+        aBacklogThatRebumpsDrainsTenTimesFaster();
 
         System.out.printf("scenarios: %d%n", checks);
         if (FAILURES.isEmpty()) {
@@ -223,6 +225,65 @@ public final class HeadlessRefreshCheck {
             }
         }
         expect("and the pattern does not then ask for another", extra == 0);
+    }
+
+    /**
+     * The latch semantics that made the seven-hour bug possible, pinned so they stay visible.
+     *
+     * <p>A world load bumps {@link com.wraithhawit.rsmbac.structure.PatternChanges} exactly once and
+     * then nothing external ever bumps it again -- the patterns were already in the blocks, so
+     * nothing is arriving. One bump is one fast scan, and the backlog behind it is then drained by
+     * the safety interval alone: eight patterns per ten seconds.
+     */
+    private static void aSingleBumpBuysExactlyOneFastScan() {
+        final RefreshSchedule schedule = new RefreshSchedule();
+        schedule.shouldScan(0L, 0L, 0L);
+        int fast = 0;
+        // One bump at tick 1, held forever after -- the generation never moves again.
+        for (long t = 1; t < RefreshSchedule.SAFETY_TICKS; t++) {
+            if (schedule.shouldScan(t, 0L, 1L)) {
+                ++fast;
+            }
+        }
+        expect("one bump is one fast scan, and no more", fast == 1);
+    }
+
+    /**
+     * And the fix: the pusher re-bumps while slots remain, so the backlog drains at the pattern
+     * interval instead of the safety one.
+     *
+     * <p>This is the whole of the difference between a big structure becoming craftable in minutes
+     * and in hours. Driven here the way {@code ControllerBlockEntity.pushPatternsIfChanged} drives
+     * it -- a bump on every scan that leaves work behind.
+     */
+    private static void aBacklogThatRebumpsDrainsTenTimesFaster() {
+        final long window = RefreshSchedule.SAFETY_TICKS * 10;
+        expect("a re-bumped backlog drains at the pattern interval",
+            countDrainScans(window, true) == window / RefreshSchedule.PATTERN_TICKS);
+        expect("and without the re-bump it drains at the safety interval",
+            countDrainScans(window, false) == window / RefreshSchedule.SAFETY_TICKS);
+    }
+
+    /**
+     * Runs a schedule for {@code window} ticks against a backlog that never empties, counting scans.
+     *
+     * @param rebump whether the pusher bumps the pattern generation on a scan that left work behind
+     */
+    private static int countDrainScans(final long window, final boolean rebump) {
+        final RefreshSchedule schedule = new RefreshSchedule();
+        schedule.shouldScan(0L, 0L, 0L);
+        long patterns = 1;
+        int scans = 0;
+        for (long t = 1; t <= window; t++) {
+            if (schedule.shouldScan(t, 0L, patterns)) {
+                ++scans;
+                if (rebump) {
+                    // Still dirty: eight slots went out and the rest did not.
+                    ++patterns;
+                }
+            }
+        }
+        return scans;
     }
 
     private static void expect(final String what, final boolean condition) {

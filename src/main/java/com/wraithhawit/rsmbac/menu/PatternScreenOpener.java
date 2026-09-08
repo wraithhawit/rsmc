@@ -61,12 +61,59 @@ public final class PatternScreenOpener {
             return InteractionResult.PASS;
         }
         final StructurePatterns patterns = StructurePatterns.of(level, pos);
+        if (patterns.getContainerSize() > MAX_SCREEN_SLOTS) {
+            refuseTooManySlots(serverPlayer, patterns.getContainerSize());
+            return InteractionResult.CONSUME;
+        }
         serverPlayer.openMenu(new SimpleMenuProvider(
             (containerId, inventory, menuPlayer) ->
                 new PatternMenu(containerId, inventory, patterns),
             Component.translatable("container.rsmbac.patterns")),
             buf -> buf.writeVarInt(patterns.getContainerSize()));
         return InteractionResult.CONSUME;
+    }
+
+    /**
+     * The largest structure whose patterns can be shown in one window.
+     *
+     * <h2>This is Minecraft's limit, not Refined Storage's, and it binds the SCREEN only</h2>
+     *
+     * <p>A container slot index is a {@code short} on the wire in both directions --
+     * {@code ClientboundContainerSetSlotPacket} writes one, {@code ServerboundContainerClickPacket}
+     * reads one -- so a menu with more than 32,767 slots hands out indices that arrive negative and
+     * a click lands on the wrong pattern. Nothing in RS imposes this: its
+     * {@code PatternProviderNetworkNode} is a plain {@code Pattern[]} sized at construction with no
+     * bound, and there is no such constant anywhere in its autocrafting package. RS's own Autocrafter
+     * Manager builds one slot per pattern exactly as we do and never trips it, because an Autocrafter
+     * holds nine patterns and nobody owns 3,641 of them. We hold 54 per block and reach it at 607.
+     *
+     * <p><strong>So the limit is not applied to the structure's capacity.</strong> Clamping that
+     * would cripple crafting to fix a window: the node is happy at any size and a big structure
+     * crafts perfectly well: it is only the act of looking at the patterns that cannot be expressed.
+     * Capping capacity would also break the push path outright, because
+     * {@code pushPatternsIfChanged} refuses to write while the view and the node disagree on size --
+     * a clamp on one of them and nothing is ever pushed again.
+     *
+     * <p>Temporary. The windowed menu removes the reason for it, at which point this goes.
+     */
+    public static final int MAX_SCREEN_SLOTS = Short.MAX_VALUE;
+
+    /**
+     * Says why the window will not open, rather than opening a broken one.
+     *
+     * <p>The alternative is worse than it sounds: the menu would open, the content packet for tens
+     * of thousands of patterns would exceed Minecraft's 8 MiB packet ceiling, and the player would
+     * be disconnected -- which reads as the world corrupting rather than as a limit being hit.
+     */
+    private static void refuseTooManySlots(final ServerPlayer player, final int slots) {
+        player.displayClientMessage(
+            Component.literal("This crafter holds " + slots + " pattern slots, more than the "
+                + MAX_SCREEN_SLOTS + " one screen can show.").withStyle(ChatFormatting.RED),
+            false);
+        player.displayClientMessage(
+            Component.literal("  It still crafts. Remove some Pattern Storage blocks to open the"
+                + " pattern screen again.").withStyle(ChatFormatting.GRAY),
+            false);
     }
 
     private static void explain(final ServerPlayer player, final Result result,

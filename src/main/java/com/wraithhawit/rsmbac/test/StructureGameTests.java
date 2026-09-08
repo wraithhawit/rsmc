@@ -621,6 +621,51 @@ public final class StructureGameTests {
     }
 
     /**
+     * A re-push costs one push per <em>pattern</em>, never one per slot.
+     *
+     * <p>This is the seven-hour bug. {@code markAllDirty} used to mark every slot whether or not it
+     * held anything, and the Controller spends its budget of eight per refresh on empty slots
+     * exactly as it does on real ones -- pushing a null into a node slot that is already null. Time
+     * to become craftable therefore scaled with the size of the box instead of the number of
+     * recipes, and a player with a few thousand patterns in a large structure waited hours.
+     *
+     * <p>The differential is the point: under the old implementation this reports the full capacity
+     * rather than the two patterns actually present, so the test fails loudly rather than agreeing
+     * with whatever the code happens to do.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void aRepushCostsOnePushPerPatternNotPerSlot(final GameTestHelper helper) {
+        buildShellSized(helper, 2, 2, 5);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+
+        final StructurePatterns view =
+            StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));
+        final int capacity = view.getContainerSize();
+        final ItemStack pattern = new ItemStack(rsItem("pattern"));
+        // One in each block, so the count cannot be right by only ever looking at the first.
+        view.setItem(0, pattern.copy());
+        view.setItem(StructurePower.PATTERNS_PER_STORAGE, pattern.copy());
+
+        // Forget what the two inserts dirtied, so what follows measures the re-push alone.
+        view.drainDirtySlots(slot -> { });
+
+        // Exactly what a node rebuild and a world load ask for.
+        view.markAllDirty();
+        final int[] pushes = {0};
+        view.drainDirtySlots(slot -> pushes[0]++);
+
+        if (pushes[0] != 2) {
+            helper.fail("re-pushing 2 patterns held in " + capacity + " slots cost " + pushes[0]
+                + " pushes; empty slots are spending the budget again");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * Only patterns can go into a pattern slot.
      *
      * <p>Reported from in game: shift-clicking a non-pattern moved it into the crafter. The filter
