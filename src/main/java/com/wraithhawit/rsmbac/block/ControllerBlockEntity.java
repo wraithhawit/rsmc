@@ -75,18 +75,14 @@ public class ControllerBlockEntity extends BlockEntity {
     private StructureStepBehavior stepBehavior = StructureStepBehavior.IDLE;
 
     /**
-     * How many patterns are handed to the network per refresh. See the comment where it is used.
+     * How many patterns are pushed between checks of the clock. See {@link #drainPatterns}.
      *
-     * <p>Eight a second fills a storage block in under seven, which is faster than anyone fills one
-     * by hand, and slow enough that the listener storm never lands in one tick.
-     *
-     * <p><strong>"A second" was untrue between 0.1.9 and 0.5.0.</strong> That release made the
-     * refresh change-driven, and a pattern arriving is not a block change -- so the only thing that
-     * ever ran this was the ten-second safety scan, making the real rate eight patterns per ten
-     * seconds and a full storage block over a minute. {@link PatternChanges} is the counter that
-     * makes the sentence above true again; without it a Pattern Port looks broken rather than slow.
+     * <p>Replaces {@code PATTERN_PUSHES_PER_REFRESH = 8}, which was the whole bound rather than a
+     * batch size: eight patterns per refresh, at one refresh a second, was eight patterns a second.
+     * A structure holding a few thousand took hours to become craftable and was reported as taking
+     * about seven.
      */
-    private static final int PATTERN_PUSHES_PER_REFRESH = 8;
+    private static final int CLOCK_CHECK_SLOTS = 64;
 
     /**
      * The pattern provider. Rebuilt when the structure's pattern capacity changes, because
@@ -113,6 +109,21 @@ public class ControllerBlockEntity extends BlockEntity {
 
     /** So a capacity change queues one rebuild, not one per refresh until it happens. */
     private boolean recreateRequested;
+
+    /**
+     * The structure's pattern slots as of the last refresh, or null while it is not formed.
+     *
+     * <p>Held because {@link #drainPatterns} runs <em>every tick</em> and building this view means a
+     * {@link MultiblockShape#find} -- the expensive walk the refresh cadence exists to ration. So
+     * the scan stays rare and the drain reads what the scan last found.
+     *
+     * <p>Nulled the moment the structure stops being formed, which is what stops the drain reading
+     * block entities that have left the structure. Between refreshes it can be stale by exactly as
+     * long as the refresh interval, which is a window this mod already accepts for every other
+     * question it asks about the shape.
+     */
+    @Nullable
+    private StructurePatterns patternView;
 
     public ControllerBlockEntity(final BlockPos pos, final BlockState state) {
         super(RsmcBlockEntities.CONTROLLER.get(), pos, state);
@@ -201,6 +212,15 @@ public class ControllerBlockEntity extends BlockEntity {
         // nanoTime rather than the game clock: this is an elapsed interval, and a monotonic source
         // cannot hand back a negative one if the wall clock moves under us.
         this.budget.record(System.nanoTime() - started, allowed, rate, budgetNanos);
+        // Every tick, and deliberately not part of the refresh above.
+        //
+        // Handing patterns over used to happen only inside refreshStateOccasionally, so it inherited
+        // that method's once-a-second cadence -- and with a budget of eight per visit, that is eight
+        // patterns a second no matter how idle the server is. Draining and re-deriving the structure
+        // are different jobs with different right answers: the shape scan is expensive and needs to
+        // be rare, a push is ~0.2us and needs to be prompt. Conflating them is what made a few
+        // thousand patterns take hours.
+        this.drainPatterns(currentLevel);
     }
 
     /**
@@ -249,6 +269,9 @@ public class ControllerBlockEntity extends BlockEntity {
             // whatever it was last told about.
             this.setStepBehavior(StructureStepBehavior.IDLE);
             this.node.setActive(false);
+            // And it pushes nothing. Dropping the view is what stops the per-tick drain reading
+            // block entities that are no longer part of any structure.
+            this.patternView = null;
             // Only here, never on the formed path. A structure that is already formed joins below
             // at its real pattern capacity in one step; joining early at capacity zero would force
             // an immediate rebuild to resize, which delayed activation by a tick and was caught by
@@ -260,7 +283,15 @@ public class ControllerBlockEntity extends BlockEntity {
         this.node.setEnergyUsage(StructurePower.energyUsage(result));
         final StructurePatterns patterns = StructurePatterns.of(currentLevel, result);
         this.ensureCapacity(currentLevel, patterns.getContainerSize());
-        this.pushPatternsIfChanged(currentLevel, patterns);
+        // Kept for the per-tick drain, which has no other way to reach the storage blocks: building
+        // this view means a shape find, and that is the expensive thing the refresh cadence exists
+        // to ration. Its staleness is therefore exactly the refresh's staleness -- a block broken
+        // between scans is already something this mod tolerates for that window, so caching the view
+        // adds no failure the refresh interval did not already have.
+        this.patternView = patterns;
+        // Drained here too, so a refresh is not a wasted opportunity: a structure that has just
+        // formed should not wait a tick to start handing its patterns over.
+        this.drainPatterns(currentLevel);
         final boolean active = this.hasEnergy();
         this.node.setActive(active);
         this.setStepBehavior(new StructureStepBehavior(result.stepsPerTick(), active));
@@ -346,15 +377,34 @@ public class ControllerBlockEntity extends BlockEntity {
     }
 
     /**
-     * Hands the changed patterns to the node.
+     * Hands the changed patterns to the node, for as much of this tick as the budget allows.
      *
      * <p><strong>Only the slots that changed.</strong> {@code setPattern} is not a store -- it tells
      * the autocrafting component to remove the old pattern and add the new one, which invalidates
      * Refined Storage's crafting indexes. Re-pushing every slot because one changed redoes that for
      * the whole structure, which is what a multi-second freeze per shift-click turned out to be.
+     *
+     * <h2>A time budget, replacing eight per refresh</h2>
+     *
+     * <p>The old bound was a fixed count, justified by the listener storm: {@code add} ends with
+     * {@code patternListeners.forEach(listener -> listener.onAdded(pattern))}, and RS keeps
+     * calculator listeners on that path. The reasoning was sound and the number was not. Measured
+     * against the real RS classes ({@code ./gradlew pushCheck}), a push costs about <b>0.2us</b>,
+     * the repository behind it is O(1) per pattern rather than O(patterns), and going from zero to
+     * sixteen listeners moves the cost by about three <em>nanoseconds</em> each. Eight per refresh,
+     * at one refresh a second, was slower than necessary by roughly four orders of magnitude.
+     *
+     * <p>So the bound stays -- landing an unbounded backlog in one tick is still the thing being
+     * prevented -- but it is now measured in time rather than in patterns. That matters because the
+     * cost of a push is <em>not</em> constant: it grows mildly with how many patterns are already
+     * registered, and it grows with how many screens are watching. A count tuned for one of those is
+     * wrong for the other, and a time budget needs to know neither. It also absorbs the one thing
+     * the headless measurement could not price -- what a real grid listener does inside
+     * {@code onAdded} -- by simply fitting fewer pushes into the same slice.
      */
-    private void pushPatternsIfChanged(final Level currentLevel, final StructurePatterns patterns) {
-        if (!patterns.hasDirtySlots()) {
+    private void drainPatterns(final Level currentLevel) {
+        final StructurePatterns patterns = this.patternView;
+        if (patterns == null || !patterns.hasDirtySlots()) {
             return;
         }
         // The node is still the old size until a capacity rebuild lands a tick later, and writing
@@ -363,22 +413,14 @@ public class ControllerBlockEntity extends BlockEntity {
         if (patterns.getContainerSize() != this.builtCapacity) {
             return;
         }
-        // A few at a time, never the whole backlog at once.
-        //
-        // setPattern is far more than a store: it calls remove and then add on the network's
-        // autocrafting component, and add ends with
-        // patternListeners.forEach(listener -> listener.onAdded(pattern)). Refined Storage keeps
-        // four calculator listeners on that path, so one pattern means four notifications and
-        // whatever recalculation each decides to do.
-        //
-        // Draining every dirty slot in one refresh therefore lands the whole cost of a shift-click
-        // in a single tick, which is what a hard lock-up while inserting patterns turned out to be.
-        // Spreading it means a bulk insert registers over a few seconds, which nobody notices,
-        // instead of freezing the server once, which everybody does.
-        final int[] budget = {PATTERN_PUSHES_PER_REFRESH};
+        final long budgetNanos = Config.patternPushNanos();
+        final long deadline = System.nanoTime() + budgetNanos;
+        // Boxed so the lambda can carry state; there is no early exit from an IntConsumer walk.
+        final boolean[] spent = {false};
+        final int[] sinceClockCheck = {0};
         patterns.drainDirtySlots(slot -> {
-            if (budget[0]-- <= 0) {
-                // Out of budget: hand it back, so the next refresh picks it up.
+            if (spent[0]) {
+                // Out of budget: hand it back, so the next tick picks it up.
                 patterns.markDirty(slot);
                 return;
             }
@@ -387,16 +429,17 @@ public class ControllerBlockEntity extends BlockEntity {
                 ? null
                 : RefinedStorageApi.INSTANCE.getPattern(stack, currentLevel).orElse(null);
             this.node.setPattern(slot, pattern);
+            // Checked in batches, because nanoTime is not free: it costs around a tenth of what the
+            // push it is measuring costs, so asking every slot would spend a noticeable slice of the
+            // budget on reading the clock. A batch overshoots by at most CLOCK_CHECK_SLOTS pushes,
+            // which at the measured rate is a few microseconds.
+            if (budgetNanos > 0 && ++sinceClockCheck[0] >= CLOCK_CHECK_SLOTS) {
+                sinceClockCheck[0] = 0;
+                spent[0] = System.nanoTime() >= deadline;
+            }
         });
-        // Anything handed back keeps the fast cadence alive.
-        //
-        // PatternChanges is a latch, not a level: RefreshSchedule clears it on every scan, so a
-        // single bump buys exactly ONE one-second refresh and the backlog then falls back to the
-        // ten-second safety scan -- eight patterns per ten seconds. That is the difference between
-        // a big structure becoming craftable in minutes and in hours, and it is invisible in any
-        // test that pushes fewer patterns than the budget.
-        //
-        // Bumping here says "there is still work", which is the level the schedule cannot see.
+        // Anything handed back keeps the refresh cadence fast, which is what keeps the view above
+        // fresh while a backlog is draining. See PatternChanges for why the latch needs re-arming.
         if (patterns.hasDirtySlots()) {
             PatternChanges.bump();
         }

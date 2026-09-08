@@ -8,6 +8,42 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.7.0
+-----
+  THE PATTERN PUSH BUDGET, SET FROM A MEASUREMENT. 0.6.0 took LavaSurf's seven-hour load to about
+  six minutes. Six minutes was still the bound doing it, not the work: 2,800 patterns is about
+  0.6ms of actual work, and he was waiting six minutes for it.
+  TWO THINGS WERE WRONG. The budget was EIGHT PER REFRESH and a refresh happens once a second, so
+  the real rate was eight patterns a second while 19 of every 20 ticks did nothing about a backlog
+  the crafter knew it had. And the drain lived inside refreshStateOccasionally, so it inherited a
+  cadence meant for the shape scan -- two different jobs with opposite right answers, since a scan
+  walks 4,096 positions and needs to be rare, and a push is sub-microsecond and needs to be prompt.
+  MEASURED, NOT GUESSED. tools: ./gradlew pushCheck, a new headless harness. It works because RS's
+  whole push path -- PatternProviderNetworkNode, ParentContainer.add, PatternRepositoryImpl -- is in
+  the api module with NO net.minecraft references at all, so the real classes run in a plain JVM.
+  A push costs about 0.2us. The repository is O(1) per pattern, not O(patterns). Going from zero to
+  SIXTEEN listeners moves the cost by about three NANOSECONDS each -- so the listener storm the old
+  constant was chosen to avoid is not, for the notification mechanism itself, where the money is.
+  Eight a second was slow by roughly four orders of magnitude.
+  AND ONE DESIGN THE MEASUREMENT KILLED. setPattern is a bare array store before the node joins a
+  network, and onAddedIntoContainer walks the array itself -- so filling first and joining once
+  looked strictly better. Measured, it is a wash at LavaSurf's size and WORSE at maximum (4.38ms vs
+  6.14ms), because joining makes RS walk all 148,176 slots to find 20,000 patterns. Not built.
+  A TIME BUDGET RATHER THAN A COUNT, because the cost of a push is not constant: it grows mildly
+  with the patterns already registered (0.14us at 1,000, 0.43us at 100,000) and with how many
+  screens are watching. A count tuned for one is wrong for the other. A time budget also absorbs
+  the one thing headless cannot price -- what a real grid listener does inside onAdded -- by
+  fitting fewer pushes into the same slice. maxPatternPushMicrosPerTick, default 2000 (2ms), which
+  is about nine thousand pushes a tick. The clock is read every 64 slots, because nanoTime costs
+  about a tenth of the push it measures.
+  The view the drain reads is cached from the last refresh, since building it means a shape find.
+  Its staleness is exactly the refresh's staleness, and it is dropped the moment the structure stops
+  being formed.
+  Verified by breaking it: with the old eight-per-refresh bound restored, the new gametest reports
+  "patterns are still waiting to reach the network after 50 ticks". 36 shape cases, 25 refresh
+  scenarios, 79 asset checks, 56 recipe scenarios, 14 budget checks, 20 gametests.
+
+
 0.6.0
 -----
   THE SEVEN-HOUR LOAD. Reported from a survival world: after a restart, patterns took about seven

@@ -6,6 +6,91 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.7.0
+
+**The pattern push budget, set from a measurement instead of a guess.**
+
+0.6.0 took the reported seven-hour load down to about six minutes. That was still the *bound* doing
+it rather than the work: 2,800 patterns is roughly **0.6ms** of real work, and he was waiting six
+minutes for it.
+
+### Two things were wrong, and the second one is the interesting one
+
+The budget was **eight per refresh**, and a refresh happens once a second — so the real rate was
+eight patterns a second while nineteen of every twenty ticks did nothing at all about a backlog the
+crafter knew it had.
+
+And the drain lived *inside* `refreshStateOccasionally`, so it inherited a cadence meant for
+something else. Re-deriving the structure and handing patterns over are different jobs with opposite
+right answers: a shape scan walks up to 4,096 positions and needs to be **rare**, a push is
+sub-microsecond and needs to be **prompt**. Conflating them is what set the rate.
+
+### Measured, not guessed: `./gradlew pushCheck`
+
+A new headless harness, and it works for a reason worth writing down: RS's entire push path —
+`PatternProviderNetworkNode.setPattern`, the `ParentContainer.add` it calls, and the
+`PatternRepositoryImpl` behind that — lives in the **api** module and contains **no `net.minecraft`
+references at all**. `Pattern` is a record of a UUID and a layout and `ResourceKey` is an empty
+marker interface, so the real classes can be driven at full scale in a plain JVM.
+
+| patterns | total | per push |
+|---|---|---|
+| 1,000 | 0.14 ms | 0.139 µs |
+| 20,000 | 4.33 ms | 0.216 µs |
+| 100,000 | 43.37 ms | 0.434 µs |
+
+- **A push costs about 0.2µs.** Eight a second was slow by roughly four orders of magnitude.
+- **The repository is O(1) per pattern**, not O(patterns), and 100,000 patterns all sharing one
+  output cost 39ms against 43ms for all-distinct — so the per-output `PriorityQueue` is not a
+  problem either.
+- **The listeners are not where the money is.** Zero to *sixteen* listeners moves the cost from
+  0.217 to 0.261 µs/push: about three **nanoseconds** per notification. The old constant was chosen
+  to avoid a listener storm, and for the notification mechanism itself that storm is not there.
+
+The first run of this harness reported 14.6 µs/push falling to 0.75, and "more listeners is faster".
+Both were JIT warmup. It now warms up first and reports the fastest of seven runs — the minimum
+rather than the mean, because every source of noise here makes a run slower and none makes it faster.
+
+### And one design the measurement killed
+
+`setPattern` notifies `parents` twice and does nothing else, so before the node joins a network it is
+a bare array store; `onAddedIntoContainer` then walks the array itself. Filling first and joining
+once therefore looked strictly better, and I was going to build it.
+
+Measured, it is a wash at LavaSurf's size (0.40ms either way) and **worse at maximum** — 4.38ms
+join-then-fill against 6.14ms fill-then-join — because joining makes RS walk all 148,176 array slots
+to find 20,000 patterns. Not built.
+
+### A time budget rather than a count
+
+The bound stays, because landing an unbounded backlog in one tick is still the thing being
+prevented. But it is now measured in time, for a concrete reason: **the cost of a push is not
+constant.** It grows mildly with how many patterns are already registered (0.14µs at 1,000, 0.43µs at
+100,000) and with how many screens are watching. A count tuned for one of those is wrong for the
+other; a time budget is right for both without knowing either.
+
+It also absorbs the one thing the headless harness cannot price — what a *real* grid listener does
+inside `onAdded`, since those are Minecraft-side — by simply fitting fewer pushes into the same
+slice, rather than needing a new constant.
+
+`maxPatternPushMicrosPerTick`, default 2000 (2ms), which is about nine thousand pushes a tick. The
+unit is microseconds because the work is that small. The clock is read every 64 slots rather than
+every slot, because `nanoTime` costs about a tenth of the push it is measuring.
+
+The view the drain reads is cached from the last refresh, since building it means a shape find. Its
+staleness is therefore exactly the refresh's staleness — a window the mod already accepts for every
+other question it asks about the shape — and it is dropped the moment the structure stops being
+formed, which is what stops the drain reading block entities that have left.
+
+### Verified by breaking it
+
+With the old eight-per-refresh bound restored, the new gametest reports `patterns are still waiting
+to reach the network after 50 ticks`. 100 patterns is deliberately more than twelve times the old
+budget, so it could not pass under the old code however long it waited.
+
+36 shape cases, 25 refresh scenarios, 79 asset checks, 56 recipe scenarios, 14 budget checks,
+20 gametests.
+
 ## 0.6.0
 
 **Patterns took about seven hours to become craftable, and the pattern screen ran at four FPS.**

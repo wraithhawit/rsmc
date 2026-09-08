@@ -621,6 +621,57 @@ public final class StructureGameTests {
     }
 
     /**
+     * A backlog far larger than the old budget drains in a single refresh, not over minutes.
+     *
+     * <p>The companion to {@code aRepushCostsOnePushPerPatternNotPerSlot}: that one proves empty
+     * slots no longer cost anything, this one proves the <em>rate</em> is no longer eight a second.
+     * 100 patterns is deliberately more than twelve times the old {@code PATTERN_PUSHES_PER_REFRESH}
+     * of 8, so under the old code this could not pass however long it waited -- one refresh moved
+     * eight, and the next refresh was a second away.
+     *
+     * <p>What is asserted is that nothing is left dirty. A dirty slot is one the network has not
+     * been told about, so "no dirty slots" is exactly "every pattern is craftable".
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200)
+    public static void awholeBacklogDrainsInOneRefresh(final GameTestHelper helper) {
+        buildShellSized(helper, 2, 2, 5);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+
+        final BlockPos controller = controllerPos(helper);
+        if (controller == null) {
+            helper.fail("the test shell did not place a Controller");
+            return;
+        }
+        final BlockPos cable = controller.relative(Direction.WEST);
+        helper.setBlock(cable, rsBlock("cable"));
+        helper.setBlock(cable.relative(Direction.WEST), rsBlock("creative_controller"));
+
+        final StructurePatterns view =
+            StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));
+        final ItemStack pattern = new ItemStack(rsItem("pattern"));
+        final int count = 100;
+        for (int i = 0; i < count; i++) {
+            view.setItem(i, pattern.copy());
+        }
+
+        // Long enough for the structure to form, join and settle. Under the old rate 100 patterns
+        // needed about thirteen seconds of refreshes; this deadline is under three.
+        helper.runAfterDelay(50L, () -> {
+            final StructurePatterns after =
+                StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));
+            if (after.hasDirtySlots()) {
+                helper.fail("patterns are still waiting to reach the network after 50 ticks;"
+                    + " the drain is rate-limited again");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
      * A re-push costs one push per <em>pattern</em>, never one per slot.
      *
      * <p>This is the seven-hour bug. {@code markAllDirty} used to mark every slot whether or not it
