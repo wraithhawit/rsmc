@@ -6,6 +6,32 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.8.2
+
+** is no longer op-gated.**
+
+Reported as *"I can see /rsmbac info but no /rsmbac import"*.
+
+A single-player world with cheats off puts the player at permission level 0, and Brigadier **strips
+nodes you fail from the client command tree entirely** -- so the command was not refused, it was
+*invisible*, sitting next to  which has no requirement and worked fine. There is no way to tell
+that apart from a command that was never registered.
+
+The world in question was a copy of someone else's survival save, which is precisely the situation
+this command exists for.
+
+### Removed rather than lowered
+
+The gate protected nothing. Right-clicking the multiblock opens its pattern screen and lets **any**
+player take every pattern out by hand -- no permission check, and there never was one -- and an
+autocrafter empties the same way through RS's own Autocrafter Manager.
+
+So the command grants no access that was not already there. It only does the same thing in one step,
+safely, and says what it did. Gating it made the reversible, reporting path harder than the tedious
+error-prone one, which is backwards.
+
+22 gametests.
+
 ## 0.8.1
 
 **The import leaves processing patterns where they are.**

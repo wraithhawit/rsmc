@@ -67,10 +67,21 @@ public final class StructureInfoCommand {
             // It is not reversible by any command here -- undoing it means moving thousands of
             // patterns back by hand -- so seeing the numbers first is worth one extra word.
             .then(Commands.literal("import")
-                // Op-gated, unlike info. This empties every autocrafter on a network into one
-                // structure; on a shared server that is not a thing any player should be able to
-                // do to someone else's base by looking at it.
-                .requires(source -> source.hasPermission(2))
+                // NOT op-gated, and that was a mistake worth undoing.
+                //
+                // It was gated on the reasoning that emptying every autocrafter on a network is not
+                // something one player should do to another's base. True, but the gate protected
+                // nothing: right-clicking the multiblock opens its pattern screen and lets ANY
+                // player take every pattern out by hand, with no permission check and never one,
+                // and an autocrafter can be emptied the same way through RS's Autocrafter Manager.
+                // So this offers no access that is not already there -- it only does it in one step
+                // and says what it did.
+                //
+                // What it did break is the case it exists for. A single-player world with cheats
+                // off puts the player at permission level 0, and Brigadier strips failed nodes from
+                // the client command tree entirely -- so the command was not refused, it was
+                // INVISIBLE, while /rsmbac info sat next to it working fine. Reported as "I can see
+                // /rsmbac info but no /rsmbac import".
                 .executes(context -> {
                     importPatterns(context.getSource(), true);
                     return 1;
