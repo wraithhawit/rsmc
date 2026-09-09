@@ -18,6 +18,7 @@ import com.refinedmods.refinedstorage.common.content.DataComponents;
 import com.refinedmods.refinedstorage.common.support.resource.ItemResource;
 import com.wraithhawit.rsmbac.block.ControllerBlockEntity;
 import com.wraithhawit.rsmbac.structure.StructureStepBehavior;
+import com.wraithhawit.rsmbac.PatternImport;
 import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.block.ControllerBlock;
 import com.wraithhawit.rsmbac.block.ControllerState;
@@ -42,6 +43,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
@@ -752,6 +754,117 @@ public final class StructureGameTests {
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * The import reaches into a real Refined Storage Autocrafter and takes its patterns.
+     *
+     * <p><b>The thing actually under test is the reflection.</b> Neither RS's
+     * {@code AutocrafterBlockEntity} nor Cable Tiers' tiered one exposes its {@code PatternInventory},
+     * so the import finds the field by type -- and under NeoForge every mod is a named <em>module</em>,
+     * where {@code setAccessible} on another module's private field is exactly the kind of thing that
+     * throws at runtime while compiling perfectly. That cannot be reasoned about from the source; it
+     * has to be executed against a real foreign block entity, which is what this does.
+     *
+     * <p>RS's own Autocrafter stands in for Cable Tiers' here, because both hold the same private
+     * {@code PatternInventory} field -- Cable Tiers copied the class -- and only one of them is
+     * present in a dev run. If reflection reaches RS's, it reaches theirs.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200)
+    public static void theImportTakesPatternsOutOfARefinedStorageAutocrafter(
+            final GameTestHelper helper) {
+        buildShellSized(helper, 2, 2, 5);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 4), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+
+        final BlockPos controller = controllerPos(helper);
+        if (controller == null) {
+            helper.fail("the test shell did not place a Controller");
+            return;
+        }
+        // Cable from the crafter to a creative controller, with an RS Autocrafter also on it.
+        final BlockPos cable = controller.relative(Direction.WEST);
+        helper.setBlock(cable, rsBlock("cable"));
+        helper.setBlock(cable.relative(Direction.WEST), rsBlock("creative_controller"));
+        final BlockPos autocrafter = cable.above();
+        helper.setBlock(autocrafter, rsBlock("autocrafter"));
+
+        helper.runAfterDelay(40L, () -> {
+            final BlockEntity source =
+                helper.getLevel().getBlockEntity(helper.absolutePos(autocrafter));
+            if (source == null) {
+                helper.fail("no Autocrafter block entity");
+                return;
+            }
+            // Put patterns in through the same reflection the import uses, so a failure to reach the
+            // field fails HERE, unambiguously, rather than looking like "the import moved nothing".
+            final int seeded = seedAutocrafter(source, 3);
+            if (seeded < 0) {
+                helper.fail("could not reach the Autocrafter's PatternInventory by reflection --"
+                    + " NeoForge's module system is blocking it, and the import cannot work");
+                return;
+            }
+
+            final Result shape = find(helper);
+            final PatternImport.Report report = PatternImport.run(
+                helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)), shape, false);
+            if (report.failed()) {
+                helper.fail("import failed: " + report.failure());
+                return;
+            }
+            if (report.moved() != seeded) {
+                helper.fail("seeded " + seeded + " patterns into the Autocrafter and the import"
+                    + " moved " + report.moved());
+                return;
+            }
+            // And they are really in the structure, not merely counted.
+            final StructurePatterns view =
+                StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));
+            int found = 0;
+            for (int i = 0; i < view.getContainerSize(); i++) {
+                if (!view.getItem(i).isEmpty()) {
+                    found++;
+                }
+            }
+            if (found != seeded) {
+                helper.fail("moved " + seeded + " but the structure holds " + found);
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Puts {@code count} encoded patterns into a foreign autocrafter, by the same reflection the
+     * import uses.
+     *
+     * @return how many were placed, or -1 if the field could not be reached at all
+     */
+    private static int seedAutocrafter(final BlockEntity blockEntity, final int count) {
+        for (Class<?> current = blockEntity.getClass(); current != null;
+             current = current.getSuperclass()) {
+            for (final java.lang.reflect.Field field : current.getDeclaredFields()) {
+                if (!com.refinedmods.refinedstorage.common.autocrafting.PatternInventory.class
+                    .isAssignableFrom(field.getType())) {
+                    continue;
+                }
+                try {
+                    field.setAccessible(true);
+                    final net.minecraft.world.Container inventory =
+                        (net.minecraft.world.Container) field.get(blockEntity);
+                    final int placed = Math.min(count, inventory.getContainerSize());
+                    for (int i = 0; i < placed; i++) {
+                        inventory.setItem(i, encodedPattern());
+                    }
+                    return placed;
+                } catch (final ReflectiveOperationException | RuntimeException e) {
+                    return -1;
+                }
+            }
+        }
+        return -1;
     }
 
     // ---- helpers ----

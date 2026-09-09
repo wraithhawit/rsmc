@@ -6,6 +6,62 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.8.0
+
+**`/rsmbac import` — moving patterns out of autocrafters, which nothing else can do.**
+
+From the migration attempt: *"SFM can't pull from mega autocrafters, and if SFM can't I don't think
+any mod can."* That is correct, and I checked both jars rather than taking it on faith.
+
+Refined Storage registers `Capabilities.ItemHandler.BLOCK` for its **Disk Drive and Interface only**
+— not the Autocrafter. Cable Tiers registers one for its Disk Interfaces and Interfaces, and gives
+its tiered autocrafters only the network-node capability. So there is genuinely nothing for a hopper,
+a pipe or SFM to pull from. It is not a Cable Tiers omission either: patterns in RS were always meant
+to move through the Autocrafter Manager screen by hand.
+
+Since nothing outside can reach in, the move is made from inside — and that turns out to be the
+better tool regardless. No transport mod sits in the middle to void a stack, nothing becomes an item
+entity, and the operation can say what it did.
+
+### Duplication is the safe failure, deletion is not
+
+Each pattern is written to the destination and **read back** before it is removed from the source. A
+failure between those two steps leaves it in two places, which a player can see and fix; the other
+order loses it silently. This points at someone's entire base, so the ordering is chosen for what
+happens when it fails.
+
+### Dry run by default
+
+`/rsmbac import` reports what would move and changes nothing. `/rsmbac import confirm` does it.
+Nothing here can undo it — that would mean moving thousands of patterns back by hand — so the numbers
+come first, including a warning when the structure does not have room for everything. Op-gated,
+unlike `info`: on a shared server this should not be something one player can do to another's base by
+looking at it.
+
+### Reaching a foreign mod's container
+
+Both `AutocrafterBlockEntity` and Cable Tiers' `TieredAutocrafterBlockEntity` hold a **private**
+`PatternInventory` called `patternContainer` — the latter having copied the former — and neither
+exposes it. There is no interface to ask, so the field is found **by type rather than by name**. That
+works for Refined Storage, for Cable Tiers, and for any addon built on the same class, with no
+compile-time dependency on any of them — which matters, since Cable Tiers is a mod this one already
+has to work around elsewhere. Our own Pattern Storage is skipped by type, since it holds one too.
+
+### And the part that could not be reasoned about
+
+Under NeoForge every mod is a named **module**, and `setAccessible` on another module's private field
+is exactly the kind of thing that compiles cleanly and then throws at runtime. No amount of reading
+the source settles it.
+
+So a gametest seeds a real Refined Storage Autocrafter through the same reflection and imports from
+it, failing with *"NeoForge's module system is blocking it, and the import cannot work"* if the field
+cannot be reached. It passes — the module system does not block it. RS's Autocrafter stands in for
+Cable Tiers' because both hold the same class and only one is present in a dev run; if reflection
+reaches one it reaches the other.
+
+22 gametests, 36 shape cases, 25 refresh scenarios, 79 asset checks, 56 recipe scenarios, 14 budget
+checks.
+
 ## 0.7.1
 
 **The Pattern Port verifies its write instead of assuming it.**

@@ -8,6 +8,35 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.8.0
+-----
+  /rsmbac import -- MOVING PATTERNS OUT OF AUTOCRAFTERS, WHICH NOTHING ELSE CAN DO.
+  Reported from the migration attempt: "SFM can't pull from mega autocrafters, and if SFM can't I
+  don't think any mod can." Correct, and verified in both jars. Refined Storage registers
+  Capabilities.ItemHandler.BLOCK for its Disk Drive and Interface ONLY -- not the Autocrafter.
+  Cable Tiers registers one for its Disk Interfaces and Interfaces, and gives its tiered
+  autocrafters only the network-node capability. There is nothing for any hopper, pipe or SFM to
+  pull from; patterns were always meant to move through the Autocrafter Manager screen by hand.
+  So the move is made from inside. It is also the better tool: no transport mod in the middle to
+  void a stack, no item entities, and it reports what it did.
+  DUPLICATION IS THE SAFE FAILURE, DELETION IS NOT. Each pattern is written to the destination and
+  READ BACK before it is removed from the source, so a failure between the two leaves it in two
+  places rather than none. Same discipline as 0.7.1's Port.
+  DRY RUN BY DEFAULT. /rsmbac import reports what would move and changes nothing; /rsmbac import
+  confirm does it. It is not reversible by any command here, and it warns before starting when the
+  structure does not have room. Op-gated, unlike info.
+  REACHING A FOREIGN MOD'S CONTAINER. Both AutocrafterBlockEntity and Cable Tiers'
+  TieredAutocrafterBlockEntity hold a PRIVATE PatternInventory named patternContainer -- the latter
+  copied the former -- and neither exposes it. The field is found BY TYPE, not by name, so it works
+  for RS, Cable Tiers and any addon built on the same class with no compile-time dependency on any
+  of them. Our own Pattern Storage is skipped by type; it holds one too.
+  AND THE PART THAT COULD NOT BE REASONED ABOUT. Under NeoForge every mod is a named MODULE, where
+  setAccessible on another module's private field is exactly the sort of thing that compiles and
+  then throws. A gametest seeds a real RS Autocrafter and imports from it, so the module question is
+  answered by executing it. RS's Autocrafter stands in for Cable Tiers': same class, and only one is
+  present in a dev run. 22 gametests.
+
+
 0.7.1
 -----
   THE PORT VERIFIES ITS WRITE. Asked directly before trusting a Port with a base's worth of

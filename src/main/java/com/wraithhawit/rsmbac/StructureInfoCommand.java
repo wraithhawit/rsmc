@@ -60,7 +60,25 @@ public final class StructureInfoCommand {
             .then(Commands.literal("info").executes(context -> {
                 info(context.getSource());
                 return 1;
-            }));
+            }))
+            // Dry run by default, and the confirm word is required to move anything.
+            //
+            // This points at every autocrafter on a network and empties them into one structure.
+            // It is not reversible by any command here -- undoing it means moving thousands of
+            // patterns back by hand -- so seeing the numbers first is worth one extra word.
+            .then(Commands.literal("import")
+                // Op-gated, unlike info. This empties every autocrafter on a network into one
+                // structure; on a shared server that is not a thing any player should be able to
+                // do to someone else's base by looking at it.
+                .requires(source -> source.hasPermission(2))
+                .executes(context -> {
+                    importPatterns(context.getSource(), true);
+                    return 1;
+                })
+                .then(Commands.literal("confirm").executes(context -> {
+                    importPatterns(context.getSource(), false);
+                    return 1;
+                })));
         event.getDispatcher().register(root);
     }
 
@@ -94,6 +112,70 @@ public final class StructureInfoCommand {
             reportFormed(source, player, result);
         } else {
             reportFailure(source, result);
+        }
+    }
+
+
+    /**
+     * Empties the network's autocrafters into the structure the player is looking at.
+     *
+     * <p>See {@link PatternImport} for why this cannot be a pipe and why it writes before it
+     * removes. This half is only the conversation: resolve what is being looked at, run it, and
+     * say plainly what happened.
+     */
+    private static void importPatterns(final CommandSourceStack source, final boolean dryRun) {
+        line(source, ChatFormatting.DARK_AQUA, "rsmbac v" + RSMBAC.version);
+        final ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("Run this as a player -- it reads what you look at."));
+            return;
+        }
+        final HitResult hit = player.pick(REACH, 0.0F, false);
+        if (!(hit instanceof BlockHitResult blockHit) || hit.getType() != HitResult.Type.BLOCK) {
+            source.sendFailure(Component.literal("Look at the crafter you want to import INTO."));
+            return;
+        }
+        final BlockPos pos = blockHit.getBlockPos();
+        if (!(player.level().getBlockState(pos).getBlock() instanceof StructureBlock)) {
+            source.sendFailure(Component.literal(
+                "That is not an rsmbac block. Look at the crafter you want to import INTO."));
+            return;
+        }
+        final Result result = MultiblockShape.find(
+            new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ());
+        final PatternImport.Report report =
+            PatternImport.run(player.level(), pos, result, dryRun);
+        if (report.failed()) {
+            source.sendFailure(Component.literal(report.failure()));
+            return;
+        }
+        if (report.sources() == 0) {
+            line(source, ChatFormatting.YELLOW,
+                "No autocrafters with patterns found on this network.");
+            return;
+        }
+        if (dryRun) {
+            line(source, ChatFormatting.WHITE, "Would move " + report.moved() + " pattern"
+                + (report.moved() == 1 ? "" : "s") + " from " + report.sources()
+                + " autocrafter" + (report.sources() == 1 ? "" : "s") + ".");
+            line(source, ChatFormatting.GRAY,
+                "  The crafter has " + report.freeSlotsLeft() + " free slots.");
+            if (report.destinationFull()) {
+                line(source, ChatFormatting.RED, "  NOT ENOUGH ROOM: " + report.leftBehind()
+                    + " would be left where they are. Add Pattern Storage first.");
+            }
+            line(source, ChatFormatting.AQUA, "  Run /rsmbac import confirm to move them.");
+            return;
+        }
+        line(source, ChatFormatting.GREEN, "Moved " + report.moved() + " pattern"
+            + (report.moved() == 1 ? "" : "s") + " from " + report.sources()
+            + " autocrafter" + (report.sources() == 1 ? "" : "s") + ".");
+        line(source, ChatFormatting.GRAY,
+            "  " + report.freeSlotsLeft() + " free slots left.");
+        if (report.destinationFull()) {
+            line(source, ChatFormatting.YELLOW, "  " + report.leftBehind()
+                + " left where they were -- the crafter filled up. Add Pattern Storage and run it"
+                + " again.");
         }
     }
 
