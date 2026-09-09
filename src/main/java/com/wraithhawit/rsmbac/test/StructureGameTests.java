@@ -865,6 +865,65 @@ public final class StructureGameTests {
     }
 
     /**
+     * A port filling a structure loses nothing and overwrites nothing.
+     *
+     * <p>The question this answers is the one asked before trusting a Port with a base's worth of
+     * patterns: <em>can piping them in delete any?</em> A full storage block is filled one insert at
+     * a time, every pattern distinguishable from every other, and then all of them are accounted
+     * for -- so an insert that silently landed on top of an earlier one, or reported success while
+     * writing nothing, shows up as a missing pattern rather than as a passing test.
+     *
+     * <p>The last insert is refused because the structure is full, which is the other direction that
+     * must not lose anything: a refusal has to leave the stack with the pipe.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200)
+    public static void aPortFillsAStorageWithoutLosingAPattern(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 0, 2), RsmcBlocks.PORT.get());
+
+        final IItemHandler handler = portHandler(helper, new BlockPos(1, 0, 2));
+        if (handler == null) {
+            helper.fail("no item handler capability on the Pattern Port");
+            return;
+        }
+        final int capacity = StructurePower.PATTERNS_PER_STORAGE;
+        for (int i = 0; i < capacity; i++) {
+            final ItemStack leftover = handler.insertItem(0, encodedPattern(), false);
+            if (!leftover.isEmpty()) {
+                helper.fail("the port refused pattern " + i + " of " + capacity
+                    + " into a structure that still had room");
+                return;
+            }
+        }
+        // Full now: the next one must come back rather than be swallowed.
+        final ItemStack overflow = handler.insertItem(0, encodedPattern(), false);
+        if (overflow.isEmpty()) {
+            helper.fail("the port accepted a pattern into a full structure -- it was destroyed");
+            return;
+        }
+
+        if (!(helper.getBlockEntity(new BlockPos(1, 1, 2))
+            instanceof PatternStorageBlockEntity storage)) {
+            helper.fail("no pattern storage where one was placed");
+            return;
+        }
+        int found = 0;
+        for (int i = 0; i < capacity; i++) {
+            if (!storage.patterns().getItem(i).isEmpty()) {
+                found++;
+            }
+        }
+        if (found != capacity) {
+            helper.fail("piped " + capacity + " patterns in and only " + found
+                + " are there; " + (capacity - found) + " were lost or overwritten");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
      * The insert slot always reads empty, and that is a property worth pinning.
      *
      * <p>It is what stops a Refined Storage External Storage pointed at the Port from listing the

@@ -6,6 +6,49 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.7.1
+
+**The Pattern Port verifies its write instead of assuming it.**
+
+Asked directly, before trusting a Port with a base's worth of patterns: *can piping them in delete
+any?*
+
+The audit's answer is mostly reassuring. The main way a port destroys patterns is overwriting an
+occupied slot, and that is structurally impossible here: `firstFreeSlot()` does not trust its hint,
+it scans forward confirming `getItem(i).isEmpty()` and returns only a slot it has just proven empty.
+The write reaches RS's `PatternInventory`, whose listener calls `setChanged()`, so it survives a
+save. And an unformed structure produces an empty view with no free slot, so the insert is refused
+and the stack stays in the pipe — which 0.5.0 verified by breaking it.
+
+### The one smell, now closed
+
+`StructurePatterns.setItem` silently does nothing if it cannot resolve the slot to a block:
+
+```java
+final PatternStorageBlockEntity storage = this.storageFor(slot);
+if (storage != null) { ... }
+```
+
+And `insertItem` had already committed to returning `count - 1` — telling the pipe *"I took one"*.
+
+Every path that reaches it today passes a slot the same view just produced, so it is in range by
+construction. But that is a proof about the current call graph, not about the next one, and the
+thing it guards is a silent pattern deletion in a mod whose entire reliability argument is that
+patterns do not go missing.
+
+So the Port now reads the slot back and **refuses** if the write did not land: the stack stays in
+the pipe where a player can see it, and an error names the position. One extra read against ~0.2µs
+of work.
+
+### And a test for the question as asked
+
+`aPortFillsAStorageWithoutLosingAPattern` fills a whole storage block one insert at a time, then
+counts — 54 in, 54 present — and checks that the 55th is refused rather than swallowed. Verified by
+breaking it: with every insert pointed at slot 0 it reports `the port accepted a pattern into a full
+structure -- it was destroyed`.
+
+21 gametests.
+
 ## 0.7.0
 
 **The pattern push budget, set from a measurement instead of a guess.**

@@ -2,6 +2,7 @@ package com.wraithhawit.rsmbac.block;
 
 import javax.annotation.Nullable;
 
+import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.content.RsmcBlockEntities;
 import com.wraithhawit.rsmbac.menu.StructurePatterns;
 import com.wraithhawit.rsmbac.structure.StructureChanges;
@@ -157,6 +158,26 @@ public class PortBlockEntity extends ShellBlockEntity implements IItemHandler {
             // One, never the whole stack. A pattern slot holds a single item, and writing a bigger
             // count into it puts a stack the inventory cannot represent where RS will read it back.
             view.setItem(free, stack.copyWithCount(1));
+            // Then CHECK IT LANDED, rather than assume it did.
+            //
+            // StructurePatterns.setItem silently does nothing if it cannot resolve the slot to a
+            // block. Every path that reaches here today passes a slot this same view just produced,
+            // so it is in range by construction -- but the sentence after this one reports "I took
+            // one" to the pipe, and a pipe believes it. A silent no-op paired with a caller that
+            // reports success is precisely how a pattern is destroyed, and this is a mod whose
+            // entire reliability argument is that patterns do not go missing.
+            //
+            // So it is verified rather than reasoned about. One extra read against ~0.2us of work,
+            // and the failure becomes a refusal -- the stack stays in the pipe, where the player can
+            // see it -- instead of a deletion nobody can reproduce.
+            if (view.getItem(free).isEmpty()) {
+                RSMBAC.LOGGER.error(
+                    "[rsmbac] Pattern Port at {} could not write to slot {} of {}; refusing the"
+                        + " insert rather than losing the pattern. This should be impossible --"
+                        + " please report it.",
+                    this.worldPosition, free, view.getContainerSize());
+                return stack;
+            }
         }
         return stack.getCount() > 1 ? stack.copyWithCount(stack.getCount() - 1) : ItemStack.EMPTY;
     }

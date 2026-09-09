@@ -8,6 +8,24 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.7.1
+-----
+  THE PORT VERIFIES ITS WRITE. Asked directly before trusting a Port with a base's worth of
+  patterns: can piping them in delete any? The audit says the main deletion mode is already
+  impossible -- firstFreeSlot does not trust its hint, it scans forward confirming getItem().isEmpty()
+  and returns only a slot it has just proven empty, so the Port cannot overwrite a pattern.
+  ONE SMELL FOUND AND CLOSED. StructurePatterns.setItem silently does nothing if it cannot resolve
+  the slot to a block, and insertItem had already committed to returning count-1 -- telling the pipe
+  "I took one". Every path reaching it today passes a slot the same view just produced, so it is in
+  range by construction, but that is a proof about the current call graph and the failure it guards
+  is a silent deletion. The Port now reads the slot back and REFUSES if the write did not land, so
+  the stack stays in the pipe where it can be seen, with an error naming the position.
+  A new gametest fills a whole storage block one insert at a time, then counts: 54 in, 54 present,
+  and the 55th refused rather than swallowed. Verified by breaking it -- with every insert pointed
+  at slot 0 it reports "the port accepted a pattern into a full structure -- it was destroyed".
+  21 gametests.
+
+
 0.7.0
 -----
   THE PATTERN PUSH BUDGET, SET FROM A MEASUREMENT. 0.6.0 took LavaSurf's seven-hour load to about
