@@ -8,13 +8,13 @@ this one carries the reasoning, that one is the index.
 
 ## 0.8.2
 
-** is no longer op-gated.**
+**`/rsmbac import` is no longer op-gated.**
 
 Reported as *"I can see /rsmbac info but no /rsmbac import"*.
 
 A single-player world with cheats off puts the player at permission level 0, and Brigadier **strips
 nodes you fail from the client command tree entirely** -- so the command was not refused, it was
-*invisible*, sitting next to  which has no requirement and worked fine. There is no way to tell
+*invisible*, sitting next to `info`, which has no requirement and worked fine. There is no way to tell
 that apart from a command that was never registered.
 
 The world in question was a copy of someone else's survival save, which is precisely the situation
