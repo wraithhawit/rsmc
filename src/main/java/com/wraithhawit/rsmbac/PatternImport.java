@@ -11,10 +11,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nullable;
 
+import com.refinedmods.refinedstorage.api.autocrafting.Pattern;
+import com.refinedmods.refinedstorage.api.autocrafting.PatternType;
 import com.refinedmods.refinedstorage.api.network.Network;
 import com.refinedmods.refinedstorage.api.network.node.GraphNetworkComponent;
 import com.refinedmods.refinedstorage.api.network.node.container.NetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
+import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.autocrafting.PatternInventory;
 
 import com.wraithhawit.rsmbac.block.ControllerBlockEntity;
@@ -71,7 +74,7 @@ public final class PatternImport {
 
     /** What an import did, or would do. */
     public record Report(int moved, int sources, int freeSlotsLeft, int leftBehind,
-                         boolean destinationFull, @Nullable String failure) {
+                         int skippedExternal, boolean destinationFull, @Nullable String failure) {
         public boolean failed() {
             return this.failure != null;
         }
@@ -108,10 +111,16 @@ public final class PatternImport {
         int moved = 0;
         boolean full = false;
         int leftBehind = 0;
+        int skippedExternal = 0;
         for (final PatternInventory source : sources) {
             for (int slot = 0; slot < source.getContainerSize(); slot++) {
                 final ItemStack pattern = source.getItem(slot);
                 if (pattern.isEmpty()) {
+                    continue;
+                }
+                if (!canRunHere(level, pattern)) {
+                    // Left exactly where it is, still working. See canRunHere.
+                    skippedExternal++;
                     continue;
                 }
                 if (full) {
@@ -135,7 +144,7 @@ public final class PatternImport {
                     RSMBAC.LOGGER.error("[rsmbac] import could not write into slot {}; stopping with"
                         + " {} moved so far, nothing lost", free, moved);
                     return new Report(moved, sources.size(), countFree(destination),
-                        leftBehind, false,
+                        leftBehind, skippedExternal, false,
                         "The structure refused a pattern. Stopped after " + moved
                             + "; nothing was lost.");
                 }
@@ -146,7 +155,8 @@ public final class PatternImport {
                 moved++;
             }
         }
-        return new Report(moved, sources.size(), countFree(destination), leftBehind, full, null);
+        return new Report(moved, sources.size(), countFree(destination), leftBehind,
+            skippedExternal, full, null);
     }
 
     /** How much room the structure has left, for the report. */
@@ -238,6 +248,33 @@ public final class PatternImport {
     }
 
     private static Report failure(final String message) {
-        return new Report(0, 0, 0, 0, false, message);
+        return new Report(0, 0, 0, 0, 0, false, message);
+    }
+
+    /**
+     * Whether this structure can actually run the pattern, which decides whether to take it.
+     *
+     * <p><b>Processing patterns are left where they are, and that is not a limitation being worked
+     * around -- it is the difference between moving a recipe and breaking it.</b> A processing
+     * pattern pushes its ingredients into a machine and waits, so it needs a
+     * {@code PatternProviderExternalPatternSink}. An autocrafter is one; the multiblock is not, and
+     * never calls {@code setPattern}'s companion {@code setSink}. Refined Storage's
+     * {@code PatternProviderNetworkNode.accept} opens with {@code if (sink == null) return SKIPPED},
+     * so a processing pattern moved in here would still be advertised as craftable, still get a task
+     * planned and dispatched, and then stall forever.
+     *
+     * <p>Which is worse than not moving it: the recipe worked before the import and silently does
+     * not after, and it looks like the multiblock being broken rather than the migration being
+     * wrong. The mod's scope note says the same thing from the other end -- you cannot parallelise a
+     * furnace by building a bigger cube.
+     *
+     * <p>The test is the pattern's own layout type rather than the item's, because that is what RS
+     * itself dispatches on: {@code INTERNAL} is a recipe RS runs, {@code EXTERNAL} is one it hands
+     * to a sink. Anything that will not resolve is also left alone -- an unreadable pattern is not
+     * one to move somewhere it will be even less readable.
+     */
+    private static boolean canRunHere(final Level level, final ItemStack stack) {
+        final Optional<Pattern> pattern = RefinedStorageApi.INSTANCE.getPattern(stack, level);
+        return pattern.isPresent() && pattern.get().layout().type() == PatternType.INTERNAL;
     }
 }

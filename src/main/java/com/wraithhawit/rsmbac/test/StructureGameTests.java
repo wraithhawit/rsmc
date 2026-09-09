@@ -11,8 +11,10 @@ import javax.annotation.Nullable;
 
 import com.refinedmods.refinedstorage.api.resource.ResourceAmount;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
+import com.refinedmods.refinedstorage.common.autocrafting.CraftingPatternState;
 import com.refinedmods.refinedstorage.common.autocrafting.PatternState;
 import com.refinedmods.refinedstorage.common.autocrafting.ProcessingPatternState;
+import com.refinedmods.refinedstorage.common.autocrafting.StonecutterPatternState;
 import com.refinedmods.refinedstorage.common.autocrafting.patterngrid.PatternType;
 import com.refinedmods.refinedstorage.common.content.DataComponents;
 import com.refinedmods.refinedstorage.common.support.resource.ItemResource;
@@ -39,7 +41,9 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -757,21 +761,26 @@ public final class StructureGameTests {
     }
 
     /**
-     * The import reaches into a real Refined Storage Autocrafter and takes its patterns.
+     * The import takes crafting patterns and leaves processing patterns exactly where they are.
      *
-     * <p><b>The thing actually under test is the reflection.</b> Neither RS's
-     * {@code AutocrafterBlockEntity} nor Cable Tiers' tiered one exposes its {@code PatternInventory},
-     * so the import finds the field by type -- and under NeoForge every mod is a named <em>module</em>,
-     * where {@code setAccessible} on another module's private field is exactly the kind of thing that
-     * throws at runtime while compiling perfectly. That cannot be reasoned about from the source; it
-     * has to be executed against a real foreign block entity, which is what this does.
+     * <p>Two things are under test and both would fail silently.
      *
-     * <p>RS's own Autocrafter stands in for Cable Tiers' here, because both hold the same private
-     * {@code PatternInventory} field -- Cable Tiers copied the class -- and only one of them is
-     * present in a dev run. If reflection reaches RS's, it reaches theirs.
+     * <p><b>The reflection.</b> Neither RS's {@code AutocrafterBlockEntity} nor Cable Tiers' tiered
+     * one exposes its {@code PatternInventory}, so the import finds the field by type -- and under
+     * NeoForge every mod is a named <em>module</em>, where {@code setAccessible} on another module's
+     * private field is exactly the kind of thing that compiles and then throws. RS's Autocrafter
+     * stands in for Cable Tiers' here: both hold the same class, and only one is in a dev run.
+     *
+     * <p><b>The filter.</b> A processing pattern needs a sink to push its ingredients into. An
+     * autocrafter is one; the multiblock is not. Moving one here would leave it advertised as
+     * craftable and stalling forever -- so it stays put, still working, in the crafter it came from.
+     * Crafting, stonecutter and smithing patterns are all {@code PatternLayout.internal} and all
+     * move; only processing is {@code external}.
+     * Asked before running the command for real: "I do not wanna run the command and have to figure
+     * out where I stole all those processing patterns from."
      */
     @GameTest(template = "empty8", timeoutTicks = 200)
-    public static void theImportTakesPatternsOutOfARefinedStorageAutocrafter(
+    public static void theImportTakesCraftingPatternsAndLeavesProcessingOnes(
             final GameTestHelper helper) {
         buildShellSized(helper, 2, 2, 5);
         helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.PATTERN_STORAGE.get());
@@ -784,7 +793,6 @@ public final class StructureGameTests {
             helper.fail("the test shell did not place a Controller");
             return;
         }
-        // Cable from the crafter to a creative controller, with an RS Autocrafter also on it.
         final BlockPos cable = controller.relative(Direction.WEST);
         helper.setBlock(cable, rsBlock("cable"));
         helper.setBlock(cable.relative(Direction.WEST), rsBlock("creative_controller"));
@@ -798,14 +806,19 @@ public final class StructureGameTests {
                 helper.fail("no Autocrafter block entity");
                 return;
             }
-            // Put patterns in through the same reflection the import uses, so a failure to reach the
-            // field fails HERE, unambiguously, rather than looking like "the import moved nothing".
-            final int seeded = seedAutocrafter(source, 3);
-            if (seeded < 0) {
+            final Container inventory = reachPatterns(source);
+            if (inventory == null) {
                 helper.fail("could not reach the Autocrafter's PatternInventory by reflection --"
                     + " NeoForge's module system is blocking it, and the import cannot work");
                 return;
             }
+            // Interleaved, so the filter cannot pass by stopping at the first one it dislikes.
+            inventory.setItem(0, craftingPattern());
+            inventory.setItem(1, encodedPattern());
+            inventory.setItem(2, craftingPattern());
+            inventory.setItem(3, encodedPattern());
+            // Not a crafting pattern, and still ours to run -- see stonecutterPattern().
+            inventory.setItem(4, stonecutterPattern());
 
             final Result shape = find(helper);
             final PatternImport.Report report = PatternImport.run(
@@ -814,22 +827,33 @@ public final class StructureGameTests {
                 helper.fail("import failed: " + report.failure());
                 return;
             }
-            if (report.moved() != seeded) {
-                helper.fail("seeded " + seeded + " patterns into the Autocrafter and the import"
-                    + " moved " + report.moved());
+            if (report.sources() != 1) {
+                helper.fail("expected to find 1 autocrafter, found " + report.sources()
+                    + " -- the reflection is not reaching the pattern inventory");
                 return;
             }
-            // And they are really in the structure, not merely counted.
-            final StructurePatterns view =
-                StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 1)));
-            int found = 0;
-            for (int i = 0; i < view.getContainerSize(); i++) {
-                if (!view.getItem(i).isEmpty()) {
-                    found++;
-                }
+            if (report.moved() != 3) {
+                helper.fail("expected 3 patterns to move -- 2 crafting and 1 stonecutter -- got "
+                    + report.moved() + " (a pattern that will not resolve also reads as skipped)");
+                return;
             }
-            if (found != seeded) {
-                helper.fail("moved " + seeded + " but the structure holds " + found);
+            if (report.skippedExternal() != 2) {
+                helper.fail("expected 2 processing patterns to be skipped, got "
+                    + report.skippedExternal());
+                return;
+            }
+            // And they are still THERE, not merely uncounted.
+            if (inventory.getItem(1).isEmpty() || inventory.getItem(3).isEmpty()) {
+                helper.fail("a processing pattern was taken out of the autocrafter anyway");
+                return;
+            }
+            if (!inventory.getItem(0).isEmpty() || !inventory.getItem(2).isEmpty()) {
+                helper.fail("a crafting pattern was left behind in the autocrafter");
+                return;
+            }
+            if (!inventory.getItem(4).isEmpty()) {
+                helper.fail("the stonecutter pattern was left behind -- the multiblock runs those,"
+                    + " so the filter is matching on the wrong thing");
                 return;
             }
             helper.succeed();
@@ -837,12 +861,16 @@ public final class StructureGameTests {
     }
 
     /**
-     * Puts {@code count} encoded patterns into a foreign autocrafter, by the same reflection the
-     * import uses.
+     * The foreign autocrafter's pattern inventory, by the same reflection the import uses.
      *
-     * @return how many were placed, or -1 if the field could not be reached at all
+     * <p>Deliberately the same mechanism rather than a shortcut: if the module system ever blocks
+     * it, this fails first and says so, instead of the import silently finding nothing and the test
+     * reading as "moved 0".
+     *
+     * @return null if the field cannot be reached at all
      */
-    private static int seedAutocrafter(final BlockEntity blockEntity, final int count) {
+    @Nullable
+    private static Container reachPatterns(final BlockEntity blockEntity) {
         for (Class<?> current = blockEntity.getClass(); current != null;
              current = current.getSuperclass()) {
             for (final java.lang.reflect.Field field : current.getDeclaredFields()) {
@@ -852,19 +880,13 @@ public final class StructureGameTests {
                 }
                 try {
                     field.setAccessible(true);
-                    final net.minecraft.world.Container inventory =
-                        (net.minecraft.world.Container) field.get(blockEntity);
-                    final int placed = Math.min(count, inventory.getContainerSize());
-                    for (int i = 0; i < placed; i++) {
-                        inventory.setItem(i, encodedPattern());
-                    }
-                    return placed;
+                    return (Container) field.get(blockEntity);
                 } catch (final ReflectiveOperationException | RuntimeException e) {
-                    return -1;
+                    return null;
                 }
             }
         }
-        return -1;
+        return null;
     }
 
     // ---- helpers ----
@@ -1199,6 +1221,42 @@ public final class StructureGameTests {
             List.of(Optional.of(new ProcessingPatternState.ProcessingIngredient(
                 new ResourceAmount(new ItemResource(Items.COBBLESTONE), 1L), List.of()))),
             List.of(Optional.of(new ResourceAmount(new ItemResource(Items.STONE), 1L)))));
+        return stack;
+    }
+
+    /**
+     * A CRAFTING pattern, which the multiblock can actually run.
+     *
+     * <p>{@link #encodedPattern()} is deliberately a processing pattern, so that it resolves without
+     * any recipe existing. This one has to be the other kind, because the point of the test using it
+     * is the difference between the two -- and that means depending on a recipe. One oak log to four
+     * oak planks is vanilla, shapeless, and present in every pack that has not deleted it.
+     */
+    private static ItemStack craftingPattern() {
+        final ItemStack stack = new ItemStack(rsItem("pattern"));
+        stack.set(DataComponents.INSTANCE.getPatternState(),
+            new PatternState(UUID.randomUUID(), PatternType.CRAFTING));
+        stack.set(DataComponents.INSTANCE.getCraftingPatternState(), new CraftingPatternState(
+            false,
+            CraftingInput.ofPositioned(1, 1, List.of(new ItemStack(Items.OAK_LOG)))));
+        return stack;
+    }
+
+    /**
+     * A STONECUTTER pattern, which the multiblock also runs.
+     *
+     * <p>Here because "processing patterns stay behind" is easy to over-apply into "only crafting
+     * patterns move". Refined Storage builds crafting, stonecutter and smithing layouts with
+     * {@code PatternLayout.internal} and only processing with {@code external}, so all three of the
+     * first kind are ours to run. Asserting one of the less obvious two keeps that true if the
+     * filter is ever rewritten.
+     */
+    private static ItemStack stonecutterPattern() {
+        final ItemStack stack = new ItemStack(rsItem("pattern"));
+        stack.set(DataComponents.INSTANCE.getPatternState(),
+            new PatternState(UUID.randomUUID(), PatternType.STONECUTTER));
+        stack.set(DataComponents.INSTANCE.getStonecutterPatternState(), new StonecutterPatternState(
+            new ItemResource(Items.STONE), new ItemResource(Items.STONE_BRICKS)));
         return stack;
     }
 

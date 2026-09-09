@@ -154,6 +154,16 @@ public final class StructureInfoCommand {
                 "No autocrafters with patterns found on this network.");
             return;
         }
+        if (report.moved() == 0 && report.skippedExternal() > 0) {
+            // The whole answer, when it is the whole answer. Otherwise this reads as the command
+            // silently doing nothing, which is exactly the confusion the skip exists to prevent.
+            line(source, ChatFormatting.YELLOW, "Nothing to move: all " + report.skippedExternal()
+                + " patterns found are processing patterns.");
+            line(source, ChatFormatting.GRAY, "  They stay in their autocrafters, where they work."
+                + " The multiblock runs crafting, stonecutter and smithing patterns, but a"
+                + " processing pattern needs a machine to push into.");
+            return;
+        }
         if (dryRun) {
             line(source, ChatFormatting.WHITE, "Would move " + report.moved() + " pattern"
                 + (report.moved() == 1 ? "" : "s") + " from " + report.sources()
@@ -164,6 +174,11 @@ public final class StructureInfoCommand {
                 line(source, ChatFormatting.RED, "  NOT ENOUGH ROOM: " + report.leftBehind()
                     + " would be left where they are. Add Pattern Storage first.");
             }
+            if (report.skippedExternal() > 0) {
+                line(source, ChatFormatting.GRAY, "  Leaving " + report.skippedExternal()
+                    + " processing pattern" + (report.skippedExternal() == 1 ? "" : "s")
+                    + " where they are -- the multiblock cannot run those.");
+            }
             line(source, ChatFormatting.AQUA, "  Run /rsmbac import confirm to move them.");
             return;
         }
@@ -172,6 +187,11 @@ public final class StructureInfoCommand {
             + " autocrafter" + (report.sources() == 1 ? "" : "s") + ".");
         line(source, ChatFormatting.GRAY,
             "  " + report.freeSlotsLeft() + " free slots left.");
+        if (report.skippedExternal() > 0) {
+            line(source, ChatFormatting.GRAY, "  Left " + report.skippedExternal()
+                + " processing pattern" + (report.skippedExternal() == 1 ? "" : "s")
+                + " in their autocrafters -- the multiblock cannot run those.");
+        }
         if (report.destinationFull()) {
             line(source, ChatFormatting.YELLOW, "  " + report.leftBehind()
                 + " left where they were -- the crafter filled up. Add Pattern Storage and run it"

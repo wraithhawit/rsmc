@@ -8,6 +8,33 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.8.1
+-----
+  THE IMPORT LEAVES PROCESSING PATTERNS ALONE. Caught before the command was ever run for real,
+  as a side thought: "this pulls everything except processing patterns right?" It did not -- it
+  pulled those too, and that would have been worse than useless.
+  A processing pattern pushes its ingredients into a machine, so it needs a
+  PatternProviderExternalPatternSink. An autocrafter IS one. The multiblock is NOT, and never calls
+  setSink -- RS's PatternProviderNetworkNode.accept opens with "if (sink == null) return SKIPPED".
+  So a processing pattern moved in here stays advertised as craftable, gets a task planned and
+  dispatched, and stalls forever. The recipe worked before the import and silently does not after,
+  and it reads as the multiblock being broken rather than the migration being wrong. It also
+  contradicted the mod's own stated scope, which has said since 0.0.1 that you cannot parallelise a
+  furnace by building a bigger cube.
+  THE TEST IS THE LAYOUT TYPE, NOT THE ITEM'S. RS builds crafting, stonecutter AND smithing layouts
+  with PatternLayout.internal and only processing with external -- verified in the bytecode of the
+  four PatternResolver.Resolved*Pattern classes. INTERNAL means "RS runs this itself", which is
+  exactly the set the multiblock accelerates, so all three of the first kind move and only
+  processing stays. Filtering on the item's pattern type instead would have been a naive
+  "crafting only" and silently stranded stonecutter and smithing recipes; that mistake now fails a
+  gametest.
+  Unresolvable patterns are left alone too -- one that cannot be read is not one to move somewhere
+  it will be even less readable.
+  The dry run reports the count before anything moves, so the number is visible either way.
+  Verified by breaking it twice: a crafting-only filter strands the stonecutter pattern, and the
+  test says so by name. 22 gametests.
+
+
 0.8.0
 -----
   /rsmbac import -- MOVING PATTERNS OUT OF AUTOCRAFTERS, WHICH NOTHING ELSE CAN DO.

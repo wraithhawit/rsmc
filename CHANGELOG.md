@@ -6,6 +6,65 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.8.1
+
+**The import leaves processing patterns where they are.**
+
+Caught as a side thought before the command was ever run for real: *"this pulls everything except
+processing patterns right?"* It did not. It pulled those too, and that would have been considerably
+worse than useless.
+
+### Why moving one breaks it
+
+A processing pattern pushes its ingredients into a machine and waits, so it needs a
+`PatternProviderExternalPatternSink`. An autocrafter **is** one. The multiblock is **not**, and never
+calls `setSink` — Refined Storage's `PatternProviderNetworkNode.accept` opens with:
+
+```java
+if (sink == null) return Result.SKIPPED;
+```
+
+So a processing pattern moved into the structure stays advertised as craftable, gets a task planned
+and dispatched, and then stalls forever. The recipe worked before the import and silently does not
+after — and it reads as the multiblock being broken rather than the migration being wrong. It also
+quietly contradicted the mod's own scope note, which has said since the first version that you
+cannot parallelise a furnace by building a bigger cube.
+
+### The filter is the layout type, not the item's
+
+This is the part worth keeping. Refined Storage builds **crafting, stonecutter and smithing** layouts
+with `PatternLayout.internal`, and only processing with `external` — confirmed in the bytecode of all
+four `PatternResolver.Resolved*Pattern` classes:
+
+| pattern | built as | import |
+|---|---|---|
+| Crafting | `internal` | moves |
+| Smithing Table | `internal` | moves |
+| Stonecutter | `internal` | moves |
+| Processing | `external` | stays |
+
+`INTERNAL` means "RS runs this itself", which is exactly the set the multiblock accelerates. Testing
+the item's pattern type instead would have produced a naive *crafting only* filter that silently
+stranded stonecutter and smithing recipes in the old autocrafters — a smaller version of the same
+bug, and one nobody would have noticed for a long time. Raised in review as "smithing and stonecutter
+recipes should move too because the mbac can do those too", and now pinned by a gametest that seeds
+one and fails if it is left behind.
+
+Patterns that will not resolve are left alone as well: one that cannot be read is not one to move
+somewhere it will be even less readable.
+
+### Verified by breaking it, twice
+
+Restoring the naive crafting-only filter fails the test by name — *"the stonecutter pattern was left
+behind, so the filter is matching on the wrong thing"*. The processing half is asserted the same way:
+the patterns must still be **in** the source autocrafter afterwards, not merely uncounted.
+
+The dry run reports how many will be skipped before anything moves, so the number is visible either
+way.
+
+22 gametests, 36 shape cases, 25 refresh scenarios, 79 asset checks, 56 recipe scenarios, 14 budget
+checks.
+
 ## 0.8.0
 
 **`/rsmbac import` — moving patterns out of autocrafters, which nothing else can do.**
