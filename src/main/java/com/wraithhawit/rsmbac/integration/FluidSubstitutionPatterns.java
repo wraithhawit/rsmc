@@ -7,6 +7,7 @@ import com.ultramega.refinedfluidsubstitution.common.fluidsubstitutionpattern.Fl
 import com.ultramega.refinedfluidsubstitution.common.fluidsubstitutionpattern.FluidSubstitutionPatternResolver;
 import com.ultramega.refinedfluidsubstitution.common.util.PatternProviderNetworkNodeExtension;
 
+import com.wraithhawit.rsmbac.PatternPolicy;
 import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.menu.StructurePatterns;
 
@@ -75,6 +76,13 @@ final class FluidSubstitutionPatterns {
             final int at = slot;
             final boolean[] resolved = {false};
             FluidSubstitutionPatternResolver.resolve(stack, level).ifPresent(pattern -> {
+                // This path writes to the node directly, so the filter in the Controller's push does
+                // not cover it. It should never fire -- a fluid substitution pattern is a crafting
+                // recipe with a fluid in it -- but a hole in a rule whose whole job is to stop tasks
+                // stalling is not worth leaving open on the strength of "should".
+                if (!PatternPolicy.runsHere(pattern.pattern())) {
+                    return;
+                }
                 node.setPattern(at, pattern.pattern());
                 pattern.helperPatterns().forEach(helper -> helpers.put(helper.id(), helper));
                 resolved[0] = true;

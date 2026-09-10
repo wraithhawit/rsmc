@@ -123,6 +123,12 @@ rsmbac accelerates **crafting patterns** — the ones RS runs internally.
 machine's, not the crafter's. Those still want an ordinary pattern provider next to the machine.
 You cannot parallelise a furnace by building a bigger cube.
 
+Since 0.9.0 the structure **refuses them** rather than accepting them and doing nothing. The pattern
+screen and the Pattern Port both say no, and one already sitting in a world is left in its slot but
+never handed to the network. That is the removal of a trap rather than a restriction: with no machine
+to push into, a task planned against a processing pattern here would hang forever. Stonecutter and
+smithing table patterns are internal recipes and work normally.
+
 ## What works today
 
 - [x] Structure detection and validation — flood fill, bounding box, per-position roles, size limits

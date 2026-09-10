@@ -6,6 +6,70 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.9.0
+
+**Processing patterns are refused at every door, not merely unsupported.**
+
+The scope note has always said this mod accelerates *crafting* patterns — the ones Refined Storage
+runs internally. Until now that was a sentence in a README rather than something the blocks
+enforced, and `/rsmbac import` was the only thing acting on it.
+
+### Why an unsupported pattern was worse than a refused one
+
+A processing pattern pushes its ingredients into a machine and waits, so it needs a
+`PatternProviderExternalPatternSink`. An autocrafter is one. The multiblock is not, and never calls
+`setPattern`'s companion `setSink`.
+
+Refined Storage does not treat that as an error. `PatternProviderNetworkNode.accept` opens with
+`if (sink == null) return SKIPPED`, so a processing pattern sitting in a structure was **still
+advertised as craftable, still planned into a task, and then stalled forever**. The recipe worked
+before it was moved and silently did not after, and it read as the multiblock being broken rather
+than the pattern being in the wrong machine.
+
+### The rule now lives in one place
+
+`PatternPolicy` holds it, and four callers ask it: the pattern screen, the Pattern Port, the push
+into the network node, and the import that already had its own copy.
+
+The test is the pattern's **layout type**, not the item's — `INTERNAL` is a recipe RS runs,
+`EXTERNAL` is one it hands to a sink. That is what RS itself dispatches on, and it deliberately is
+not "is this a crafting pattern": **stonecutter and smithing table patterns are internal, run here
+today, and still do.**
+
+### Existing worlds keep their patterns
+
+A pattern placed before this version is still in its slot on load, and the doors do nothing about
+it. So the Controller's push filters too, and that is the half that matters for a world that
+already has one:
+
+- The node is never told about it — not advertised, never planned, so it cannot be the task that
+  hangs.
+- **It is not deleted.** It stays where its owner left it, `/rsmbac info` goes on naming it, and it
+  is simply inert.
+
+Filtering there is free: `drainPatterns` resolves the `Pattern` on that line either way, so the
+added test is a field read.
+
+### The client predicts the refusal
+
+`ClientPatternContainer` exists because resolving a pattern per frame was once 82.7% of the render
+thread. It reads the stack's `PatternState` data component instead — a map lookup — so a player
+dragging a processing pattern sees it refused rather than watching it drop in and jump back out.
+
+### Tests
+
+Three new gametests, 25 total: the Port refuses one and hands the whole stack back, the screen
+refuses one while still taking a crafting pattern, and a processing pattern written directly into
+storage is never pushed to the node and is still in its slot afterwards.
+
+That last one was verified by **breaking the filter and watching it go red**, because a test that
+passes either way proves nothing.
+
+The shared helper `encodedPattern()` was itself a processing pattern — chosen because one resolves
+without depending on any recipe in the pack. It could not stay one: a helper named "a pattern a slot
+will take" that returns the single kind no slot takes is a suite that fails for the right reason and
+reads like a bug.
+
 ## 0.8.2
 
 **`/rsmbac import` is no longer op-gated.**

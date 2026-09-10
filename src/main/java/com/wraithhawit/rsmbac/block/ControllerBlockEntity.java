@@ -11,6 +11,7 @@ import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkN
 import com.refinedmods.refinedstorage.common.api.support.network.NetworkNodeContainerProvider;
 
 import com.wraithhawit.rsmbac.Config;
+import com.wraithhawit.rsmbac.PatternPolicy;
 import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.content.RsmcBlockEntities;
 import com.wraithhawit.rsmbac.integration.FluidSubstitution;
@@ -425,10 +426,19 @@ public class ControllerBlockEntity extends BlockEntity {
                 return;
             }
             final ItemStack stack = patterns.getItem(slot);
-            final Pattern pattern = stack.isEmpty()
+            final Pattern resolved = stack.isEmpty()
                 ? null
                 : RefinedStorageApi.INSTANCE.getPattern(stack, currentLevel).orElse(null);
-            this.node.setPattern(slot, pattern);
+            // A pattern the structure cannot run is pushed as null, so the network is never told
+            // about it: not advertised as craftable, never planned into a task, so it can never be
+            // the task that stalls. See PatternPolicy for why a processing pattern would.
+            //
+            // THIS IS THE BACKSTOP, NOT THE DOOR. The screen and the Port refuse these on the way
+            // in, but a world built before that existed can already have one sitting in a slot, and
+            // there is no version of this worth deleting a player's pattern over. So it stays where
+            // it is, inert and visible, and /rsmbac info goes on naming it. Filtering here costs
+            // nothing: the Pattern is resolved on this line either way, and the test is a field read.
+            this.node.setPattern(slot, PatternPolicy.runsHere(resolved) ? resolved : null);
             // Checked in batches, because nanoTime is not free: it costs around a tenth of what the
             // push it is measuring costs, so asking every slot would spend a noticeable slice of the
             // budget on reading the clock. A batch overshoots by at most CLOCK_CHECK_SLOTS pushes,

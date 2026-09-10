@@ -8,6 +8,7 @@ import java.util.function.IntConsumer;
 
 import javax.annotation.Nullable;
 
+import com.wraithhawit.rsmbac.PatternPolicy;
 import com.wraithhawit.rsmbac.block.PatternStorageBlockEntity;
 import com.wraithhawit.rsmbac.structure.LevelBlockSource;
 import com.wraithhawit.rsmbac.structure.MultiblockShape;
@@ -189,10 +190,28 @@ public final class StructurePatterns implements Container {
      * instead: it already knows which slot it is filling, so it never benefits from that memo, and
      * it holds a view for far longer than the one insert the memo's identity comparison was
      * reasoned about. Bypassing it keeps that reasoning true where it is still relied upon.
+     *
+     * <p>This is the door a hopper or a pipe comes through, so {@link PatternPolicy} is asked here
+     * as well as in the screen: a processing pattern pushed in by automation is exactly as inert as
+     * one placed by hand, and refusing it at the Port leaves it in the pipe where its owner can see
+     * it rather than in a slot where it looks like it is working.
      */
     public boolean accepts(final ItemStack stack) {
         return !this.storages.isEmpty()
-            && this.storages.get(0).patterns().canPlaceItem(0, stack);
+            && this.storages.get(0).patterns().canPlaceItem(0, stack)
+            && this.runsHere(this.storages.get(0), stack);
+    }
+
+    /**
+     * {@link PatternPolicy#runsHere} against the level the storage block is actually in.
+     *
+     * <p>A block entity with no level cannot resolve a pattern, and a stack that cannot be resolved
+     * is refused everywhere else too -- so an unattached view accepts nothing, which is the same
+     * answer {@link #storagesStillLive} would give about it a moment later.
+     */
+    private boolean runsHere(final PatternStorageBlockEntity storage, final ItemStack stack) {
+        final Level storageLevel = storage.getLevel();
+        return storageLevel != null && PatternPolicy.runsHere(storageLevel, stack);
     }
 
     /** Whether anything at all needs pushing, so the usual case costs one loop and no work. */
@@ -303,6 +322,10 @@ public final class StructurePatterns implements Container {
      * {@code equals}, so a value comparison is not available -- and identity is what is wanted here
      * anyway: the guarantee being relied on is that {@code insertItem} passes the same instance down
      * the loop, and any other instance should be re-checked rather than assumed.
+     *
+     * <p>RS's filter answers "is this a pattern"; {@link PatternPolicy} answers "is it one this
+     * structure can run", which is the narrower question and the one that matters here. The memo
+     * covers both, so the added test costs one resolve per stack rather than one per slot.
      */
     @Override
     public boolean canPlaceItem(final int slot, final ItemStack stack) {
@@ -310,8 +333,9 @@ public final class StructurePatterns implements Container {
             return this.lastCheckedResult;
         }
         final PatternStorageBlockEntity storage = this.storageFor(slot);
-        final boolean result =
-            storage != null && storage.patterns().canPlaceItem(this.localIndex(slot), stack);
+        final boolean result = storage != null
+            && storage.patterns().canPlaceItem(this.localIndex(slot), stack)
+            && this.runsHere(storage, stack);
         this.lastCheckedStack = stack;
         this.lastCheckedResult = result;
         return result;

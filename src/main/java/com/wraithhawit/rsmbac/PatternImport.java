@@ -11,13 +11,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.Nullable;
 
-import com.refinedmods.refinedstorage.api.autocrafting.Pattern;
-import com.refinedmods.refinedstorage.api.autocrafting.PatternType;
 import com.refinedmods.refinedstorage.api.network.Network;
 import com.refinedmods.refinedstorage.api.network.node.GraphNetworkComponent;
 import com.refinedmods.refinedstorage.api.network.node.container.NetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
-import com.refinedmods.refinedstorage.common.api.RefinedStorageApi;
 import com.refinedmods.refinedstorage.common.autocrafting.PatternInventory;
 
 import com.wraithhawit.rsmbac.block.ControllerBlockEntity;
@@ -272,9 +269,12 @@ public final class PatternImport {
      * itself dispatches on: {@code INTERNAL} is a recipe RS runs, {@code EXTERNAL} is one it hands
      * to a sink. Anything that will not resolve is also left alone -- an unreadable pattern is not
      * one to move somewhere it will be even less readable.
+     *
+     * <p>The rule itself now lives in {@link PatternPolicy}, because the import is no longer the
+     * only door it has to hold at: the pattern screen, the Pattern Port and the push into the
+     * network node ask the same question, and four copies of it is four chances for one to drift.
      */
     private static boolean canRunHere(final Level level, final ItemStack stack) {
-        final Optional<Pattern> pattern = RefinedStorageApi.INSTANCE.getPattern(stack, level);
-        return pattern.isPresent() && pattern.get().layout().type() == PatternType.INTERNAL;
+        return PatternPolicy.runsHere(level, stack);
     }
 }

@@ -1,5 +1,6 @@
 package com.wraithhawit.rsmbac.test;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,6 +10,7 @@ import com.refinedmods.refinedstorage.neoforge.api.RefinedStorageNeoForgeApi;
 
 import javax.annotation.Nullable;
 
+import com.refinedmods.refinedstorage.api.network.impl.node.patternprovider.PatternProviderNetworkNode;
 import com.refinedmods.refinedstorage.api.resource.ResourceAmount;
 import com.refinedmods.refinedstorage.common.api.support.network.InWorldNetworkNodeContainer;
 import com.refinedmods.refinedstorage.common.autocrafting.CraftingPatternState;
@@ -814,9 +816,9 @@ public final class StructureGameTests {
             }
             // Interleaved, so the filter cannot pass by stopping at the first one it dislikes.
             inventory.setItem(0, craftingPattern());
-            inventory.setItem(1, encodedPattern());
+            inventory.setItem(1, processingPattern());
             inventory.setItem(2, craftingPattern());
-            inventory.setItem(3, encodedPattern());
+            inventory.setItem(3, processingPattern());
             // Not a crafting pattern, and still ours to run -- see stonecutterPattern().
             inventory.setItem(4, stonecutterPattern());
 
@@ -997,6 +999,180 @@ public final class StructureGameTests {
             return;
         }
         helper.succeed();
+    }
+
+    /**
+     * A processing pattern offered to the Port is refused, and stays in the pipe.
+     *
+     * <p>The automation door. A hopper does not read documentation, so "the multiblock does not do
+     * processing patterns" has to be something the Port says rather than something the README says.
+     *
+     * <p>The assertion that matters is the second one: the stack comes <em>back</em>. A refusal that
+     * consumed the pattern and dropped it would satisfy "it did not go in" and be far worse than
+     * accepting it.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void thePortRefusesAProcessingPattern(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 0, 2), RsmcBlocks.PORT.get());
+
+        final IItemHandler handler = portHandler(helper, new BlockPos(1, 0, 2));
+        if (handler == null) {
+            helper.fail("no item handler capability on the Pattern Port");
+            return;
+        }
+        final ItemStack offered = processingPattern();
+        final ItemStack leftover = handler.insertItem(0, offered, false);
+        if (leftover.isEmpty()) {
+            helper.fail("the port took a processing pattern; it has no sink to run one with");
+            return;
+        }
+        if (leftover.getCount() != offered.getCount()) {
+            helper.fail("the port refused a processing pattern but did not hand all of it back:"
+                + " offered " + offered.getCount() + ", returned " + leftover.getCount());
+            return;
+        }
+        if (!(helper.getBlockEntity(new BlockPos(1, 1, 2))
+            instanceof PatternStorageBlockEntity storage)) {
+            helper.fail("no pattern storage where one was placed");
+            return;
+        }
+        if (!storage.patterns().getItem(0).isEmpty()) {
+            helper.fail("the port said no and put it in anyway");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The pattern screen refuses a processing pattern, and still takes a crafting one.
+     *
+     * <p>The by-hand door, asked through the same {@link StructurePatterns} the menu's slots use.
+     * Both halves matter: a filter that refuses everything would pass the first assertion, and the
+     * bug it hides -- nobody can put any pattern in -- is worse than the one it fixes.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void thePatternScreenRefusesAProcessingPattern(final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+
+        final StructurePatterns patterns =
+            StructurePatterns.of(helper.getLevel(), helper.absolutePos(new BlockPos(1, 1, 2)));
+        if (patterns.getContainerSize() == 0) {
+            helper.fail("no pattern slots in a formed structure");
+            return;
+        }
+        if (patterns.canPlaceItem(0, processingPattern())) {
+            helper.fail("a pattern slot accepted a processing pattern");
+            return;
+        }
+        if (patterns.accepts(processingPattern())) {
+            helper.fail("accepts() said yes to a processing pattern");
+            return;
+        }
+        if (!patterns.canPlaceItem(0, craftingPattern())) {
+            helper.fail("the filter refused a crafting pattern too -- it refuses everything");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A processing pattern already sitting in storage is never handed to the network node.
+     *
+     * <p><strong>The backstop, and the only one of these three that helps an existing world.</strong>
+     * The doors stop new ones arriving; they do nothing about a pattern a player put in before those
+     * doors existed, which is still there on load and would still be advertised, planned and stalled.
+     *
+     * <p>It is written into the storage block directly, deliberately bypassing every filter, because
+     * that is exactly the state a saved world can be in. What the test asserts is the two halves of
+     * the chosen fix: <b>the node is not told about it</b>, and <b>the pattern is still in the slot
+     * afterwards</b>. Deleting a player's pattern to tidy this up was never on the table.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 100)
+    public static void aProcessingPatternAlreadyInStorageIsNeverAdvertised(
+        final GameTestHelper helper) {
+        buildShell(helper);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+
+        if (!(helper.getBlockEntity(new BlockPos(1, 1, 2))
+            instanceof PatternStorageBlockEntity storage)) {
+            helper.fail("no pattern storage where one was placed");
+            return;
+        }
+        // Straight past canPlaceItem, which is the point.
+        storage.patterns().setItem(0, processingPattern());
+        storage.patterns().setItem(1, craftingPattern());
+
+        // Real ticks, not a loop of tickNode(). The node starts with zero pattern slots and only
+        // grows them when refreshStateOccasionally rebuilds it from the structure -- which is on a
+        // schedule, so driving the drain by hand pushes into an array that does not exist yet. The
+        // first version of this test did exactly that and failed with "the node has 0 pattern
+        // slots", which was the schedule being right and the test being in a hurry.
+        helper.runAfterDelay(60L, () -> {
+            final BlockPos controllerPos = new BlockPos(0, 1, 1);
+            if (!(helper.getBlockEntity(controllerPos)
+                instanceof ControllerBlockEntity controller)) {
+                helper.fail("no Controller where buildShell puts one");
+                return;
+            }
+            final Object[] pushed = nodePatterns(controller);
+            if (pushed == null) {
+                helper.fail("could not read the node's patterns by reflection -- NeoForge's module"
+                    + " system is blocking it, and this test cannot see what it is asserting");
+                return;
+            }
+            if (pushed.length < 2) {
+                helper.fail("the node has " + pushed.length + " pattern slots; expected at"
+                    + " least 2");
+                return;
+            }
+            if (pushed[0] != null) {
+                helper.fail("a processing pattern was pushed to the network node; a task planned"
+                    + " against it would stall forever");
+                return;
+            }
+            if (pushed[1] == null) {
+                helper.fail("the crafting pattern beside it was not pushed either -- the filter is"
+                    + " rejecting everything, not just processing patterns");
+                return;
+            }
+            if (storage.patterns().getItem(0).isEmpty()) {
+                helper.fail("the processing pattern was removed from the slot; it is supposed to"
+                    + " stay where its owner left it, merely inert");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The node's pattern array, which RS keeps private and exposes no reader for.
+     *
+     * <p>Reflection rather than an accessor because there is no accessor:
+     * {@code PatternProviderNetworkNode.patterns} is private with only {@code setPattern} to write
+     * it. The alternative is asserting on something downstream -- what the network advertises as
+     * craftable -- which needs a live network, energy and a cable, and would turn a test about one
+     * filter into a test about half the mod.
+     *
+     * <p>The same approach {@code PatternImport} takes to reach an autocrafter's inventory, and it
+     * works for the same reason. Returns null rather than throwing so the caller can say which of
+     * the two things went wrong.
+     */
+    @Nullable
+    private static Object[] nodePatterns(final ControllerBlockEntity controller) {
+        try {
+            final Field field = PatternProviderNetworkNode.class.getDeclaredField("patterns");
+            field.setAccessible(true);
+            return (Object[]) field.get(controller.node());
+        } catch (final ReflectiveOperationException | RuntimeException e) {
+            RSMBAC.LOGGER.error("[rsmbac] test could not read node patterns", e);
+            return null;
+        }
     }
 
     /**
@@ -1209,11 +1385,30 @@ public final class StructureGameTests {
      * tests used a blank one and failed with "the port refused a pattern into a formed structure",
      * which was the Port being right and the test being wrong.
      *
-     * <p>Processing rather than crafting, because a processing pattern carries its own inputs and
-     * outputs and resolves without a recipe lookup -- so this does not depend on any particular
-     * recipe existing in whatever pack the tests run against.
+     * <p><strong>This used to be a processing pattern, and no longer can be.</strong> It was one
+     * because a processing pattern carries its own inputs and outputs and so resolves without any
+     * particular recipe existing in whatever pack the tests run against -- a good reason, right up
+     * until {@link com.wraithhawit.rsmbac.PatternPolicy} began refusing them at every door. A helper
+     * named "a pattern a slot will take" that returns the one kind no slot takes is a suite that
+     * fails for the right reason and reads like a bug.
+     *
+     * <p>So it is the crafting pattern now, and the recipe dependency it was avoiding is accepted --
+     * as {@link #craftingPattern()} already accepted it. {@link #processingPattern()} is what to
+     * reach for when a test wants the refused kind on purpose.
      */
     private static ItemStack encodedPattern() {
+        return craftingPattern();
+    }
+
+    /**
+     * A PROCESSING pattern: valid, resolvable, and refused by this mod everywhere.
+     *
+     * <p>Not a broken pattern and not a trick -- it is exactly what a player gets from a Pattern
+     * Grid set to Processing, and it works perfectly in an autocrafter. The multiblock declines it
+     * because it has no sink to push ingredients into, so a task planned against one would stall
+     * forever. See {@link com.wraithhawit.rsmbac.PatternPolicy}.
+     */
+    private static ItemStack processingPattern() {
         final ItemStack stack = new ItemStack(rsItem("pattern"));
         stack.set(DataComponents.INSTANCE.getPatternState(),
             new PatternState(UUID.randomUUID(), PatternType.PROCESSING));

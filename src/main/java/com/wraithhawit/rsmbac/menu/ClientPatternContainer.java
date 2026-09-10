@@ -2,6 +2,8 @@ package com.wraithhawit.rsmbac.menu;
 
 import com.refinedmods.refinedstorage.common.api.autocrafting.PatternProviderItem;
 
+import com.wraithhawit.rsmbac.PatternPolicy;
+
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 
@@ -32,6 +34,14 @@ import net.minecraft.world.item.ItemStack;
  * <p>The one thing this predicts wrongly is an <em>unencoded</em> pattern: the client lets it move
  * and the server puts it back. That is a rare case, it costs a corrected prediction rather than a
  * lost item, and it is a fair price for not scanning every recipe in the game twenty times a second.
+ *
+ * <h2>Processing patterns are predicted correctly, and still cheaply</h2>
+ *
+ * <p>The structure refuses them -- see {@link PatternPolicy} -- and a player holding one is exactly
+ * the sort of person who will try, so leaving this to the server means a pattern that visibly drops
+ * into a slot and then jumps back out. {@link PatternPolicy#isKnownExternal} reads the stack's data
+ * component instead of resolving it, so the prediction is right without giving back the render
+ * thread this class exists to save.
  */
 public class ClientPatternContainer extends SimpleContainer {
     public ClientPatternContainer(final int size) {
@@ -40,6 +50,7 @@ public class ClientPatternContainer extends SimpleContainer {
 
     @Override
     public boolean canPlaceItem(final int slot, final ItemStack stack) {
-        return stack.getItem() instanceof PatternProviderItem;
+        return stack.getItem() instanceof PatternProviderItem
+            && !PatternPolicy.isKnownExternal(stack);
     }
 }

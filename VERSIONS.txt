@@ -8,6 +8,27 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.9.0
+-----
+  PROCESSING PATTERNS ARE NOW REFUSED AT EVERY DOOR, not merely unsupported. A processing pattern
+  needs a PatternProviderExternalPatternSink to push its ingredients into; an autocrafter is one and
+  the multiblock is not, and never calls setSink. RS does not treat that as an error --
+  PatternProviderNetworkNode.accept opens with 'if (sink == null) return SKIPPED' -- so one sitting
+  in a structure was still advertised as craftable, still planned into a task, and then STALLED
+  FOREVER. /rsmbac import already refused to carry them in; that rule is now PatternPolicy, and it
+  is enforced at the pattern screen, the Pattern Port and the push into the network node as well.
+  The test is the pattern's LAYOUT type, not the item's: INTERNAL is a recipe RS runs, EXTERNAL is
+  one it hands to a sink. Stonecutter and smithing patterns are internal and still work.
+  THE BACKSTOP MATTERS MOST FOR EXISTING WORLDS. A pattern placed before this version is still in
+  its slot on load. It is NOT deleted -- it stays where its owner left it and /rsmbac info goes on
+  naming it -- but the Controller no longer hands it to the node, so it is inert instead of a task
+  that hangs. Filtering there is free: the Pattern is resolved on that line either way.
+  The client predicts the refusal from the stack's data component rather than by resolving it, so
+  the render thread ClientPatternContainer exists to protect is not given back.
+  3 new gametests (25 total), and the backstop one was checked by breaking the filter and watching
+  it go red. The shared helper encodedPattern() was itself a PROCESSING pattern and had to stop
+  being one -- a helper named 'a pattern a slot will take' cannot return the one kind no slot takes.
+
 0.8.2
 -----
   /rsmbac import IS NO LONGER OP-GATED. Reported as 'I can see /rsmbac info but no /rsmbac import'.
