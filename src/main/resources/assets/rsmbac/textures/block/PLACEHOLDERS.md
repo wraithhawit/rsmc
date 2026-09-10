@@ -29,9 +29,47 @@ blockstate property, no model code at all.
 
 ## When drawing the real ones
 
-Four CPU tiers are needed (`cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x`), not the single `cpu.png` here.
+### The four CPU tiers
+
+Each tier owns its own file as of 0.9.1: `cpu_1x.png`, `cpu_4x.png`, `cpu_16x.png`, `cpu_64x.png`,
+all 16x16. They are four copies of `cpu.png` until real art lands — **replace them in place and
+nothing else needs editing**; the item models parent to the block models and follow for free.
+`cpu.png` is no longer referenced by anything and is kept only as the source they were copied from.
+
 Reference material from Cable Tiers and Refined Storage is unpacked in `texture-refs/` at the repo
-root.
+root. Refined Storage's own storage blocks ladder orange / yellow / green / cyan for 1k / 4k / 16k /
+64k; our tier names deliberately mirror theirs, so a player already reads that ladder.
+
+### If connected textures are drawn
+
+Connected textures go through Athena (ATM10 ships it), which reads
+`assets/rsmbac/athena/<block>.json` and wants **five plain 16x16 tiles per block, not an atlas
+sheet**. Following EnderIO's shipped layout, one folder per block:
+
+    textures/block/ctm/cpu_1x/{particle,empty,center,vertical,horizontal}.png
+
+Four tiers is four such folders — twenty tiles. The tile names are counterintuitive and must not be
+reasoned from:
+
+| tile | when it is used | what it draws |
+|---|---|---|
+| `particle` | neither neighbour connects | border on **both** edges — the isolated block, and the break-particle sprite |
+| `empty` | both neighbours and the diagonal connect | **no border at all**: the interior of a wall |
+| `center` | both connect, the diagonal does not | inner-corner mark only |
+| `vertical` | the up/down neighbour connects | borders left and right |
+| `horizontal` | the left/right neighbour connects | borders top and bottom |
+
+Athena splits each face into four quadrants and gives each quadrant the matching quadrant of
+whichever tile it selected, so every tile is a full self-consistent 16x16 and only a quarter of it
+shows at a time. **Interior pixels must be identical across all five tiles of a tier** or seams
+appear mid-wall. There are no rotated or diagonal pieces in this scheme.
+
+Athena is optional and there is no dependency: with it absent the JSON is ignored and the flat
+`cpu_<tier>.png` renders, so the flat tile is needed either way.
+
+Still undecided: whether a 1x should connect to a 64x. `"connect_to": {"type": "sameBlock"}` keeps
+each tier to itself, which makes tier boundaries visible in a wall; letting them all connect needs
+the five tiles to agree across tiers, which fights against tiers looking different.
 
 ## The Controller faces and the Pattern Port are no longer anybody else's
 

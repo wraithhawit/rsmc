@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.9.1
+-----
+  EACH CPU TIER HAS ITS OWN TEXTURE SLOT. All four tier models pointed at one block/cpu, so a 1x
+  and a 64x were the same pixels in a wall and the tier layout of a structure was unreadable.
+  Split into cpu_1x/4x/16x/64x.png with each model on its own. The four files are still the same
+  placeholder pixels - this opens the slots so the real per-tier art drops in without a model edit.
+
 0.9.0
 -----
   PROCESSING PATTERNS ARE NOW REFUSED AT EVERY DOOR, not merely unsupported. A processing pattern

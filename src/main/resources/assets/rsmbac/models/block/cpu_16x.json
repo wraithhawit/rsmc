@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "rsmbac:block/cpu"
+    "all": "rsmbac:block/cpu_16x"
   }
 }

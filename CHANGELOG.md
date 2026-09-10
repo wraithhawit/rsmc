@@ -6,6 +6,22 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.9.1
+
+**Each CPU tier has its own texture slot.**
+
+All four tier models — `cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x` — pointed at a single
+`rsmbac:block/cpu`. A 1x and a 64x were the same pixels, so the tier layout of an assembled
+structure was unreadable: you could not look at a wall and see where the fast blocks were, and the
+only way to check was to break one.
+
+The four `.png` files are still the same placeholder pixels copied four times. Nothing looks
+different yet. What changed is that the slots exist and each model owns one, so per-tier art lands
+as four files with no model, blockstate or item-model edit — item models parent to the block model
+and follow for free.
+
+`cpu.png` stays as the source the tier files were copied from and as the reference for the artwork.
+
 ## 0.9.0
 
 **Processing patterns are refused at every door, not merely unsupported.**
