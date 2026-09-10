@@ -8,6 +8,15 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.9.3
+-----
+  THE SHELL GETS A TAG TOO, rsmbac:shell - Casing, Controller and Pattern Port - so the outside of
+  the machine reads as one surface the way rsmbac:interior does for the inside. Athena's condition
+  only ever tests the NEIGHBOUR, never the block asking, so tag membership and having a definition
+  are separate things: the Controller is in the tag with NO definition of its own, which lets Casing
+  and Port flow into it while it keeps its orientable model, its facing and its three screen states.
+  Seven definitions when the art lands, not nine; the Frame is in neither tag on purpose.
+
 0.9.2
 -----
   THE INTERIOR GETS A BLOCK TAG, rsmbac:interior - the four CPU tiers plus Pattern Storage, the same

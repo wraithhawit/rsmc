@@ -48,7 +48,8 @@ sheet**. Following EnderIO's shipped layout, one folder per block:
 
     textures/block/ctm/cpu_1x/{particle,empty,center,vertical,horizontal}.png
 
-The whole interior connects as one surface, so that is five folders -- twenty-five tiles:
+The interior connects as one surface, so that is five folders -- twenty-five tiles (the shell adds
+two more, `casing` and `port`; see below):
 `cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x` and `pattern_storage`. The tile names are counterintuitive
 and must not be reasoned from:
 
@@ -100,6 +101,45 @@ points at, so shipping them before the tiles exist would give every player who h
 Worth knowing before spending effort on it: the interior is sealed inside the Casing and Frame shell
 once the structure assembles, so a finished machine shows none of this. It is visible while building
 one, and in a half-built or deliberately opened structure.
+
+### The shell connects too, and the Controller is a special case
+
+Two groups, two tags:
+
+| tag | members |
+|---|---|
+| `rsmbac:interior` | `cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x`, `pattern_storage` |
+| `rsmbac:shell` | `casing`, `controller`, `port` |
+
+The mechanic that makes this work is worth stating plainly, because it is not obvious and it decides
+the whole layout. **Athena's condition only ever tests the neighbour.** Verified in 4.0.6:
+`lambda$parseTagCondition$8` and `lambda$parseStateCondition$7` both call `.is(...)` on the *second*
+`BlockState` argument and never look at the first. The block asking the question is not part of the
+answer. Two things follow:
+
+1. **Connection is not automatically mutual.** If two blocks carry different conditions, A can drop
+   its border against B while B keeps its border against A, and the seam looks half-finished. Every
+   member of a group must carry the same condition — which is the real argument for a tag over an
+   `or` list, since the tag is one string that cannot drift between five files.
+
+2. **A block can be connected *to* without being connected *from*.** Tag membership is what makes
+   *neighbours* drop their borders; having an `athena/<block>.json` is what makes *that block* draw
+   connected tiles. They are independent, and only the first is needed to be part of a surface.
+
+Point 2 is what saves the Controller. It is `minecraft:block/orientable` with a live front panel in
+three states across four facings — twelve blockstate variants — and Athena's loader **replaces the
+whole block model**, so a `athena/controller.json` would throw the screen, the facing and the state
+away. Instead the Controller is a *member* of `rsmbac:shell` with **no definition of its own**:
+Casing and Port flow seamlessly into it, and it keeps its panel.
+
+So it is **seven definitions, not nine** — `casing`, `port`, and the five interior blocks. The
+Controller and the Frame have none.
+
+The Port is `cube_all` and can take CTM normally, but its opening is interior detail, so the opening
+has to be present in all five of its tiles (which the identical-interiors rule requires anyway).
+
+The Frame is in neither tag on purpose: it is the edge of the box, and a border around the shell is
+what makes the structure read as a framed unit rather than a blob. Say so if that should change.
 
 ## The Controller faces and the Pattern Port are no longer anybody else's
 

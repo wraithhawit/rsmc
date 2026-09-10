@@ -6,6 +6,44 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.9.3
+
+**`rsmbac:shell` — Casing, Controller and Pattern Port — so the outside connects the way the inside
+does.**
+
+`data/rsmbac/tags/block/shell.json` joins `interior.json` from 0.9.2. Between them every block in
+the multiblock except the Frame now belongs to a connected-texture group.
+
+### Tag membership and having a definition are not the same thing
+
+Athena's `connect_to` condition **only ever tests the neighbour**. Verified against 4.0.6:
+`lambda$parseTagCondition$8` and `lambda$parseStateCondition$7` both call `.is(...)` on the second
+`BlockState` argument and never touch the first. The block asking the question is not part of the
+answer.
+
+That has a consequence worth writing down, because it is the reason this shipped as two tags rather
+than as a `sameBlock` on each: **a block can be connected *to* without being connected *from*.** Tag
+membership makes a neighbour drop its border; an `assets/rsmbac/athena/<block>.json` is what makes
+the block itself draw connected tiles. Independent switches.
+
+### Which is what saves the Controller
+
+The Controller is `minecraft:block/orientable` with a front panel in three states across four
+facings — twelve blockstate variants — and Athena's loader replaces the entire block model. A
+`athena/controller.json` would throw the screen, the facing and the state away and leave a cube.
+
+So the Controller is a member of `rsmbac:shell` with no definition of its own. Casing and Port flow
+seamlessly into it and it keeps its panel. When the art lands that is seven definitions — `casing`,
+`port` and the five interior blocks — not nine.
+
+The Frame is in neither tag deliberately: it is the edge of the box, and a border around the shell
+is what makes the structure read as a framed unit.
+
+### Still not shipped
+
+The definitions themselves, for the same reason as 0.9.2: Athena renders whatever they point at, and
+the tiles do not exist yet.
+
 ## 0.9.2
 
 **The interior gets a block tag, `rsmbac:interior`, so connected textures can span it.**
