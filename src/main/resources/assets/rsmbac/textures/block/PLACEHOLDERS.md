@@ -48,8 +48,9 @@ sheet**. Following EnderIO's shipped layout, one folder per block:
 
     textures/block/ctm/cpu_1x/{particle,empty,center,vertical,horizontal}.png
 
-Four tiers is four such folders — twenty tiles. The tile names are counterintuitive and must not be
-reasoned from:
+The whole interior connects as one surface, so that is five folders -- twenty-five tiles:
+`cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x` and `pattern_storage`. The tile names are counterintuitive
+and must not be reasoned from:
 
 | tile | when it is used | what it draws |
 |---|---|---|
@@ -61,15 +62,44 @@ reasoned from:
 
 Athena splits each face into four quadrants and gives each quadrant the matching quadrant of
 whichever tile it selected, so every tile is a full self-consistent 16x16 and only a quarter of it
-shows at a time. **Interior pixels must be identical across all five tiles of a tier** or seams
+shows at a time. **Interior pixels must be identical across all five tiles of one block** or seams
 appear mid-wall. There are no rotated or diagonal pieces in this scheme.
 
 Athena is optional and there is no dependency: with it absent the JSON is ignored and the flat
 `cpu_<tier>.png` renders, so the flat tile is needed either way.
 
-Still undecided: whether a 1x should connect to a 64x. `"connect_to": {"type": "sameBlock"}` keeps
-each tier to itself, which makes tier boundaries visible in a wall; letting them all connect needs
-the five tiles to agree across tiers, which fights against tiers looking different.
+### Everything in the interior connects to everything else
+
+Decided: a 1x connects to a 64x connects to a Pattern Storage. This does **not** force the five
+blocks to look alike -- each block draws only its own tiles, and a neighbour being a different block
+only decides *whether a border is dropped* at the shared edge. So the tiers can be as distinct as
+the art wants; what has to agree is only that a borderless junction between two of them reads as
+deliberate, which in practice means a shared background and a per-block motif on top of it.
+
+The interior is the set the shape code already calls `Role.INTERIOR`, so it gets a block tag of the
+same name, `rsmbac:interior`, at `data/rsmbac/tags/block/interior.json`, and every one of the five
+definitions carries the same condition (verified against Athena 4.0.6's `CtmUtils.parseTagCondition`,
+which reads the `tag` key as a **block** tag):
+
+```json
+{ "athena:loader": "athena:ctm",
+  "ctm_textures": {
+    "particle":   "rsmbac:block/ctm/cpu_1x/particle",
+    "empty":      "rsmbac:block/ctm/cpu_1x/empty",
+    "center":     "rsmbac:block/ctm/cpu_1x/center",
+    "vertical":   "rsmbac:block/ctm/cpu_1x/vertical",
+    "horizontal": "rsmbac:block/ctm/cpu_1x/horizontal"
+  },
+  "connect_to": { "type": "tag", "tag": "rsmbac:interior" } }
+```
+
+**These five JSON files are deliberately not in the repo yet.** Athena renders whatever the JSON
+points at, so shipping them before the tiles exist would give every player who has Athena installed
+-- which is everyone on ATM10 -- a wall of missing-texture CPUs. They go in with the art, not before.
+
+Worth knowing before spending effort on it: the interior is sealed inside the Casing and Frame shell
+once the structure assembles, so a finished machine shows none of this. It is visible while building
+one, and in a half-built or deliberately opened structure.
 
 ## The Controller faces and the Pattern Port are no longer anybody else's
 

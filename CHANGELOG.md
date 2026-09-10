@@ -6,6 +6,36 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.9.2
+
+**The interior gets a block tag, `rsmbac:interior`, so connected textures can span it.**
+
+`data/rsmbac/tags/block/interior.json` holds the four CPU tiers and Pattern Storage — the same set
+`MultiblockShape.Role.INTERIOR` already names, which is why the tag is named after it rather than
+after the texture work that prompted it.
+
+### Why a tag and not "same block"
+
+Athena's `connect_to` accepts `sameBlock`, `sameState`, `state`, `tag` and the boolean combinators.
+`sameBlock` would give each CPU tier its own connected surface and leave borders between a 1x and a
+64x. The decision is the opposite: everything in the interior connects to everything else, so a
+half-built core reads as one continuous machine surface instead of five kinds of bordered block.
+
+`tag` is the only one of the five that expresses that in a single condition shared by all five
+definitions — verified against Athena 4.0.6's `CtmUtils.parseTagCondition`, which reads the `tag`
+key as a **block** tag key.
+
+Connecting across blocks does not force them to look alike. Each block draws only its own five
+tiles; a neighbour being a different block only decides whether a border is dropped at the shared
+edge. The tiers stay as distinct as the art makes them.
+
+### What is deliberately not here
+
+The five `assets/rsmbac/athena/*.json` definitions. Athena renders whatever the JSON points at, so
+shipping them before the tiles are drawn would give everyone with Athena installed — everyone on
+ATM10 — a wall of missing-texture interior blocks. They land with the art. `PLACEHOLDERS.md` carries
+the tile naming, the five-tile semantics and the exact JSON to use.
+
 ## 0.9.1
 
 **Each CPU tier has its own texture slot.**

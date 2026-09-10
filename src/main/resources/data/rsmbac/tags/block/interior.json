@@ -1,0 +1,9 @@
+{
+  "values": [
+    "rsmbac:cpu_1x",
+    "rsmbac:cpu_4x",
+    "rsmbac:cpu_16x",
+    "rsmbac:cpu_64x",
+    "rsmbac:pattern_storage"
+  ]
+}
