@@ -181,7 +181,10 @@ public final class HeadlessAssetCheck {
     private static void contains(final String what, final Path path, final String needle) {
         checks++;
         try {
-            if (!Files.exists(path) || !Files.readString(path, StandardCharsets.UTF_8).contains(needle)) {
+            // LF-normalised: git on Windows checks these out CRLF, and a needle spanning a line
+            // would then fail on a clean clone while passing here.
+            if (!Files.exists(path)
+                || !Files.readString(path, StandardCharsets.UTF_8).replace("\r\n", "\n").contains(needle)) {
                 failures++;
                 System.out.println("FAILED " + what + ": " + path + " does not contain " + needle);
             }
