@@ -46,12 +46,10 @@ Connected textures go through Athena (ATM10 ships it), which reads
 `assets/rsmbac/athena/<block>.json` and wants **five plain 16x16 tiles per block, not an atlas
 sheet**. Following EnderIO's shipped layout, one folder per block:
 
-    textures/block/ctm/cpu_1x/{particle,empty,center,vertical,horizontal}.png
+    textures/block/ctm/casing/{particle,empty,center,vertical,horizontal}.png
 
-The interior connects as one surface, so that is five folders -- twenty-five tiles (the shell adds
-two more, `casing` and `port`; see below):
-`cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x` and `pattern_storage`. The tile names are counterintuitive
-and must not be reasoned from:
+Only the shell connects — see below. The tile names are counterintuitive and must not be reasoned
+from:
 
 | tile | when it is used | what it draws |
 |---|---|---|
@@ -67,48 +65,24 @@ shows at a time. **Interior pixels must be identical across all five tiles of on
 appear mid-wall. There are no rotated or diagonal pieces in this scheme.
 
 Athena is optional and there is no dependency: with it absent the JSON is ignored and the flat
-`cpu_<tier>.png` renders, so the flat tile is needed either way.
+texture renders, so the flat tile is needed either way.
 
-### Everything in the interior connects to everything else
+### The interior does not connect (decided 0.10.1)
 
-Decided: a 1x connects to a 64x connects to a Pattern Storage. This does **not** force the five
-blocks to look alike -- each block draws only its own tiles, and a neighbour being a different block
-only decides *whether a border is dropped* at the shared edge. So the tiers can be as distinct as
-the art wants; what has to agree is only that a borderless junction between two of them reads as
-deliberate, which in practice means a shared background and a per-block motif on top of it.
+The four CPU tiers and Pattern Storage are **plain blocks**, each drawn by its own flat texture —
+the artist's call. 0.9.2 had planned the opposite, every interior block connecting to every other
+through an `rsmbac:interior` tag; that tag was never used by anything and was removed in 0.10.1.
+Do not add it back without asking.
 
-The interior is the set the shape code already calls `Role.INTERIOR`, so it gets a block tag of the
-same name, `rsmbac:interior`, at `data/rsmbac/tags/block/interior.json`, and every one of the five
-definitions carries the same condition (verified against Athena 4.0.6's `CtmUtils.parseTagCondition`,
-which reads the `tag` key as a **block** tag):
+If one of them should ever connect *to its own kind* (a row of 64x CPUs reading as one slab), that
+is an `athena/<block>.json` with `"connect_to": { "type": "sameBlock" }` and five tiles — no tag.
 
-```json
-{ "athena:loader": "athena:ctm",
-  "ctm_textures": {
-    "particle":   "rsmbac:block/ctm/cpu_1x/particle",
-    "empty":      "rsmbac:block/ctm/cpu_1x/empty",
-    "center":     "rsmbac:block/ctm/cpu_1x/center",
-    "vertical":   "rsmbac:block/ctm/cpu_1x/vertical",
-    "horizontal": "rsmbac:block/ctm/cpu_1x/horizontal"
-  },
-  "connect_to": { "type": "tag", "tag": "rsmbac:interior" } }
-```
+### The shell connects, and the Controller is a special case
 
-**These five JSON files are deliberately not in the repo yet.** Athena renders whatever the JSON
-points at, so shipping them before the tiles exist would give every player who has Athena installed
--- which is everyone on ATM10 -- a wall of missing-texture CPUs. They go in with the art, not before.
-
-Worth knowing before spending effort on it: the interior is sealed inside the Casing and Frame shell
-once the structure assembles, so a finished machine shows none of this. It is visible while building
-one, and in a half-built or deliberately opened structure.
-
-### The shell connects too, and the Controller is a special case
-
-Two groups, two tags:
+One group, one tag:
 
 | tag | members |
 |---|---|
-| `rsmbac:interior` | `cpu_1x`, `cpu_4x`, `cpu_16x`, `cpu_64x`, `pattern_storage` |
 | `rsmbac:shell` | `casing`, `controller`, `port` |
 
 The mechanic that makes this work is worth stating plainly, because it is not obvious and it decides
@@ -150,11 +124,17 @@ written inside a block model. Two facts about it decide the layout:
    face (`ctm_textures` accepts `north`/`east`/…/`up`/`down` entries plus a `default` set), and the
    blockstate has no rotation at all. `assetCheck` pins both.
 
-The Port and the Controller screens are **generated** by `tools/GenerateTextures.java`: it insets the
-panel into each of the five casing tiles. The panel sits well inside the edge, so the five results
-still differ only at the edge, as the format requires. So when new casing tiles land, re-run the
-generator and the Port and all three screens follow. If a screen is hand-drawn instead, it needs
-five tiles per state — fifteen — or a transparent panel overlay the generator can inset.
+The Port and the Controller screens are **generated** by `tools/GenerateTextures.java`: it insets a
+panel into `casing.png` and into each of the five casing tiles. The panel sits well inside the edge,
+so the five results still differ only at the edge, as the format requires. So when new casing tiles
+land, re-run the generator and the Port and all three screens follow.
+
+**A hand-drawn panel is one file, not fifteen tiles.** Since 0.10.1 each panel is an overlay — 16x16,
+transparent where the casing shows — and `tools/overlays/<face>.png` (`controller_front_unformed`,
+`controller_front_inactive`, `controller_front_active`, `port`) replaces the procedural one when
+present. `java tools/GenerateTextures.java --export-overlays <dir>` writes the current panels as
+overlays to start from. Keep an overlay's outer 1px ring transparent: those are the pixels the five
+tiles differ in.
 
 The `ctm/casing/` tiles in the repo are derived from the placeholder `casing.png`, so the "connected"
 look is barely visible until real tiles replace them.
@@ -165,8 +145,7 @@ shipped one with `sameBlock`, which connects Casing only to Casing — delete it
 ### Pattern Storage has a top texture of its own (0.10.0)
 
 `pattern_storage_top.png`, via `cube_bottom_top`; the bottom and sides stay `pattern_storage.png`.
-It is a copy of the side until the art lands. If the interior gets connected textures, the top is an
-`"up"` entry in `ctm_textures` with its own five tiles, beside a `"default"` set for the sides.
+It is a copy of the side until the art lands.
 
 The Frame is in neither tag on purpose: it is the edge of the box, and a border around the shell is
 what makes the structure read as a framed unit rather than a blob. Say so if that should change.

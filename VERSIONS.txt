@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.10.1
+------
+  THE INTERIOR DOES NOT CONNECT - the artist's call. rsmbac:interior removed; nothing ever used it,
+  so nothing visible changes. GenerateTextures takes drawn panel OVERLAYS from tools/overlays/, so
+  a hand-drawn Controller screen or Port is one file instead of fifteen tiles; --export-overlays
+  writes the current panels. Output byte-identical to 0.10.0 with no overlays present.
+
 0.10.0
 ------
   THE SHELL CONNECTS - Casing, Pattern Port and Controller. 0.9.3 shipped the tag but no Athena

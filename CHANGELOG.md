@@ -6,6 +6,30 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.10.1
+
+**The interior does not connect, and a hand-drawn Controller or Port panel is one file.**
+
+### `rsmbac:interior` is gone
+
+The artist does not want the CPU tiers and Pattern Storage connecting. 0.9.2 had planned for every
+interior block to connect to every other through that tag, but no Athena definition ever used it,
+so removing `data/rsmbac/tags/block/interior.json` changes nothing anyone can see. It goes so the
+tag cannot read as a decision still standing. `PLACEHOLDERS.md` records the reversal.
+
+### Drawn overlays
+
+`tools/GenerateTextures.java` insets a panel into the casing for the three Controller screens and
+the Port, flat and into each of the five connected tiles — nineteen outputs per panel's worth of
+edits. A hand-drawn screen would otherwise have had to be drawn five times per state. Each panel is
+now an **overlay** (16x16, transparent where the casing shows): `tools/overlays/<face>.png` replaces
+the procedural one when present, and `--export-overlays <dir>` writes the procedural ones out as a
+starting point.
+
+Proven three ways before shipping: with no overlays every PNG is byte-identical to 0.10.0; the
+exported overlays fed back in change nothing; a different overlay dropped in as `port.png` changes
+exactly the Port's six files and nothing else.
+
 ## 0.10.0
 
 **The shell actually connects now — Casing, Pattern Port and the Controller — and Pattern Storage

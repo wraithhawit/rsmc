@@ -1,6 +1,7 @@
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Locale;
 
 import javax.imageio.ImageIO;
 
@@ -11,16 +12,21 @@ import javax.imageio.ImageIO;
  *
  * <pre>
  *   java tools/GenerateTextures.java
+ *   java tools/GenerateTextures.java --export-overlays some/dir   (writes the panels alone)
  * </pre>
  *
- * <p>Reads {@code casing.png} and the five tiles in {@code ctm/casing/}; those six are drawn art and
- * the only inputs. Everything this writes is output and will be overwritten on the next run.
+ * <p>Reads {@code casing.png} and the five tiles in {@code ctm/casing/}; those are drawn art. Each
+ * panel is an <b>overlay</b>: a 16x16 image, transparent wherever the casing should show. If
+ * {@code tools/overlays/<name>.png} exists it is used as drawn; otherwise the panel below is drawn
+ * procedurally. So an artist can take over any one of the four panels by dropping a single file in,
+ * and still never draw the fifteen connected tiles it gets inset into. Everything this writes under
+ * {@code src/} is output and will be overwritten on the next run.
  *
- * <p>Two of them: the three Controller screen states, and the Pattern Port's opening. Generated
- * rather than drawn because every one is the Casing texture with one inset panel on top, and the
- * only difference between them is what the panel is. Hand-editing four near-identical 16x16 images
- * is how they drift apart -- one gets a border tweak the others do not, and nobody notices for a
- * month. It also means that when the real Casing art lands, all four follow it for free.
+ * <p>Four panels: the three Controller screen states, and the Pattern Port's opening. Generated
+ * rather than drawn because every face is the Casing texture with one inset panel on top, and the
+ * only difference between them is what the panel is. Hand-editing near-identical 16x16 images is
+ * how they drift apart -- one gets a border tweak the others do not, and nobody notices for a
+ * month. It also means that when the real Casing art lands, every face follows it for free.
  *
  * <p>Building on the Casing texture is the point: the earlier placeholder used RS's actual
  * {@code grid/front.png}, which made an rsmbac Controller look like a Grid closely enough to be
@@ -39,36 +45,72 @@ public final class GenerateTextures {
     private static final int BEZEL_SHADOW = 0xFF23262B;
     private static final int BEZEL_HIGHLIGHT = 0x40FFFFFF;
 
-    private GenerateTextures() {
-    }
-
     /** Athena's five connected-texture tiles. Every one is a full 16x16; see PLACEHOLDERS.md. */
     private static final String[] CTM_TILES = {"particle", "empty", "center", "vertical", "horizontal"};
 
+    /** Drawn panels that replace the procedural ones, one file per panel, by face name. */
+    private static final File OVERLAYS = new File("tools/overlays");
+
+    private GenerateTextures() {
+    }
+
     public static void main(final String[] args) throws IOException {
+        if (args.length == 2 && args[0].equals("--export-overlays")) {
+            final File out = new File(args[1]);
+            for (final State state : State.values()) {
+                write(out, state.face() + ".png", screen(state));
+            }
+            write(out, "port.png", port());
+            System.out.println("wrote the 4 procedural overlays to " + out);
+            return;
+        }
+
         final File dir = new File("src/main/resources/assets/rsmbac/textures/block");
         final BufferedImage casing = ImageIO.read(new File(dir, "casing.png"));
-
-        write(dir, "controller_front_unformed.png", screen(casing, State.UNFORMED));
-        write(dir, "controller_front_inactive.png", screen(casing, State.INACTIVE));
-        write(dir, "controller_front_active.png", screen(casing, State.ACTIVE));
-        write(dir, "port.png", port(casing));
-
-        // Since 0.10.0 the same panels are inset into each of the Casing's five connected tiles as
-        // well, so a Port or a Controller screen sits in a seamless wall instead of carrying a
-        // border of its own. The panel is well inside the 3px bezel, so it never touches the edge
-        // pixels that are the only thing the five tiles differ in -- which is what keeps the
-        // identical-interiors rule true for these sets without anyone checking it.
         final File ctm = new File(dir, "ctm");
-        for (final String tile : CTM_TILES) {
-            final BufferedImage source = ImageIO.read(new File(ctm, "casing/" + tile + ".png"));
-            write(new File(ctm, "port"), tile + ".png", port(source));
-            for (final State state : State.values()) {
-                final String folder = "controller_front_" + state.name().toLowerCase(java.util.Locale.ROOT);
-                write(new File(ctm, folder), tile + ".png", screen(source, state));
+
+        int drawn = 0;
+        for (final String face : faces()) {
+            final BufferedImage overlay = overlay(face);
+            if (new File(OVERLAYS, face + ".png").exists()) {
+                drawn++;
+            }
+            write(dir, face + ".png", inset(casing, overlay));
+
+            // Since 0.10.0 the same panels are inset into each of the Casing's five connected tiles
+            // as well, so a Port or a Controller screen sits in a seamless wall instead of carrying
+            // a border of its own. A panel must stay off the outer edge pixels -- the only pixels
+            // the five tiles differ in -- or the identical-interiors rule breaks and seams appear.
+            for (final String tile : CTM_TILES) {
+                final BufferedImage source = ImageIO.read(new File(ctm, "casing/" + tile + ".png"));
+                write(new File(ctm, face), tile + ".png", inset(source, overlay));
             }
         }
-        System.out.println("wrote 3 controller faces and the port, flat and as connected tiles, to " + dir);
+        System.out.println("wrote 3 controller faces and the port, flat and as connected tiles, to "
+            + dir + " (" + drawn + " from drawn overlays)");
+    }
+
+    private static String[] faces() {
+        final String[] faces = new String[State.values().length + 1];
+        for (final State state : State.values()) {
+            faces[state.ordinal()] = state.face();
+        }
+        faces[faces.length - 1] = "port";
+        return faces;
+    }
+
+    /** The drawn overlay for a face if there is one, otherwise the procedural panel. */
+    private static BufferedImage overlay(final String face) throws IOException {
+        final File drawn = new File(OVERLAYS, face + ".png");
+        if (drawn.exists()) {
+            return ImageIO.read(drawn);
+        }
+        for (final State state : State.values()) {
+            if (state.face().equals(face)) {
+                return screen(state);
+            }
+        }
+        return port();
     }
 
     private enum State {
@@ -88,10 +130,14 @@ public final class GenerateTextures {
             this.light = light;
             this.lit = lit;
         }
+
+        String face() {
+            return "controller_front_" + name().toLowerCase(Locale.ROOT);
+        }
     }
 
-    private static BufferedImage screen(final BufferedImage casing, final State state) {
-        final BufferedImage out = base(casing);
+    private static BufferedImage screen(final State state) {
+        final BufferedImage out = transparent();
         for (int x = PANEL_MIN; x <= PANEL_MAX; x++) {
             for (int y = PANEL_MIN; y <= PANEL_MAX; y++) {
                 if (onPanelEdge(x, y)) {
@@ -120,8 +166,8 @@ public final class GenerateTextures {
      * and the player reads them as a pair -- one with a display in the opening and one with nothing
      * in it -- which is also the honest description of what they do.
      */
-    private static BufferedImage port(final BufferedImage casing) {
-        final BufferedImage out = base(casing);
+    private static BufferedImage port() {
+        final BufferedImage out = transparent();
         for (int x = PANEL_MIN; x <= PANEL_MAX; x++) {
             for (int y = PANEL_MIN; y <= PANEL_MAX; y++) {
                 if (onPanelEdge(x, y)) {
@@ -149,12 +195,20 @@ public final class GenerateTextures {
     /** The lit inside edge of the opening, top and left. */
     private static final int VOID_LIP = 0xFF2A2E34;
 
-    /** A full tile of Casing to inset into. */
-    private static BufferedImage base(final BufferedImage casing) {
-        final BufferedImage out = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+    private static BufferedImage transparent() {
+        return new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+    }
+
+    /**
+     * A full tile of {@code base} with {@code overlay} laid over it. The result is always opaque:
+     * the blocks render solid, so a drawn overlay's partial alpha is flattened here, not in game.
+     */
+    private static BufferedImage inset(final BufferedImage base, final BufferedImage overlay) {
+        final BufferedImage out = transparent();
         for (int x = 0; x < SIZE; x++) {
             for (int y = 0; y < SIZE; y++) {
-                out.setRGB(x, y, casing.getRGB(x % casing.getWidth(), y % casing.getHeight()));
+                final int under = base.getRGB(x % base.getWidth(), y % base.getHeight());
+                out.setRGB(x, y, blend(under, overlay.getRGB(x % overlay.getWidth(), y % overlay.getHeight())));
             }
         }
         return out;
