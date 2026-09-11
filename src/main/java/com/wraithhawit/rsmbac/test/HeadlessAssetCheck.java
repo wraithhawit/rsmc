@@ -66,20 +66,11 @@ public final class HeadlessAssetCheck {
             exists("controller " + state + " face",
                 RESOURCES.resolve("assets/rsmbac/textures/block/controller_front_" + state + ".png"));
         }
-        controllerFacings();
+        controllerModels();
         texturesResolve("assets/rsmbac/models/block");
         texturesResolve("assets/rsmbac/athena");
         specularMaps();
-
-        // Athena's per-block definition replaces EVERY variant of the block with one connected
-        // cube: on the Controller that is the screen, the facing and the state, all gone. The
-        // Controller connects through its models' optional loader instead (see controllerFacings).
-        checks++;
-        if (Files.exists(RESOURCES.resolve("assets/rsmbac/athena/controller.json"))) {
-            failures++;
-            System.out.println("FAILED athena/controller.json exists: it would replace all twelve"
-                + " Controller variants with a plain cube");
-        }
+        framedInTheWall();
 
         System.out.println("asset checks: " + checks + " (" + BlockNames.all().size() + " blocks)");
         if (failures > 0) {
@@ -90,33 +81,52 @@ public final class HeadlessAssetCheck {
     }
 
     /**
-     * One Controller model per facing and state, each with its screen on its own face.
-     *
-     * <p>Athena's baked model never reads the {@code ModelState}, so a blockstate {@code "y": 90}
-     * is silently dropped whenever Athena is installed and every Controller would face north. The
-     * rotation therefore lives in the models, and the blockstate must carry none -- a {@code "y"}
-     * there would double-rotate the vanilla fallback without anyone on ATM10 ever seeing it.
-     *
-     * <p>The loader must be the {@code optional} object form. A bare {@code "loader": "athena:athena"}
-     * is a hard model-load failure for anyone without Athena, which is the whole reason tterrag's CTM
-     * was ruled out for a standalone addon.
+     * One orientable model per screen state, each showing its own face, rotated by the blockstate.
+     * Each facing's rotation is pinned too: a variant that lost its {@code "y"} would face north
+     * and still render perfectly, so nothing short of placing one facing east would notice.
      */
-    private static void controllerFacings() {
+    private static void controllerModels() {
         final Path blockstate = RESOURCES.resolve("assets/rsmbac/blockstates/controller.json");
-        absent("controller blockstate carries no rotation", blockstate, "\"y\"");
-        for (final String state : new String[] {"unformed", "inactive", "active"}) {
-            for (final String facing : new String[] {"north", "east", "south", "west"}) {
-                final String name = "controller_" + state + "_" + facing;
-                final Path model = RESOURCES.resolve("assets/rsmbac/models/block/" + name + ".json");
-                contains(name + " is the blockstate's model for its variant", blockstate,
-                    "\"facing=" + facing + ",state=" + state + "\": { \"model\": \"rsmbac:block/" + name + "\" }");
-                contains(name + " puts the flat screen on its facing", model,
-                    "\"" + facing + "\":" + " ".repeat(9 - facing.length())
-                        + "\"rsmbac:block/controller_front_" + state + "\"");
-                contains(name + " puts the connected screen on its facing", model,
-                    "\"" + facing + "\": {\n      \"particle\":   \"rsmbac:block/ctm/controller_front_" + state + "/");
-                contains(name + " loads Athena optionally", model,
-                    "\"loader\": { \"id\": \"athena:athena\", \"optional\": true }");
+        final String[] models = {"controller", "controller_inactive", "controller_active"};
+        final String[] states = {"unformed", "inactive", "active"};
+        final String[] rotations = {"", ", \"y\": 90", ", \"y\": 180", ", \"y\": 270"};
+        final String[] facings = {"north", "east", "south", "west"};
+        for (int s = 0; s < states.length; s++) {
+            contains(models[s] + " shows the " + states[s] + " screen",
+                RESOURCES.resolve("assets/rsmbac/models/block/" + models[s] + ".json"),
+                "\"front\": \"rsmbac:block/controller_front_" + states[s] + "\"");
+            for (int f = 0; f < facings.length; f++) {
+                contains("controller " + facings[f] + "/" + states[s] + " variant", blockstate,
+                    "\"facing=" + facings[f] + ",state=" + states[s] + "\": { \"model\": \"rsmbac:block/"
+                        + models[s] + "\"" + rotations[f] + " }");
+            }
+        }
+    }
+
+    /**
+     * The artist's call in 0.11.1: the Controller and the Port keep their own border, and only the
+     * Casing drops its border against them. The Casing half is the {@code rsmbac:shell} tag, which
+     * both stay in. The other half is that neither draws connected tiles -- no Athena definition,
+     * and no model reaching Athena's loader. 0.10.0-0.11.0 did the opposite; this pins the reversal
+     * so a well-meant "make them join" does not silently undo a design decision.
+     */
+    private static void framedInTheWall() throws IOException {
+        contains("controller is in rsmbac:shell, so the casing joins it",
+            RESOURCES.resolve("data/rsmbac/tags/block/shell.json"), "\"rsmbac:controller\"");
+        contains("port is in rsmbac:shell, so the casing joins it",
+            RESOURCES.resolve("data/rsmbac/tags/block/shell.json"), "\"rsmbac:port\"");
+        for (final String block : new String[] {"controller", "port"}) {
+            checks++;
+            if (Files.exists(RESOURCES.resolve("assets/rsmbac/athena/" + block + ".json"))) {
+                failures++;
+                System.out.println("FAILED athena/" + block + ".json exists: the " + block
+                    + " keeps its own border" + (block.equals("controller")
+                        ? ", and the definition would also replace all twelve variants with one cube" : ""));
+            }
+        }
+        try (var files = Files.list(RESOURCES.resolve("assets/rsmbac/models/block"))) {
+            for (final Path model : files.toList()) {
+                absent(model.getFileName() + " does not use Athena's loader", model, "athena:athena");
             }
         }
     }
@@ -152,7 +162,7 @@ public final class HeadlessAssetCheck {
      * labPBR glow maps. Iris pairs {@code foo_s.png} with {@code foo.png} by name and nothing else,
      * so a map whose texture was renamed is not an error anywhere -- the screen just stops glowing
      * under shaders, which nobody without shaders will ever see. Hence both directions: every map
-     * has its texture, and the running screen has a map on every face Athena might draw.
+     * has its texture, and the running screen has its map.
      */
     private static void specularMaps() throws IOException {
         final Path textures = RESOURCES.resolve("assets/rsmbac/textures/block");
@@ -164,10 +174,6 @@ public final class HeadlessAssetCheck {
             }
         }
         exists("active screen glow map", textures.resolve("controller_front_active_s.png"));
-        for (final String tile : new String[] {"particle", "empty", "center", "vertical", "horizontal"}) {
-            exists("active screen glow map on connected tile " + tile,
-                textures.resolve("ctm/controller_front_active/" + tile + "_s.png"));
-        }
     }
 
     private static void absent(final String what, final Path path, final String needle) {

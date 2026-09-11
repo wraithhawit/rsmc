@@ -144,8 +144,9 @@ smithing table patterns are internal recipes and work normally.
 - [x] Headless suites, run on every `build` — 36 shape cases, 79 asset checks, 56 recipe
       scenarios, 22 refresh scenarios
 - [x] Gametests against a real level — 18, run by `runGameTestServer`
-- [x] Real block textures (#7), by lavasurf — walls, frames, the Controller and the Port join
-      into one surface with Athena, and the running screen glows under labPBR shaders
+- [x] Real block textures (#7), by lavasurf — with Athena the walls and the frames join, the
+      Controller and Port sit in the wall as framed panels, and the running screen glows under
+      labPBR shaders
 - [ ] Refined Storage's colouring system (#8), which is not cosmetic in RS: differently
       coloured blocks refuse to connect
 - [ ] Pattern encoding built into the manager screen (#10)

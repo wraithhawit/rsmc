@@ -49,9 +49,8 @@ public final class BlockNames {
      * 0.9.1, when each tier got its own file, and only surfaced when the placeholder was deleted.
      */
     public static String textureOf(final String blockName) {
-        // The Controller has three faces, one per screen state, built by tools/GenerateTextures.java
-        // from the drawn faces in tools/faces/. The asset check tracks the unformed one here; the
-        // other two are checked by name.
+        // The Controller has three faces, one per screen state. The asset check tracks the unformed
+        // one here; the other two are checked by name.
         return CONTROLLER.equals(blockName) ? "controller_front_unformed" : blockName;
     }
 }

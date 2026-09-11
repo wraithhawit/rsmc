@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.11.1
+------
+  CONTROLLER AND PORT KEEP THEIR BORDER, CASING DROPS ITS BORDER AGAINST THEM - the artist's design.
+  Both stay in rsmbac:shell but no longer draw joined tiles: athena/port.json, the twelve per-facing
+  Controller models, their ctm tiles and the texture generator are all deleted; the Controller is
+  back on three orientable models. assetCheck pins the design. Joined version is at 6632e5d.
+
 0.11.0
 ------
   THE REAL TEXTURES, BY LAVASURF - every block, its connected tiles, and the active screen's glow

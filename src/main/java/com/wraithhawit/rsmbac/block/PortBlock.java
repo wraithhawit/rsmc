@@ -31,8 +31,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * structure was before this block existed.
  *
  * <p>The idea, and the two-virtual-slot shape of the handler, is Reborn Storage's {@code TileIoPort}
- * -- see {@link PortBlockEntity}. The art is not; {@code port.png} is generated from our own Casing
- * by {@code tools/GenerateTextures.java}.
+ * -- see {@link PortBlockEntity}. The art is not; {@code port.png} is lavasurf's.
  */
 public class PortBlock extends ShellBlock {
     public PortBlock(final Properties properties) {

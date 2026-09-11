@@ -6,6 +6,36 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.11.1
+
+**The Controller and the Pattern Port keep their own border; the Casing drops its border against
+them.** The artist's design, sent as a screenshot: framed panels set into a borderless brick wall.
+
+It needs no new mechanism, only less of the old one. Athena's condition tests the neighbour and
+never the block asking, so whether the Casing joins a block and whether that block draws joined
+tiles are separate switches. The Controller and Port stay in `rsmbac:shell` (the Casing still joins
+them) and lose everything that made them draw joined tiles:
+
+- `athena/port.json` — deleted.
+- The twelve per-facing Controller models on Athena's optional geometry loader — deleted. The
+  Controller is back on three `minecraft:block/orientable` models rotated by the blockstate, exactly
+  as before 0.10.0.
+- `ctm/port/` and `ctm/controller_front_*/`, glow maps included — deleted. The flat
+  `controller_front_active_s.png` stays and carries the glow.
+- `tools/GenerateTextures.java` and its `tools/faces/` and `tools/overlays/` inputs — deleted. With
+  no joined tiles to build, all it did was copy four drawn files into place, which is two copies of
+  the same art waiting to drift. Every PNG in `textures/block/` is now drawn art.
+
+The joined version is recoverable from commit `6632e5d` if it is ever wanted back.
+
+`assetCheck` 369 -> 136, almost all of it the retired per-tile and per-facing checks. New ones pin
+the design so it is not "fixed" back: Controller and Port stay in the shell tag; neither has an
+Athena definition; no block model reaches Athena's loader; each of the twelve Controller variants
+has its model and its rotation. Broken on purpose three ways before shipping — a dropped `"y"`, an
+Athena loader on a Controller model, an `athena/port.json` — and each failed.
+
+A wall simulated with Athena's quadrant rules matches the screenshot.
+
 ## 0.11.0
 
 **The real textures, by lavasurf.** Every block texture in the mod is now original art; the last
