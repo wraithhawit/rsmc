@@ -1,8 +1,7 @@
 {
-  "parent": "minecraft:block/cube_bottom_top",
+  "parent": "minecraft:block/cube_column",
   "textures": {
-    "top": "rsmbac:block/pattern_storage_top",
-    "bottom": "rsmbac:block/pattern_storage",
+    "end": "rsmbac:block/pattern_storage_top",
     "side": "rsmbac:block/pattern_storage"
   }
 }

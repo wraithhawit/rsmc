@@ -43,20 +43,15 @@ public final class BlockNames {
     }
 
     /**
-     * The block texture a given block draws with.
+     * The block texture a given block draws with: its own name, except the Controller.
      *
-     * <p>All four CPU tiers currently share one placeholder texture, which is why this is not just
-     * the block name. When the real art lands each tier gets its own and this collapses to
-     * identity -- but until then the asset check has to know that {@code cpu_4x.json} pointing at
-     * {@code cpu.png} is intended rather than a typo.
+     * <p>Until 0.11.0 every CPU tier mapped to one shared {@code cpu.png}. That mapping outlived
+     * 0.9.1, when each tier got its own file, and only surfaced when the placeholder was deleted.
      */
     public static String textureOf(final String blockName) {
-        if (blockName.startsWith("cpu_")) {
-            return "cpu";
-        }
-        // The Controller has three faces, one per screen state, generated from the Casing texture
-        // by tools/GenerateTextures.java -- as is the Port, from the same source. The asset check
-        // tracks the unformed one; the other two are named after it and land in the same commit.
+        // The Controller has three faces, one per screen state, built by tools/GenerateTextures.java
+        // from the drawn faces in tools/faces/. The asset check tracks the unformed one here; the
+        // other two are checked by name.
         return CONTROLLER.equals(blockName) ? "controller_front_unformed" : blockName;
     }
 }

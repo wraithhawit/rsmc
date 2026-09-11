@@ -8,6 +8,14 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.11.0
+------
+  THE REAL TEXTURES, BY LAVASURF - every block, its connected tiles, and the active screen's glow
+  map. No Reborn Storage placeholder remains. The screens and Port were drawn as whole faces, so
+  GenerateTextures takes tools/faces/<face>.png: flat and lone tile byte for byte, joining tiles =
+  casing tile + the face's shared interior. Pattern Storage's end texture now covers the bottom too.
+  PLACEHOLDERS.md -> TEXTURES.md; ATTRIBUTION.md credits lavasurf.
+
 0.10.3
 ------
   THE RUNNING CONTROLLER SCREEN GLOWS UNDER SHADERS - labPBR _s maps (alpha 254 over the panel,

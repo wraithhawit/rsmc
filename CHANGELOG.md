@@ -6,6 +6,56 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.11.0
+
+**The real textures, by lavasurf.** Every block texture in the mod is now original art; the last
+Reborn Storage placeholders are gone.
+
+Imported from lavasurf's `rsmbac-workbench.zip`: Frame and Casing with their five connected tiles
+each, the four CPU tiers, Pattern Storage and its end texture, the three Controller screens, the
+Pattern Port, and a labPBR glow map for the running screen. No `_n` normal maps were in it.
+Deliberately left out: Krita sources (`.kra`) and `~` backups, the old `cpu.png` and the two
+unused 32x32 `_formed` sheets, a stray copy of each face inside its `ctm/` folder, the test pack's
+`athena/frame.json` (the mod ships the same definition), and an active-screen `vertical.png` that
+was the 0.10.x generated placeholder, never redrawn.
+
+### Drawn faces, not overlays
+
+0.10.1 asked for panel overlays. The artist drew each screen and the Port as a whole face instead,
+and copied it into all five of its tiles — which cannot join, because five identical tiles look the
+same whatever their neighbours are. Asking for a redraw would have thrown away detail the overlay
+format cannot hold: corner screws on the inactive and active screens, and a cracked frame on the
+unformed one, all in the border band.
+
+So `GenerateTextures` now takes a whole face from `tools/faces/<face>.png`. The flat texture and the
+lone `particle` tile are that file byte for byte; the four joining tiles are the casing's tile with
+the face's **shared interior** copied in — the pixels identical across all five casing tiles,
+derived from the art on each run. With lavasurf's casing that is exactly the 10x10 at x/y 3–12,
+which is where every panel is. Border detail shows on an unjoined face and yields to the wall on a
+joined one.
+
+Verified: all four faces and all six glow maps in the mod are byte-identical to lavasurf's files;
+the joining tiles differ from the flat face only in the border band; and a wall simulated with
+Athena's quadrant rules (frame ring, casing, all three screens and a Port) renders seamlessly. The
+real thing is still to be seen in game.
+
+### Pattern Storage
+
+`pattern_storage_top.png` now covers the bottom as well — the artist's request — through
+`minecraft:block/cube_column`.
+
+### A stale mapping the deletion exposed
+
+`BlockNames.textureOf` still mapped all four CPU tiers to `cpu.png`, a rule from before 0.9.1 gave
+each tier its own file. The asset check had been confirming a texture nothing used; it failed the
+moment the placeholder was deleted, and each block's check now points at its own texture.
+
+### Attribution
+
+`PLACEHOLDERS.md` is now `TEXTURES.md`, rewritten around what is drawn and what is generated.
+`ATTRIBUTION.md` credits lavasurf, records that no Reborn Storage asset remains, and names the one
+borrowed texture left: Refined Storage's `autocrafter_manager.png` as the pattern screen's GUI.
+
 ## 0.10.3
 
 **The running Controller screen glows under shaders, through a labPBR map.**

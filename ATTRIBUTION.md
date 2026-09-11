@@ -1,15 +1,17 @@
 # Attribution
 
-rsmbac's block textures are derived from the work of other mods. Both are MIT licensed, which
+Some of rsmbac's assets are derived from the work of other mods. Those are MIT licensed, which
 permits use, modification and redistribution — including in a project under different terms —
-on the single condition that the copyright notice and licence text travel with them.
+on the single condition that the copyright notice and licence text travel with them. The block
+textures themselves are original; see [Block textures](#block-textures).
 
 That condition is met by this file, which ships in the jar. **Do not remove it, and add to it
 before deriving anything from a new source.**
 
 ## Refined Storage
 
-Storage block textures, by Refined Mods.
+The pattern screen's GUI texture, `gui/patterns.png` — their `autocrafter_manager.png`, unmodified —
+by Refined Mods.
 
 <https://github.com/refinedmods/refinedstorage>
 
@@ -54,8 +56,13 @@ A game mechanic is an idea rather than a work, so this needs no licence grant �
 credit is owed regardless. Reborn Storage is MIT in any case, and was itself openly inspired by
 Applied Energistics' crafting CPU.
 
-**Placeholder textures.** The block textures currently in
-`src/main/resources/assets/rsmbac/textures/block/` are Reborn Storage's, copied unchanged as
-temporary placeholders while the mod is built. MIT permits this; the condition is that the notice
-travels with them, which this file satisfies. They are marked as placeholders in
-`PLACEHOLDERS.md` beside them and are tracked by issue #1. No Reborn Storage *code* is used.
+**Former placeholder textures.** Until 0.11.0 the block textures were Reborn Storage's, copied as
+temporary placeholders under MIT. All of them have been replaced or deleted; none remain in the
+jar. No Reborn Storage *code* was ever used.
+
+## Block textures
+
+The block textures — Frame, Casing, Crafter Controller, Pattern Port, the CPU tiers and Pattern
+Storage, their connected-texture tiles and the Controller's glow map — are by **lavasurf**, drawn
+for rsmbac. `textures/block/TEXTURES.md` records which files are drawn and which are generated from
+them.

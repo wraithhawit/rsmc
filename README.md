@@ -24,8 +24,8 @@ and `/rsmbac info` prints the version on every path.
 | Worlds | A world built with 0.1.x loses these blocks: the mod id changed `rsmc` → `rsmbac` in 0.2.0 and no registry knows the old namespace |
 
 > **Status: it crafts, and it is young.** The structure, the network node, the pattern screen
-> and the recipes all work in a real world. The textures are still Reborn Storage's
-> placeholders. See [What works today](#what-works-today).
+> and the recipes all work in a real world, and the blocks have their own textures, by lavasurf.
+> See [What works today](#what-works-today).
 
 Bug reports and questions go in [Issues](https://github.com/wraithhawit/rsmc/issues) — the repo
 is still named `rsmc`, from before the rename.
@@ -144,7 +144,8 @@ smithing table patterns are internal recipes and work normally.
 - [x] Headless suites, run on every `build` — 36 shape cases, 79 asset checks, 56 recipe
       scenarios, 22 refresh scenarios
 - [x] Gametests against a real level — 18, run by `runGameTestServer`
-- [ ] Real textures — the ones in the repo are Reborn Storage's placeholders (#7)
+- [x] Real block textures (#7), by lavasurf — walls, frames, the Controller and the Port join
+      into one surface with Athena, and the running screen glows under labPBR shaders
 - [ ] Refined Storage's colouring system (#8), which is not cosmetic in RS: differently
       coloured blocks refuse to connect
 - [ ] Pattern encoding built into the manager screen (#10)
@@ -169,9 +170,8 @@ behaviours like *clicking any block in the structure opens the GUI*. Reborn Stor
 openly inspired by **Applied Energistics'** crafting CPU, so the whole family looks alike. That is
 the genre.
 
-**This is a recode, not a port.** No Reborn Storage code is here and none will be. The block
-textures currently in the repo *are* theirs, as temporary placeholders, marked as such in
-`assets/rsmbac/textures/block/PLACEHOLDERS.md` and tracked by issue #7.
+**This is a recode, not a port.** No Reborn Storage code is here and none will be. Until 0.11.0
+the block textures were theirs, as temporary placeholders; the art is now original, by lavasurf.
 
 ### And the recode is the point
 

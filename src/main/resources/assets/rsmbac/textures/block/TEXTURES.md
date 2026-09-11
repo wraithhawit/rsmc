@@ -1,46 +1,51 @@
-# These textures are placeholders
+# rsmbac's block textures
 
-Every `.png` in this folder is Reborn Storage's, copied unchanged so the blocks have *something*
-to render while the mod is built. **They are not the final art** and are tracked by issue #7.
+**Drawn by lavasurf**, as of 0.11.0. The one borrowed texture left is the pattern screen's GUI (see
+the end of this file), which is Refined Storage's.
 
-Reborn Storage is MIT with no assets carve-out, so copying and modifying them is permitted; the
-condition is that the notice ships with the result, which `ATTRIBUTION.md` does. Nothing here is
-taken without a licence that allows it.
+Until 0.11.0 this file was `PLACEHOLDERS.md` and every block texture was a Reborn Storage placeholder.
+The last three of those — `cpu.png`, `casing_formed.png` and `frame_formed.png`, none referenced by
+anything — were deleted when the real art landed.
 
-| file here | from |
-|---|---|
-| `frame.png` | `multiblock_frame.png` |
-| `casing.png` | `multiblock_heat.png` (their Heat Conductor) |
-| `cpu.png` | `multiblock_cpu.png` |
-| `pattern_storage.png` | `multiblock_storage.png` |
-| `frame_formed.png` | `multiblock_frame_ctm.png` |
-| `casing_formed.png` | `multiblock_heat_ctm.png` |
+## What is drawn, and what is generated
 
-## The `_formed` pair is worth keeping even after the art is redrawn
+| block | drawn — edit these | generated — never edit |
+|---|---|---|
+| Frame | `frame.png`, `ctm/frame/*` | — |
+| Casing | `casing.png`, `ctm/casing/*` | — |
+| CPU tiers | `cpu_1x.png`, `cpu_4x.png`, `cpu_16x.png`, `cpu_64x.png` | — |
+| Pattern Storage | `pattern_storage.png` (sides), `pattern_storage_top.png` (top **and** bottom) | — |
+| Controller, Port | `tools/faces/<face>.png`, `tools/overlays/<face>_s.png` | `<face>.png`, `<face>_s.png`, all of `ctm/<face>/` |
 
-Those two are **connected-texture tiles Reborn swaps to once the machine assembles** — an
-unassembled frame shows a plain bordered block, an assembled one shows a tile that reads as part of
-a continuous surface.
+`<face>` is `controller_front_unformed`, `controller_front_inactive`, `controller_front_active` or
+`port`. After changing a casing tile, a drawn face or a glow map, run
+`java tools/GenerateTextures.java` from the repo root.
 
-That is the same effect as the "border leaves the individual blocks and wraps the whole structure"
-idea in the closed issue #6, reached with a texture swap instead of a dynamic baked model. If that
-look is wanted later, this is the cheap way to it: one extra texture per shell block and a
-blockstate property, no model code at all.
+### How a drawn face joins the wall
 
-## When drawing the real ones
+The artist drew each screen and the Port as one whole face. The generator turns that into five
+tiles:
+
+- the flat texture and the lone `particle` tile are **the drawn face, byte for byte**;
+- the four joining tiles are **the casing's tile, with the face's shared interior copied in** — the
+  pixels that are identical in all five casing tiles. With this casing that is exactly the 10x10
+  at x/y 3–12, which is also where every panel sits.
+
+So border detail — the corner screws on the screens, the cracked frame on the unformed one — shows
+only on a face that is not joined. It cannot go on the joining tiles: the border band is precisely
+what they vary, so it would land where the wall meets.
+
+The shared interior is derived from the casing art on every run, not declared. A casing whose tiles
+break the identical-interiors rule shrinks it, and the generator prints the pixel count
+(`casing tiles share 100 interior pixels` today).
 
 ### The four CPU tiers
 
-Each tier owns its own file as of 0.9.1: `cpu_1x.png`, `cpu_4x.png`, `cpu_16x.png`, `cpu_64x.png`,
-all 16x16. They are four copies of `cpu.png` until real art lands — **replace them in place and
-nothing else needs editing**; the item models parent to the block models and follow for free.
-`cpu.png` is no longer referenced by anything and is kept only as the source they were copied from.
+`cpu_1x.png` … `cpu_64x.png`, one per tier since 0.9.1; the item models parent to the block models
+and follow for free. They ladder orange / yellow / green / cyan, the same as Refined Storage's
+1k / 4k / 16k / 64k storage blocks, which our tier names deliberately mirror.
 
-Reference material from Cable Tiers and Refined Storage is unpacked in `texture-refs/` at the repo
-root. Refined Storage's own storage blocks ladder orange / yellow / green / cyan for 1k / 4k / 16k /
-64k; our tier names deliberately mirror theirs, so a player already reads that ladder.
-
-### If connected textures are drawn
+### Connected textures
 
 Connected textures go through Athena (ATM10 ships it), which reads
 `assets/rsmbac/athena/<block>.json` and wants **five plain 16x16 tiles per block, not an atlas
@@ -125,28 +130,20 @@ written inside a block model. Two facts about it decide the layout:
    face (`ctm_textures` accepts `north`/`east`/…/`up`/`down` entries plus a `default` set), and the
    blockstate has no rotation at all. `assetCheck` pins both.
 
-The Port and the Controller screens are **generated** by `tools/GenerateTextures.java`: it insets a
-panel into `casing.png` and into each of the five casing tiles. The panel sits well inside the edge,
-so the five results still differ only at the edge, as the format requires. So when new casing tiles
-land, re-run the generator and the Port and all three screens follow.
-
-**A hand-drawn panel is one file, not fifteen tiles.** Since 0.10.1 each panel is an overlay — 16x16,
-transparent where the casing shows — and `tools/overlays/<face>.png` (`controller_front_unformed`,
-`controller_front_inactive`, `controller_front_active`, `port`) replaces the procedural one when
-present. `java tools/GenerateTextures.java --export-overlays <dir>` writes the current panels as
-overlays to start from. Keep an overlay's outer 1px ring transparent: those are the pixels the five
-tiles differ in.
-
-The `ctm/casing/` tiles in the repo are derived from the placeholder `casing.png`, so the "connected"
-look is barely visible until real tiles replace them.
+The Port and the Controller screens' tiles are **generated** by `tools/GenerateTextures.java`, in
+order of preference from: a drawn whole face in `tools/faces/` (what ships today — see the top of
+this file); a drawn overlay in `tools/overlays/<face>.png`, 16x16 and transparent where the casing
+shows, inset into every tile; or the procedural panel the placeholders used. `--export-overlays
+<dir>` writes the procedural panels out. Either way, new casing tiles need only a re-run.
 
 **A resource pack with its own `athena/casing.json` overrides the mod's.** The 0.9.x test pack
 shipped one with `sameBlock`, which connects Casing only to Casing — delete it from the pack.
 
-### Pattern Storage has a top texture of its own (0.10.0)
+### Pattern Storage has an end texture of its own
 
-`pattern_storage_top.png`, via `cube_bottom_top`; the bottom and sides stay `pattern_storage.png`.
-It is a copy of the side until the art lands.
+`pattern_storage_top.png` on the top and, since 0.11.0, the bottom too, via `cube_column`; the sides
+are `pattern_storage.png`. (0.10.0 put it on the top only, with `cube_bottom_top`. The artist wanted
+both ends; the filename stayed.)
 
 ### The running screen glows under shaders (0.10.3)
 
@@ -156,11 +153,13 @@ copy. Channels: red smoothness, green reflectance (F0, 0–229), blue porosity, 
 0–254 is brightness, 255 is none**. Checked against Complementary r5.8.1's `GetCustomEmission`,
 which reads `a < 1.0 ? a : 0.0`.
 
-The procedural map is alpha 254 over the whole inside of the panel (uniform, not per dot, because
-Complementary caps emission at the full-resolution value and a checkerboard averages away with
-distance) and 255 elsewhere. A drawn `tools/overlays/<face>_s.png` replaces it — as a whole map, not
-composited, because in labPBR the alpha is the emission and cannot also mean transparency. Any face
-can glow that way, the Port included.
+The shipped map is the artist's (`tools/overlays/controller_front_active_s.png`, copied byte for
+byte onto all six): the screen's cells at 254, the dividers dimmer at 176, and 255 elsewhere. A
+drawn map is used whole, not composited, because in labPBR the alpha is the emission and cannot
+also mean transparency. Any face can glow that way, the Port included. Without a drawn map the
+generator falls back to 254 over the whole inside of the panel — uniform rather than per dot,
+because Complementary caps emission at the full-resolution value and a checkerboard averages away
+with distance.
 
 **Players have to opt in.** Complementary: *RP Support* = labPBR, or *IPBR+ Emissive Mode* =
 "labPBR > IPBR+". BSL: *Advanced Materials* on. With Complementary's default Integrated PBR+ only
@@ -172,30 +171,16 @@ controller; RS and rsmbac are not on it). Without shaders nothing reads these ma
 `athena/frame.json` with `"connect_to": { "type": "sameBlock" }` and five tiles in `ctm/frame/` —
 decided by Wraith, with the artist drawing the tiles. Each edge of the box reads as one continuous
 beam, and because the Frame is in no tag, Frame and Casing keep their borders against each other:
-the walls stay visibly framed rather than melting into one blob. The `ctm/frame/` tiles in the repo
-are derived from the placeholder `frame.png` until real ones replace them.
+the walls stay visibly framed rather than melting into one blob. Its rivets sit on the lone and
+`center` tiles only, each wholly inside one quadrant, so a beam shows them at its ends and never
+splits one across a seam.
 
-## The Controller faces and the Pattern Port are no longer anybody else's
+## The Controller faces must not look like a Refined Storage Grid
 
-`controller_front_unformed.png`, `controller_front_inactive.png`, `controller_front_active.png` and
-`port.png` are generated from `casing.png` by `tools/GenerateTextures.java` — run
-`java tools/GenerateTextures.java` from the repo root. Since 0.10.0 it also writes their connected
-tiles from `ctm/casing/`; see above.
-
-The first attempt used Refined Storage's actual `grid/front.png`, which made an rsmbac Controller look
+The first placeholder Controller used Refined Storage's actual `grid/front.png`, which made it look
 enough like a Grid to be mistaken for one: a bug report about a crafter screen staying lit turned
 out to be a Refined Storage Grid, which was behaving perfectly. Looking like our own block is a
-correctness property, not a decoration.
-
-Generated rather than drawn because all four are the Casing texture with one inset panel, and the
-only difference is what is in the panel — a dot-matrix screen in three states, or an opening. Four
-near-identical hand-edited 16x16 images is how they drift apart, and this way they all follow the
-real Casing art for free when it lands.
-
-Reborn Storage has an `io.png` for their IO Port, and it would have been usable under the same
-licence as everything else in this table. Ours is generated instead because it makes the Port and
-the Controller read as a pair in the same wall: the same inset panel, one with a display in it and
-one with a hole.
+correctness property, not a decoration — worth re-checking whenever the screens are redrawn.
 
 ## The pattern screen's GUI texture
 

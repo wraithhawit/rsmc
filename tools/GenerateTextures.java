@@ -22,6 +22,10 @@ import javax.imageio.ImageIO;
  * and still never draw the fifteen connected tiles it gets inset into. Everything this writes under
  * {@code src/} is output and will be overwritten on the next run.
  *
+ * <p>Since 0.11.0 a face can also be drawn whole, as {@code tools/faces/<face>.png} -- which is how
+ * the artist actually worked. It is used exactly as drawn for the flat texture and the lone tile,
+ * and its shared interior goes onto the four joining tiles; see {@link #main}.
+ *
  * <p>Since 0.10.3 it also writes labPBR {@code _s.png} maps, which is how shader packs are told a
  * pixel glows: the active screen by default, or any face with a drawn {@code tools/overlays/<face>_s.png}.
  *
@@ -54,6 +58,9 @@ public final class GenerateTextures {
     /** Drawn panels that replace the procedural ones, one file per panel, by face name. */
     private static final File OVERLAYS = new File("tools/overlays");
 
+    /** Whole drawn faces. Take priority over an overlay for the same face. */
+    private static final File FACES = new File("tools/faces");
+
     private GenerateTextures() {
     }
 
@@ -74,27 +81,52 @@ public final class GenerateTextures {
         final File dir = new File("src/main/resources/assets/rsmbac/textures/block");
         final BufferedImage casing = ImageIO.read(new File(dir, "casing.png"));
         final File ctm = new File(dir, "ctm");
+        final BufferedImage[] casingTiles = new BufferedImage[CTM_TILES.length];
+        for (int i = 0; i < CTM_TILES.length; i++) {
+            casingTiles[i] = ImageIO.read(new File(ctm, "casing/" + CTM_TILES[i] + ".png"));
+        }
+        final boolean[][] shared = sharedInterior(casingTiles);
 
-        int drawn = 0;
+        int drawnOverlays = 0;
+        int drawnFaces = 0;
         for (final String face : faces()) {
-            final BufferedImage overlay = overlay(face);
-            if (new File(OVERLAYS, face + ".png").exists()) {
-                drawn++;
-            }
-            write(dir, face + ".png", inset(casing, overlay));
+            final File drawnFace = new File(FACES, face + ".png");
+            if (drawnFace.exists()) {
+                // A whole face, drawn. It is the flat texture and the lone (particle) tile exactly as
+                // drawn, detail in the border included. The four joining tiles take the Casing's
+                // tile and only the face's SHARED INTERIOR -- the pixels all five casing tiles agree
+                // on. Border detail (corner screws, a cracked frame) cannot go on those: the border
+                // band is what varies between tiles, so it would land where the wall joins.
+                drawnFaces++;
+                final BufferedImage art = ImageIO.read(drawnFace);
+                copy(drawnFace, dir, face + ".png");
+                for (int i = 0; i < CTM_TILES.length; i++) {
+                    if (CTM_TILES[i].equals("particle")) {
+                        copy(drawnFace, new File(ctm, face), "particle.png");
+                    } else {
+                        write(new File(ctm, face), CTM_TILES[i] + ".png", interiorOnto(casingTiles[i], art, shared));
+                    }
+                }
+            } else {
+                final BufferedImage overlay = overlay(face);
+                if (new File(OVERLAYS, face + ".png").exists()) {
+                    drawnOverlays++;
+                }
+                write(dir, face + ".png", inset(casing, overlay));
 
-            // Since 0.10.0 the same panels are inset into each of the Casing's five connected tiles
-            // as well, so a Port or a Controller screen sits in a seamless wall instead of carrying
-            // a border of its own. A panel must stay off the outer edge pixels -- the only pixels
-            // the five tiles differ in -- or the identical-interiors rule breaks and seams appear.
-            for (final String tile : CTM_TILES) {
-                final BufferedImage source = ImageIO.read(new File(ctm, "casing/" + tile + ".png"));
-                write(new File(ctm, face), tile + ".png", inset(source, overlay));
+                // Since 0.10.0 the same panels are inset into each of the Casing's five connected
+                // tiles as well, so a Port or a Controller screen sits in a seamless wall instead of
+                // carrying a border of its own. A panel must stay off the outer edge pixels -- the
+                // only pixels the five tiles differ in -- or the identical-interiors rule breaks.
+                for (int i = 0; i < CTM_TILES.length; i++) {
+                    write(new File(ctm, face), CTM_TILES[i] + ".png", inset(casingTiles[i], overlay));
+                }
             }
 
             // labPBR specular map, read by Iris and used by shader packs for glow. Iris pairs a
             // map with its texture by name, so the Athena tiles each need their own copy. One
             // image serves all six: a specular map has no casing edge to vary.
+            final File drawnSpecular = new File(OVERLAYS, face + "_s.png");
             final BufferedImage specular = specular(face);
             final File[] targets = new File[CTM_TILES.length + 1];
             targets[0] = new File(dir, face + "_s.png");
@@ -102,7 +134,9 @@ public final class GenerateTextures {
                 targets[i + 1] = new File(new File(ctm, face), CTM_TILES[i] + "_s.png");
             }
             for (final File target : targets) {
-                if (specular != null) {
+                if (drawnSpecular.exists()) {
+                    copy(drawnSpecular, target.getParentFile(), target.getName());
+                } else if (specular != null) {
                     write(target.getParentFile(), target.getName(), specular);
                 } else {
                     // A face that stopped glowing must not keep last run's map.
@@ -111,7 +145,43 @@ public final class GenerateTextures {
             }
         }
         System.out.println("wrote 3 controller faces and the port, flat and as connected tiles, to "
-            + dir + " (" + drawn + " from drawn overlays)");
+            + dir + " (" + drawnFaces + " drawn faces, " + drawnOverlays + " drawn overlays)");
+    }
+
+    /**
+     * Pixels identical in all five casing tiles: the part of a face that is safe to repeat on every
+     * tile. Derived from the art rather than declared, so a casing with a wider or narrower border
+     * moves it automatically. If the casing set breaks the identical-interiors rule, this shrinks
+     * and says so, rather than silently cutting a panel in half.
+     */
+    private static boolean[][] sharedInterior(final BufferedImage[] tiles) {
+        final boolean[][] shared = new boolean[SIZE][SIZE];
+        int count = 0;
+        for (int x = 0; x < SIZE; x++) {
+            for (int y = 0; y < SIZE; y++) {
+                boolean same = true;
+                for (int i = 1; i < tiles.length; i++) {
+                    same &= tiles[i].getRGB(x, y) == tiles[0].getRGB(x, y);
+                }
+                shared[x][y] = same;
+                if (same) {
+                    count++;
+                }
+            }
+        }
+        System.out.println("casing tiles share " + count + " interior pixels");
+        return shared;
+    }
+
+    private static BufferedImage interiorOnto(final BufferedImage tile, final BufferedImage art,
+        final boolean[][] shared) {
+        final BufferedImage out = transparent();
+        for (int x = 0; x < SIZE; x++) {
+            for (int y = 0; y < SIZE; y++) {
+                out.setRGB(x, y, shared[x][y] ? art.getRGB(x, y) : tile.getRGB(x, y));
+            }
+        }
+        return out;
     }
 
     private static String[] faces() {
@@ -301,6 +371,13 @@ public final class GenerateTextures {
         final int g = (((overlay >> 8) & 0xFF) * alpha + ((base >> 8) & 0xFF) * inverse) / 255;
         final int b = ((overlay & 0xFF) * alpha + (base & 0xFF) * inverse) / 255;
         return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    /** Drawn art goes in byte for byte: re-encoding would change the file, if not the pixels. */
+    private static void copy(final File source, final File dir, final String name) throws IOException {
+        dir.mkdirs();
+        java.nio.file.Files.copy(source.toPath(), new File(dir, name).toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
     }
 
     private static void write(final File dir, final String name, final BufferedImage image)
