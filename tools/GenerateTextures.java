@@ -22,6 +22,9 @@ import javax.imageio.ImageIO;
  * and still never draw the fifteen connected tiles it gets inset into. Everything this writes under
  * {@code src/} is output and will be overwritten on the next run.
  *
+ * <p>Since 0.10.3 it also writes labPBR {@code _s.png} maps, which is how shader packs are told a
+ * pixel glows: the active screen by default, or any face with a drawn {@code tools/overlays/<face>_s.png}.
+ *
  * <p>Four panels: the three Controller screen states, and the Pattern Port's opening. Generated
  * rather than drawn because every face is the Casing texture with one inset panel on top, and the
  * only difference between them is what the panel is. Hand-editing near-identical 16x16 images is
@@ -59,9 +62,12 @@ public final class GenerateTextures {
             final File out = new File(args[1]);
             for (final State state : State.values()) {
                 write(out, state.face() + ".png", screen(state));
+                if (state.glows) {
+                    write(out, state.face() + "_s.png", glow());
+                }
             }
             write(out, "port.png", port());
-            System.out.println("wrote the 4 procedural overlays to " + out);
+            System.out.println("wrote the procedural overlays and glow maps to " + out);
             return;
         }
 
@@ -84,6 +90,24 @@ public final class GenerateTextures {
             for (final String tile : CTM_TILES) {
                 final BufferedImage source = ImageIO.read(new File(ctm, "casing/" + tile + ".png"));
                 write(new File(ctm, face), tile + ".png", inset(source, overlay));
+            }
+
+            // labPBR specular map, read by Iris and used by shader packs for glow. Iris pairs a
+            // map with its texture by name, so the Athena tiles each need their own copy. One
+            // image serves all six: a specular map has no casing edge to vary.
+            final BufferedImage specular = specular(face);
+            final File[] targets = new File[CTM_TILES.length + 1];
+            targets[0] = new File(dir, face + "_s.png");
+            for (int i = 0; i < CTM_TILES.length; i++) {
+                targets[i + 1] = new File(new File(ctm, face), CTM_TILES[i] + "_s.png");
+            }
+            for (final File target : targets) {
+                if (specular != null) {
+                    write(target.getParentFile(), target.getName(), specular);
+                } else {
+                    // A face that stopped glowing must not keep last run's map.
+                    target.delete();
+                }
             }
         }
         System.out.println("wrote 3 controller faces and the port, flat and as connected tiles, to "
@@ -113,22 +137,74 @@ public final class GenerateTextures {
         return port();
     }
 
+    /**
+     * The labPBR map for a face, or null if it does not glow: a drawn
+     * {@code tools/overlays/<face>_s.png} used as-is, otherwise the procedural one for a lit screen.
+     *
+     * <p>Unlike a colour overlay a drawn map is not composited over anything -- in labPBR the alpha
+     * channel IS the emission, so it cannot also mean "let the casing show". It is a whole 16x16 map.
+     */
+    private static BufferedImage specular(final String face) throws IOException {
+        final File drawn = new File(OVERLAYS, face + "_s.png");
+        if (drawn.exists()) {
+            return ImageIO.read(drawn);
+        }
+        for (final State state : State.values()) {
+            if (state.face().equals(face) && state.glows) {
+                return glow();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * labPBR 1.3: red is smoothness, green is reflectance (F0, 0-229), blue is porosity, and alpha is
+     * emission -- 0-254 is how bright, and 255 means none. Verified against Complementary r5.8.1,
+     * whose {@code GetCustomEmission} reads {@code a < 1.0 ? a : 0.0}.
+     *
+     * <p>255 rather than 0 for "none" matters: it is what an ordinary opaque PNG already has, which
+     * is the whole reason the standard reserves it.
+     */
+    private static final int SPECULAR_NONE = 0xFF000000;
+
+    /** The screen: full emission, fairly glossy, and glass's reflectance (F0 0.04 is 10/255). */
+    private static final int SPECULAR_SCREEN = 0xFEA00A00;
+
+    /**
+     * Emission over the whole inside of the panel, uniformly -- not per lit dot. Complementary
+     * takes the smaller of the sampled and the full-resolution emission to avoid mipmap bleed, so
+     * a checkerboard of glowing pixels would average down and fade with distance.
+     */
+    private static BufferedImage glow() {
+        final BufferedImage out = transparent();
+        for (int x = 0; x < SIZE; x++) {
+            for (int y = 0; y < SIZE; y++) {
+                final boolean screen = x > PANEL_MIN && x < PANEL_MAX && y > PANEL_MIN && y < PANEL_MAX;
+                out.setRGB(x, y, screen ? SPECULAR_SCREEN : SPECULAR_NONE);
+            }
+        }
+        return out;
+    }
+
     private enum State {
         /** Not a structure: a dead panel, closer to the casing than to a screen. */
-        UNFORMED(0xFF56595E, 0xFF62666B, false),
+        UNFORMED(0xFF56595E, 0xFF62666B, false, false),
         /** A structure with no network: a real screen, switched off. */
-        INACTIVE(0xFF1B1E22, 0xFF24282D, true),
+        INACTIVE(0xFF1B1E22, 0xFF24282D, true, false),
         /** Live. Light blue, matching what a Refined Storage machine looks like when running. */
-        ACTIVE(0xFF3A7FC4, 0xFF5FA8E8, true);
+        ACTIVE(0xFF3A7FC4, 0xFF5FA8E8, true, true);
 
         private final int dark;
         private final int light;
         private final boolean lit;
+        /** Whether shaders make it glow. Only a running machine's screen is on. */
+        private final boolean glows;
 
-        State(final int dark, final int light, final boolean lit) {
+        State(final int dark, final int light, final boolean lit, final boolean glows) {
             this.dark = dark;
             this.light = light;
             this.lit = lit;
+            this.glows = glows;
         }
 
         String face() {

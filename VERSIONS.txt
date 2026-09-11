@@ -8,6 +8,13 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.10.3
+------
+  THE RUNNING CONTROLLER SCREEN GLOWS UNDER SHADERS - labPBR _s maps (alpha 254 over the panel,
+  255 elsewhere) on the flat face and all five connected tiles, generated. A drawn
+  tools/overlays/<face>_s.png overrides. Opt-in: Complementary RP Support labPBR or IPBR+ Emissive
+  Mode "labPBR > IPBR+", BSL Advanced Materials. Not yet seen in game.
+
 0.10.2
 ------
   FRAMES CONNECT TO EACH OTHER - athena/frame.json, sameBlock, five placeholder-derived tiles in

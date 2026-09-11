@@ -6,6 +6,33 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.10.3
+
+**The running Controller screen glows under shaders, through a labPBR map.**
+
+`GenerateTextures` writes `controller_front_active_s.png` and one `_s` per connected tile — Iris
+pairs a specular map with its texture by name, so the five Athena tiles each need a copy. labPBR
+1.3's alpha channel is emission: 0–254 brightness, 255 none. Confirmed against the shader packs in
+the test instance rather than the spec alone: Complementary r5.8.1's `GetCustomEmission` is
+`a < 1.0 ? a : 0.0`, and it takes the minimum of the sampled and full-resolution emission, which is
+why the glow covers the panel's whole inside uniformly instead of following the dot matrix — a
+checkerboard would average down and fade with distance.
+
+The panel is also given glass-like reflectance (F0 10/255) and moderate smoothness. The unformed and
+inactive screens get no map; a switched-off screen does not glow.
+
+An artist can take over any face's glow with `tools/overlays/<face>_s.png`, used whole rather than
+composited. A face that loses its glow has its old maps deleted on the next run, so a stale map
+cannot keep a dark screen lit.
+
+**Opt-in for players.** Complementary's default Integrated PBR+ ignores these unless *RP Support* is
+labPBR or *IPBR+ Emissive Mode* is "labPBR > IPBR+"; BSL needs *Advanced Materials*. Reaching
+default-settings players would take an entry in Euphoria Patches' block list, which is theirs.
+
+`assetCheck` 358 -> 370: every `_s` map has its texture (a renamed texture silently kills the glow
+and only shader users would ever notice), and the active screen has a map on the flat face and all
+five tiles. Both broken on purpose and failed. **Not yet seen in game under a shader pack.**
+
 ## 0.10.2
 
 **Frames connect to each other.**

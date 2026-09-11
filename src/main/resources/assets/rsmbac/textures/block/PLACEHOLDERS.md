@@ -148,6 +148,25 @@ shipped one with `sameBlock`, which connects Casing only to Casing — delete it
 `pattern_storage_top.png`, via `cube_bottom_top`; the bottom and sides stay `pattern_storage.png`.
 It is a copy of the side until the art lands.
 
+### The running screen glows under shaders (0.10.3)
+
+`controller_front_active_s.png` and `ctm/controller_front_active/<tile>_s.png` are **labPBR 1.3
+specular maps**. Iris pairs `foo_s.png` with `foo.png` by name, so every Athena tile needs its own
+copy. Channels: red smoothness, green reflectance (F0, 0–229), blue porosity, **alpha emission —
+0–254 is brightness, 255 is none**. Checked against Complementary r5.8.1's `GetCustomEmission`,
+which reads `a < 1.0 ? a : 0.0`.
+
+The procedural map is alpha 254 over the whole inside of the panel (uniform, not per dot, because
+Complementary caps emission at the full-resolution value and a checkerboard averages away with
+distance) and 255 elsewhere. A drawn `tools/overlays/<face>_s.png` replaces it — as a whole map, not
+composited, because in labPBR the alpha is the emission and cannot also mean transparency. Any face
+can glow that way, the Port included.
+
+**Players have to opt in.** Complementary: *RP Support* = labPBR, or *IPBR+ Emissive Mode* =
+"labPBR > IPBR+". BSL: *Advanced Materials* on. With Complementary's default Integrated PBR+ only
+the shader pack's own `block.properties` decides what glows (Euphoria Patches lists AE2's
+controller; RS and rsmbac are not on it). Without shaders nothing reads these maps.
+
 ### The Frame connects to Frames only (0.10.2)
 
 `athena/frame.json` with `"connect_to": { "type": "sameBlock" }` and five tiles in `ctm/frame/` —

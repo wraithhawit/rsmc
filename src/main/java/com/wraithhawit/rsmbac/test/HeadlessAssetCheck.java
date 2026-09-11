@@ -69,6 +69,7 @@ public final class HeadlessAssetCheck {
         controllerFacings();
         texturesResolve("assets/rsmbac/models/block");
         texturesResolve("assets/rsmbac/athena");
+        specularMaps();
 
         // Athena's per-block definition replaces EVERY variant of the block with one connected
         // cube: on the Controller that is the screen, the facing and the state, all gone. The
@@ -144,6 +145,28 @@ public final class HeadlessAssetCheck {
                         RESOURCES.resolve("assets/rsmbac/textures/" + matcher.group(1) + ".png"));
                 }
             }
+        }
+    }
+
+    /**
+     * labPBR glow maps. Iris pairs {@code foo_s.png} with {@code foo.png} by name and nothing else,
+     * so a map whose texture was renamed is not an error anywhere -- the screen just stops glowing
+     * under shaders, which nobody without shaders will ever see. Hence both directions: every map
+     * has its texture, and the running screen has a map on every face Athena might draw.
+     */
+    private static void specularMaps() throws IOException {
+        final Path textures = RESOURCES.resolve("assets/rsmbac/textures/block");
+        try (var files = Files.walk(textures)) {
+            for (final Path map : files.filter(p -> p.getFileName().toString().endsWith("_s.png")).toList()) {
+                final String name = map.getFileName().toString();
+                exists("texture for glow map " + textures.relativize(map),
+                    map.resolveSibling(name.substring(0, name.length() - "_s.png".length()) + ".png"));
+            }
+        }
+        exists("active screen glow map", textures.resolve("controller_front_active_s.png"));
+        for (final String tile : new String[] {"particle", "empty", "center", "vertical", "horizontal"}) {
+            exists("active screen glow map on connected tile " + tile,
+                textures.resolve("ctm/controller_front_active/" + tile + "_s.png"));
         }
     }
 
