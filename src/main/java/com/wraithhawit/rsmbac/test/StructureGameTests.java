@@ -22,6 +22,7 @@ import com.refinedmods.refinedstorage.common.content.DataComponents;
 import com.refinedmods.refinedstorage.common.support.resource.ItemResource;
 import com.wraithhawit.rsmbac.block.ControllerBlockEntity;
 import com.wraithhawit.rsmbac.structure.StructureStepBehavior;
+import com.wraithhawit.rsmbac.Config;
 import com.wraithhawit.rsmbac.PatternImport;
 import com.wraithhawit.rsmbac.RSMBAC;
 import com.wraithhawit.rsmbac.block.ControllerBlock;
@@ -458,6 +459,52 @@ public final class StructureGameTests {
                 if (after != ControllerState.UNFORMED) {
                     helper.fail("broke a CPU, a pattern storage, a casing and a frame, and the"
                         + " screen still reads " + after);
+                    return;
+                }
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Lowering {@code maxStructureEdge} unforms a structure that no longer fits, promptly.
+     *
+     * <p>A 3x3x5 forms under the default limit and must read UNFORMED once the limit is 4. The
+     * deadline is what makes this a test of the config wiring rather than of patience: twenty ticks
+     * is a tenth of the safety scan, so only the change bump in {@code Config} can explain the
+     * screen turning off in time. Remove the bump and this fails; point the Controller's
+     * {@code find} back at {@code MAX_EDGE} and it fails.
+     *
+     * <p>Its own batch because the limit is global: run beside the other tests, lowering it would
+     * unform their structures too.
+     */
+    @GameTest(template = "empty8", timeoutTicks = 200, batch = "maxStructureEdge")
+    public static void loweringTheEdgeLimitUnformsATooLongStructure(final GameTestHelper helper) {
+        final int original = Config.maxStructureEdge;
+        buildShellSized(helper, 2, 2, 4);
+        helper.setBlock(new BlockPos(1, 1, 1), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+        helper.setBlock(new BlockPos(1, 1, 2), RsmcBlocks.PATTERN_STORAGE.get());
+        helper.setBlock(new BlockPos(1, 1, 3), RsmcBlocks.CPUS.get(CpuTier.ONE_X).get());
+
+        final BlockPos controller = controllerPos(helper);
+        if (controller == null) {
+            helper.fail("the test shell did not place a Controller");
+            return;
+        }
+        helper.runAfterDelay(45L, () -> {
+            final ControllerState formed = stateAt(helper, controller);
+            if (formed != ControllerState.INACTIVE) {
+                helper.fail("a 3x3x5 under the default limit reads " + formed
+                    + ", expected INACTIVE");
+                return;
+            }
+            Config.setMaxStructureEdge(4);
+            helper.runAfterDelay(20L, () -> {
+                final ControllerState after = stateAt(helper, controller);
+                Config.setMaxStructureEdge(original);
+                if (after != ControllerState.UNFORMED) {
+                    helper.fail("lowered maxStructureEdge to 4 and a 3x3x5 still reads " + after
+                        + " twenty ticks later");
                     return;
                 }
                 helper.succeed();
@@ -1459,7 +1506,7 @@ public final class StructureGameTests {
     private static Result find(final GameTestHelper helper) {
         final BlockPos corner = helper.absolutePos(new BlockPos(0, 0, 0));
         return MultiblockShape.find(new LevelBlockSource(helper.getLevel()),
-            corner.getX(), corner.getY(), corner.getZ());
+            corner.getX(), corner.getY(), corner.getZ(), Config.maxStructureEdge);
     }
 
     private StructureGameTests() {

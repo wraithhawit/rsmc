@@ -20,7 +20,7 @@ and `/rsmbac info` prints the version on every path.
 |---|---|
 | Requires | Minecraft 1.21.1, NeoForge 21.1.234+, **Refined Storage 2.0.9+** |
 | In game | Look at any block of the structure and run `/rsmbac info` — it describes the structure, or names the failure, its position and what that position wanted |
-| Config | None. Nothing here is tunable yet |
+| Config | `config/rsmbac-common.toml`: `maxStructureEdge` (largest structure per axis, 4–16, default 16), `maxCraftingMillisPerTick` (crafting's share of a tick, default 45), `maxPatternPushMicrosPerTick` (default 2000). Each is explained in the file |
 | Worlds | A world built with 0.1.x loses these blocks: the mod id changed `rsmc` → `rsmbac` in 0.2.0 and no registry knows the old namespace |
 
 > **Status: it crafts, and it is young.** The structure, the network node, the pattern screen
@@ -52,7 +52,8 @@ pure mixin mod. This one is blocks.
 
 ## The structure
 
-A **hollow rectangular box** with a working core, up to 16 blocks on each axis, built from five
+A **hollow rectangular box** with a working core, up to 16 blocks on each axis (a server can lower
+that with `maxStructureEdge`), built from five
 block types. Where a block goes is decided entirely by where it sits in the box:
 
 | position | how many coordinates at an extreme | block |

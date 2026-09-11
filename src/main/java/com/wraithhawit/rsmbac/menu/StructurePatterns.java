@@ -8,6 +8,7 @@ import java.util.function.IntConsumer;
 
 import javax.annotation.Nullable;
 
+import com.wraithhawit.rsmbac.Config;
 import com.wraithhawit.rsmbac.PatternPolicy;
 import com.wraithhawit.rsmbac.block.PatternStorageBlockEntity;
 import com.wraithhawit.rsmbac.structure.LevelBlockSource;
@@ -84,7 +85,8 @@ public final class StructurePatterns implements Container {
      */
     public static StructurePatterns of(final Level level, final BlockPos seed) {
         return of(level, MultiblockShape.find(
-            new LevelBlockSource(level), seed.getX(), seed.getY(), seed.getZ()));
+            new LevelBlockSource(level), seed.getX(), seed.getY(), seed.getZ(),
+            Config.maxStructureEdge));
     }
 
     /**

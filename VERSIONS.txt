@@ -8,6 +8,12 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.11.2
+------
+  MAX STRUCTURE SIZE IS CONFIGURABLE - maxStructureEdge in rsmbac-common.toml, 4 to 16, default 16.
+  Lowering it unforms any structure now too big within a quarter second (patterns stay put). 16
+  remains the ceiling. shapeCheck covers the limit on all three axes; one new gametest, own batch.
+
 0.11.1
 ------
   CONTROLLER AND PORT KEEP THEIR BORDER, CASING DROPS ITS BORDER AGAINST THEM - the artist's design.

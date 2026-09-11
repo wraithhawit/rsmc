@@ -6,6 +6,45 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.11.2
+
+**The largest structure is configurable: `maxStructureEdge`, 4 to 16, default 16.**
+
+It can only lower the limit. 16 stays the ceiling, because everything else was sized for it: the
+pattern screen already needs its 32,767-slot guard at 16³, and a shape scan is a walk of the whole
+volume.
+
+**4 is the floor for a reason, not a round number.** The smallest working structure is 3x3x4 (see
+`MultiblockShape`'s javadoc for why that is derived), so a limit of 3 would make the mod unbuildable
+and a limit of 4 is the lowest that still admits it. The headless check pins that: a 3x3x4 forms at
+4.
+
+**Lowering it on a live server takes effect immediately.** Changing the value bumps
+`StructureChanges`, so every Controller rescans after the usual quarter-second debounce. Without the
+bump the answer only changed at each Controller's ten-second safety scan, since no block moved. A
+structure that no longer fits reads UNFORMED; its patterns stay in its Pattern Storage blocks,
+exactly as when a CPU is broken out.
+
+### No overload that forgets it
+
+`MultiblockShape.find` now takes the limit as an argument and **the four-argument form is gone**,
+rather than kept as a default-16 convenience. Six call sites ask the question; an overload would let
+any one of them quietly ignore the server's setting and disagree with the Controller about whether
+the box is formed. The shape class still has no Minecraft or config types in it, so `shapeCheck`
+runs in a plain JVM as before. A limit outside 1..16 is refused with an exception rather than
+clamped.
+
+The "bigger than N blocks" message in `/rsmbac info` and on right-click names the configured limit.
+
+### Tests
+
+- `shapeCheck`: a 3x3x4 forms at limit 4; a 5x3x3, 3x5x3 and 3x3x5 each fail at 4 and form at 16;
+  a 3x3x8 forms at 8 and fails at 7; 17 is refused.
+- Gametest `loweringTheEdgeLimitUnformsATooLongStructure`: a formed 3x3x5 must read UNFORMED twenty
+  ticks after the limit drops to 4, a tenth of the safety interval, so only the bump can pass it.
+  It runs in its own batch, because the limit is global and would unform the structures of any test
+  running beside it.
+
 ## 0.11.1
 
 **The Controller and the Pattern Port keep their own border; the Casing drops its border against

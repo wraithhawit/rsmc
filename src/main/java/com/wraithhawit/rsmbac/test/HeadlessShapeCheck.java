@@ -40,6 +40,8 @@ public final class HeadlessShapeCheck {
         anOverhangBreaksIt();
         interiorMustHaveAPatternStorage();
         seventeenLongIsTooLarge();
+        aConfiguredLimitIsHonoured();
+        aLimitAboveTheCeilingIsRefused();
         aSeedOnNothingFails();
         maximumStructure();
         aStructureNeedsAController();
@@ -168,6 +170,42 @@ public final class HeadlessShapeCheck {
     private static void seventeenLongIsTooLarge() {
         final World world = shell(0, 0, 0, 2, 2, 16);
         expectFailure("17 long", world.find(0, 0, 0), Failure.TOO_LARGE);
+    }
+
+    private static void aConfiguredLimitIsHonoured() {
+        // maxStructureEdge's floor, 4, must still admit the smallest legal structure -- that is
+        // the whole reason the floor is 4 and not 3.
+        final World smallest = shell(0, 0, 0, 2, 2, 3);
+        smallest.cpu(1, 1, 1, CpuTier.ONE_X);
+        smallest.put(1, 1, 2, BlockKind.PATTERN_STORAGE);
+        expectFormed("3x3x4 at limit 4", smallest.find(0, 0, 0, 4));
+
+        // One longer is over it on every axis it could be, and legal again under the default.
+        // The interior is filled completely, so the limit is the only thing that can fail it.
+        for (final int[] size : new int[][] {{4, 2, 2}, {2, 4, 2}, {2, 2, 4}}) {
+            final World world = filledCore(size[0], size[1], size[2]);
+            final String name = (size[0] + 1) + "x" + (size[1] + 1) + "x" + (size[2] + 1);
+            expectFailure(name + " at limit 4", world.find(0, 0, 0, 4), Failure.TOO_LARGE);
+            expectFormed(name + " at limit 16", world.find(0, 0, 0));
+        }
+
+        // Exactly at a mid-range limit forms; one past it does not.
+        final World eight = filledCore(2, 2, 7);
+        expectFormed("3x3x8 at limit 8", eight.find(0, 0, 0, 8));
+        expectFailure("3x3x8 at limit 7", eight.find(0, 0, 0, 7), Failure.TOO_LARGE);
+    }
+
+    private static void aLimitAboveTheCeilingIsRefused() {
+        // The config range stops at 16, but find() is public; a caller asking for 17 must be told,
+        // not quietly given a scan the rest of the mod was never sized for.
+        checks++;
+        try {
+            new World().find(0, 0, 0, MultiblockShape.MAX_EDGE + 1);
+            failures++;
+            System.out.println("FAILED maxEdge 17 was accepted");
+        } catch (final IllegalArgumentException expected) {
+            // correct
+        }
     }
 
     private static void aSeedOnNothingFails() {
@@ -305,6 +343,20 @@ public final class HeadlessShapeCheck {
         return build(x0, y0, z0, x1, y1, z1, true);
     }
 
+    /** A legal structure from the origin: a shell whose whole interior is CPUs but one storage. */
+    private static World filledCore(final int x1, final int y1, final int z1) {
+        final World world = shell(0, 0, 0, x1, y1, z1);
+        for (int x = 1; x < x1; x++) {
+            for (int y = 1; y < y1; y++) {
+                for (int z = 1; z < z1; z++) {
+                    world.cpu(x, y, z, CpuTier.ONE_X);
+                }
+            }
+        }
+        world.put(1, 1, 1, BlockKind.PATTERN_STORAGE);
+        return world;
+    }
+
     /** Same, but every wall slot is a plain Casing -- for the cases that supply their own. */
     private static World shellWithoutController(final int x0, final int y0, final int z0,
                                                 final int x1, final int y1, final int z1) {
@@ -361,7 +413,11 @@ public final class HeadlessShapeCheck {
         }
 
         Result find(final int x, final int y, final int z) {
-            return MultiblockShape.find(this, x, y, z);
+            return this.find(x, y, z, MultiblockShape.MAX_EDGE);
+        }
+
+        Result find(final int x, final int y, final int z, final int maxEdge) {
+            return MultiblockShape.find(this, x, y, z, maxEdge);
         }
 
         @Nullable

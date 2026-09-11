@@ -1,5 +1,8 @@
 package com.wraithhawit.rsmbac;
 
+import com.wraithhawit.rsmbac.structure.MultiblockShape;
+import com.wraithhawit.rsmbac.structure.StructureChanges;
+
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
@@ -60,11 +63,28 @@ public final class Config {
         )
         .defineInRange("maxPatternPushMicrosPerTick", 2000, 0, 50_000);
 
+    public static final ModConfigSpec.IntValue MAX_STRUCTURE_EDGE = BUILDER
+        .comment(
+            "The largest a structure may be on any axis, in blocks. 16 allows up to 16x16x16,",
+            "which is also the most the mod supports -- this can lower the limit, never raise it.",
+            "",
+            "4 is the floor because the smallest working structure is 3x3x4: a box needs an",
+            "interior, and the interior needs room for one CPU and one Pattern Storage.",
+            "",
+            "Lowering it on a running server unforms any structure that is now too big. Its",
+            "patterns stay where they are, in its Pattern Storage blocks; shrink the box, or put",
+            "the limit back, and it forms again."
+        )
+        .defineInRange("maxStructureEdge", MultiblockShape.MAX_EDGE, 4, MultiblockShape.MAX_EDGE);
+
     /** Cached: read every tick, on the only hot path in the mod. */
     public static volatile int maxCraftingMillisPerTick = 45;
 
     /** Cached for the same reason: the pattern drain is also attempted every tick. */
     public static volatile int maxPatternPushMicrosPerTick = 2000;
+
+    /** Cached so every structure scan does not go through the config map. */
+    public static volatile int maxStructureEdge = MultiblockShape.MAX_EDGE;
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 
@@ -84,5 +104,16 @@ public final class Config {
     public static void refresh() {
         maxCraftingMillisPerTick = MAX_CRAFTING_MILLIS_PER_TICK.get();
         maxPatternPushMicrosPerTick = MAX_PATTERN_PUSH_MICROS_PER_TICK.get();
+        setMaxStructureEdge(MAX_STRUCTURE_EDGE.get());
+    }
+
+    /** Public so a gametest can drive the same path a config edit takes. */
+    public static void setMaxStructureEdge(final int edge) {
+        if (edge != maxStructureEdge) {
+            maxStructureEdge = edge;
+            // Every structure's answer may have changed, and no block did. Without this a lowered
+            // limit only lands at each Controller's ten-second safety scan.
+            StructureChanges.bump();
+        }
     }
 }

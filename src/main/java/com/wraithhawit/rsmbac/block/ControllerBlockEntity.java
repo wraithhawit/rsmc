@@ -255,7 +255,8 @@ public class ControllerBlockEntity extends BlockEntity {
             return;
         }
         final Result result = MultiblockShape.find(new LevelBlockSource(currentLevel),
-            this.worldPosition.getX(), this.worldPosition.getY(), this.worldPosition.getZ());
+            this.worldPosition.getX(), this.worldPosition.getY(), this.worldPosition.getZ(),
+            Config.maxStructureEdge);
         this.syncNode(currentLevel, result);
         this.updateScreen(currentLevel, result);
     }

@@ -116,7 +116,8 @@ public final class StructureInfoCommand {
             return;
         }
         final Result result = MultiblockShape.find(
-            new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ());
+            new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ(),
+            Config.maxStructureEdge);
         reportScreen(source, player, pos, result);
         reportHeldItem(source, player, player.level(), pos, result);
         if (result.formed()) {
@@ -153,7 +154,8 @@ public final class StructureInfoCommand {
             return;
         }
         final Result result = MultiblockShape.find(
-            new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ());
+            new LevelBlockSource(player.level()), pos.getX(), pos.getY(), pos.getZ(),
+            Config.maxStructureEdge);
         final PatternImport.Report report =
             PatternImport.run(player.level(), pos, result, dryRun);
         if (report.failed()) {
@@ -449,7 +451,7 @@ public final class StructureInfoCommand {
         }
         return switch (result.failure()) {
             case NOT_SOLID -> "there is a gap in the box";
-            case TOO_LARGE -> "bigger than " + MultiblockShape.MAX_EDGE + " blocks on some axis";
+            case TOO_LARGE -> "bigger than " + Config.maxStructureEdge + " blocks on some axis";
             case WRONG_BLOCK -> "wrong block for that position";
             case NO_CPU -> "no Crafting CPU inside";
             case NO_PATTERN_STORAGE -> "no Pattern Storage inside";

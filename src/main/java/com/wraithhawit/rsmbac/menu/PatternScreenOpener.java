@@ -1,5 +1,6 @@
 package com.wraithhawit.rsmbac.menu;
 
+import com.wraithhawit.rsmbac.Config;
 import com.wraithhawit.rsmbac.block.ControllerBlock;
 import com.wraithhawit.rsmbac.network.HighlightBlockPayload;
 import com.wraithhawit.rsmbac.network.RsmcPayloads;
@@ -49,7 +50,8 @@ public final class PatternScreenOpener {
             return InteractionResult.PASS;
         }
         final Result result = MultiblockShape.find(
-            new LevelBlockSource(level), pos.getX(), pos.getY(), pos.getZ());
+            new LevelBlockSource(level), pos.getX(), pos.getY(), pos.getZ(),
+            Config.maxStructureEdge);
         if (!result.formed()) {
             explain(serverPlayer, result,
                 level.getBlockState(pos).getBlock() instanceof ControllerBlock);
@@ -192,7 +194,7 @@ public final class PatternScreenOpener {
         return switch (result.failure()) {
             case NOT_SOLID -> "there is a gap in the box -- that position needs "
                 + needed(result.expected());
-            case TOO_LARGE -> "bigger than " + MultiblockShape.MAX_EDGE + " blocks on some axis";
+            case TOO_LARGE -> "bigger than " + Config.maxStructureEdge + " blocks on some axis";
             case WRONG_BLOCK -> "wrong block for that position -- it needs "
                 + needed(result.expected());
             case NO_CPU -> "no Crafting CPU inside";

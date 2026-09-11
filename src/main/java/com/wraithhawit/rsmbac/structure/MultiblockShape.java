@@ -15,7 +15,8 @@ import javax.annotation.Nullable;
  *
  * <h2>The rule</h2>
  *
- * <p>A rectangular box, no bigger than 16 on any axis, whose every position is filled and whose
+ * <p>A rectangular box, no bigger than 16 on any axis (or the server's smaller configured limit),
+ * whose every position is filled and whose
  * three roles are decided purely by where a position sits in the box:
  *
  * <ul>
@@ -46,15 +47,13 @@ import javax.annotation.Nullable;
  * one connected region, and that region is not a box, so <em>both</em> stop working. Leave a gap.
  */
 public final class MultiblockShape {
-    /** Per axis. 16x16x16 is the largest legal structure. */
-    public static final int MAX_EDGE = 16;
-
     /**
-     * The most blocks a search will visit before giving up. Without a cap, a player who floors a
-     * chunk in crafter blocks would have this scanning hundreds of thousands of positions on the
-     * tick the last one is placed.
+     * Per axis, the ceiling no configuration can raise. 16x16x16 is the largest legal structure.
+     *
+     * <p>A server may set a smaller limit ({@code maxStructureEdge}), which is passed to
+     * {@link #find} rather than read here, so this class stays free of Minecraft types.
      */
-    public static final int MAX_VOLUME = MAX_EDGE * MAX_EDGE * MAX_EDGE;
+    public static final int MAX_EDGE = 16;
 
     private MultiblockShape() {
     }
@@ -139,7 +138,7 @@ public final class MultiblockShape {
     public enum Failure {
         /** A position inside the bounding box holds no rsmbac block at all. */
         NOT_SOLID,
-        /** The region runs past {@link #MAX_EDGE} on some axis. */
+        /** The region runs past the edge limit {@link #find} was given, on some axis. */
         TOO_LARGE,
         /** A position holds an rsmbac block, but the wrong one for where it sits. */
         WRONG_BLOCK,
@@ -215,13 +214,23 @@ public final class MultiblockShape {
      * second checks every position inside the resulting bounding box against the role that position
      * demands. One pass cannot do this: the role of a position is defined against the bounds, and
      * a flood fill knows nothing about the bounds until it has finished.
+     *
+     * <p>There is deliberately no overload without {@code maxEdge}: one would quietly ignore the
+     * server's configured limit at whichever call site forgot it.
+     *
+     * @param maxEdge the largest legal size on any axis, from 1 to {@link #MAX_EDGE}
      */
     public static Result find(final BlockSource source,
-                              final int seedX, final int seedY, final int seedZ) {
+                              final int seedX, final int seedY, final int seedZ,
+                              final int maxEdge) {
+        if (maxEdge < 1 || maxEdge > MAX_EDGE) {
+            throw new IllegalArgumentException(
+                "maxEdge must be 1.." + MAX_EDGE + ", was " + maxEdge);
+        }
         if (source.blockAt(seedX, seedY, seedZ) == null) {
             return Result.failed(Failure.NOT_SOLID, null, seedX, seedY, seedZ);
         }
-        final Flood flood = new Flood(source, seedX, seedY, seedZ);
+        final Flood flood = new Flood(source, seedX, seedY, seedZ, maxEdge);
         final Failure floodFailure = flood.run();
         if (floodFailure != null) {
             return Result.failed(floodFailure, null, flood.farX, flood.farY, flood.farZ);
@@ -326,6 +335,15 @@ public final class MultiblockShape {
         private final ArrayDeque<int[]> queue = new ArrayDeque<>();
         private final HashSet<Long> seen = new HashSet<>();
 
+        private final int maxEdge;
+
+        /**
+         * The most blocks the search will visit before giving up. Without a cap, a player who
+         * floors a chunk in crafter blocks would have this scanning hundreds of thousands of
+         * positions on the tick the last one is placed.
+         */
+        private final int maxVolume;
+
         private int minX;
         private int minY;
         private int minZ;
@@ -338,8 +356,11 @@ public final class MultiblockShape {
         private int farY;
         private int farZ;
 
-        Flood(final BlockSource source, final int seedX, final int seedY, final int seedZ) {
+        Flood(final BlockSource source, final int seedX, final int seedY, final int seedZ,
+              final int maxEdge) {
             this.source = source;
+            this.maxEdge = maxEdge;
+            this.maxVolume = maxEdge * maxEdge * maxEdge;
             this.minX = seedX;
             this.maxX = seedX;
             this.minY = seedY;
@@ -371,10 +392,10 @@ public final class MultiblockShape {
                 this.maxY = Math.max(this.maxY, y);
                 this.minZ = Math.min(this.minZ, z);
                 this.maxZ = Math.max(this.maxZ, z);
-                if (this.maxX - this.minX >= MAX_EDGE
-                    || this.maxY - this.minY >= MAX_EDGE
-                    || this.maxZ - this.minZ >= MAX_EDGE
-                    || this.seen.size() > MAX_VOLUME) {
+                if (this.maxX - this.minX >= this.maxEdge
+                    || this.maxY - this.minY >= this.maxEdge
+                    || this.maxZ - this.minZ >= this.maxEdge
+                    || this.seen.size() > this.maxVolume) {
                     this.farX = x;
                     this.farY = y;
                     this.farZ = z;
