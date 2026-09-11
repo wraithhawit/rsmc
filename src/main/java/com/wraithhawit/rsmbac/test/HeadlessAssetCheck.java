@@ -70,6 +70,7 @@ public final class HeadlessAssetCheck {
         texturesResolve("assets/rsmbac/models/block");
         texturesResolve("assets/rsmbac/athena");
         specularMaps();
+        screenGlows();
         framedInTheWall();
 
         System.out.println("asset checks: " + checks + " (" + BlockNames.all().size() + " blocks)");
@@ -133,6 +134,8 @@ public final class HeadlessAssetCheck {
 
     private static final java.util.regex.Pattern TEXTURE_REF =
         java.util.regex.Pattern.compile("\"rsmbac:(block/[a-z0-9_/]+)\"");
+    private static final java.util.regex.Pattern PARENT_KEY =
+        java.util.regex.Pattern.compile("\"parent\"\\s*:\\s*$");
 
     /**
      * Every {@code rsmbac:block/...} a model or an Athena definition names must be a real texture.
@@ -149,10 +152,14 @@ public final class HeadlessAssetCheck {
         }
         try (var files = Files.list(dir)) {
             for (final Path json : files.filter(p -> p.toString().endsWith(".json")).toList()) {
-                final var matcher = TEXTURE_REF.matcher(Files.readString(json, StandardCharsets.UTF_8));
+                final String text = Files.readString(json, StandardCharsets.UTF_8);
+                final var matcher = TEXTURE_REF.matcher(text);
                 while (matcher.find()) {
-                    exists(json.getFileName() + " -> " + matcher.group(1),
-                        RESOURCES.resolve("assets/rsmbac/textures/" + matcher.group(1) + ".png"));
+                    // A model's parent names another model, not a texture -- and must exist just the same.
+                    final boolean parent = PARENT_KEY.matcher(text.substring(0, matcher.start())).find();
+                    exists(json.getFileName() + " -> " + matcher.group(1), parent
+                        ? RESOURCES.resolve("assets/rsmbac/models/" + matcher.group(1) + ".json")
+                        : RESOURCES.resolve("assets/rsmbac/textures/" + matcher.group(1) + ".png"));
                 }
             }
         }
@@ -174,6 +181,26 @@ public final class HeadlessAssetCheck {
             }
         }
         exists("active screen glow map", textures.resolve("controller_front_active_s.png"));
+        exists("active screen overlay glow map", textures.resolve("controller_front_active_glow_s.png"));
+    }
+
+    /**
+     * The running screen glows WITHOUT shaders too, the way Refined Storage lights its own screens:
+     * a cutout overlay on the front face drawn at full block and sky light. The {@code _s} maps only
+     * reach a shader set to read them, and Complementary's defaults do not -- 0.11.2 glowed for
+     * nobody. Losing the parent, the overlay texture or the light level all still render a plain,
+     * unlit screen, so each is pinned.
+     */
+    private static void screenGlows() {
+        final Path models = RESOURCES.resolve("assets/rsmbac/models/block");
+        contains("controller_active draws the screen overlay", models.resolve("controller_active.json"),
+            "\"parent\": \"rsmbac:block/orientable_screen\"");
+        contains("controller_active's overlay is the glow texture", models.resolve("controller_active.json"),
+            "\"screen\": \"rsmbac:block/controller_front_active_glow\"");
+        contains("the screen overlay is fullbright", models.resolve("orientable_screen.json"),
+            "\"block_light\": 15, \"sky_light\": 15");
+        contains("the screen overlay is a cutout", models.resolve("orientable_screen.json"),
+            "\"render_type\": \"cutout\"");
     }
 
     private static void absent(final String what, final Path path, final String needle) {

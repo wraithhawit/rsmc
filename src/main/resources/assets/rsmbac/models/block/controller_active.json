@@ -1,8 +1,9 @@
 {
-  "parent": "minecraft:block/orientable",
+  "parent": "rsmbac:block/orientable_screen",
   "textures": {
     "top": "rsmbac:block/casing",
     "front": "rsmbac:block/controller_front_active",
-    "side": "rsmbac:block/casing"
+    "side": "rsmbac:block/casing",
+    "screen": "rsmbac:block/controller_front_active_glow"
   }
 }

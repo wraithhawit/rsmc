@@ -6,6 +6,36 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.11.3
+
+**The running Controller screen glows with or without shaders.**
+
+lavasurf's `controller_front_active_s.png` was correct — alpha 254 on the lit pixels is labPBR's
+maximum — and had shipped since 0.11.0. It did nothing because **a `_s` map only reaches a shader
+that is set to read one.** Complementary's defaults are `RP_MODE 1` (Integrated PBR+) and
+`IPBR_EMISSIVE_MODE 1` (IPBR+ only), which ignore specular maps entirely; the test instance ran
+Complementary r5.4 with no settings file at all. A mod cannot change that, and IPBR+'s own emissives
+come from the shader pack's `block.properties`, which a mod cannot add to either.
+
+So the screen now glows the way Refined Storage lights its own (`emissive_north_cutout.json` in
+RS 2.0.9): a second, cutout element on the front face with
+`neoforge_data: {block_light: 15, sky_light: 15}`. That is fullbright in vanilla and under every
+shader, whatever its settings. Beyond RS's version it also turns off ambient occlusion and
+directional shading for the overlay, so a screen facing east or west, or one with a block in front
+of it, is not darkened.
+
+- `models/block/orientable_screen.json` — vanilla `orientable`'s faces plus a `#screen` overlay.
+  Only `controller_active` uses it; unformed and inactive stay unlit.
+- `controller_front_active_glow.png` — the 8x8 screen cut out of the face, transparent elsewhere.
+  Base and overlay are identical under the screen, so the coplanar pair cannot flicker visibly.
+- `controller_front_active_glow_s.png` — Iris pairs a map by sprite name and the overlay is now
+  the quad on top, so without its own map the labPBR route would have gone dark.
+- The whole screen is now at labPBR 254. The dark gaps between cells were at 176; they emit their
+  own dark teal, so the difference is small.
+
+assetCheck pins the parent, the overlay texture, the light level and the cutout render type: losing
+any of them still renders a normal, unlit screen.
+
 ## 0.11.2
 
 **The largest structure is configurable: `maxStructureEdge`, 4 to 16, default 16.**

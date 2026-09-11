@@ -8,6 +8,12 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.11.3
+------
+  THE RUNNING SCREEN GLOWS WITHOUT SHADERS - a fullbright cutout overlay on the front face, RS's own
+  technique (orientable_screen.json). The _s maps were fine but Complementary's defaults never read
+  them. Whole 8x8 screen now at labPBR 254 (the gaps were 176); the overlay has its own _s.
+
 0.11.2
 ------
   MAX STRUCTURE SIZE IS CONFIGURABLE - maxStructureEdge in rsmbac-common.toml, 4 to 16, default 16.
