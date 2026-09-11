@@ -13,6 +13,9 @@ import javax.imageio.ImageIO;
  *   java tools/GenerateTextures.java
  * </pre>
  *
+ * <p>Reads {@code casing.png} and the five tiles in {@code ctm/casing/}; those six are drawn art and
+ * the only inputs. Everything this writes is output and will be overwritten on the next run.
+ *
  * <p>Two of them: the three Controller screen states, and the Pattern Port's opening. Generated
  * rather than drawn because every one is the Casing texture with one inset panel on top, and the
  * only difference between them is what the panel is. Hand-editing four near-identical 16x16 images
@@ -39,6 +42,9 @@ public final class GenerateTextures {
     private GenerateTextures() {
     }
 
+    /** Athena's five connected-texture tiles. Every one is a full 16x16; see PLACEHOLDERS.md. */
+    private static final String[] CTM_TILES = {"particle", "empty", "center", "vertical", "horizontal"};
+
     public static void main(final String[] args) throws IOException {
         final File dir = new File("src/main/resources/assets/rsmbac/textures/block");
         final BufferedImage casing = ImageIO.read(new File(dir, "casing.png"));
@@ -47,7 +53,22 @@ public final class GenerateTextures {
         write(dir, "controller_front_inactive.png", screen(casing, State.INACTIVE));
         write(dir, "controller_front_active.png", screen(casing, State.ACTIVE));
         write(dir, "port.png", port(casing));
-        System.out.println("wrote 3 controller faces and the port to " + dir);
+
+        // Since 0.10.0 the same panels are inset into each of the Casing's five connected tiles as
+        // well, so a Port or a Controller screen sits in a seamless wall instead of carrying a
+        // border of its own. The panel is well inside the 3px bezel, so it never touches the edge
+        // pixels that are the only thing the five tiles differ in -- which is what keeps the
+        // identical-interiors rule true for these sets without anyone checking it.
+        final File ctm = new File(dir, "ctm");
+        for (final String tile : CTM_TILES) {
+            final BufferedImage source = ImageIO.read(new File(ctm, "casing/" + tile + ".png"));
+            write(new File(ctm, "port"), tile + ".png", port(source));
+            for (final State state : State.values()) {
+                final String folder = "controller_front_" + state.name().toLowerCase(java.util.Locale.ROOT);
+                write(new File(ctm, folder), tile + ".png", screen(source, state));
+            }
+        }
+        System.out.println("wrote 3 controller faces and the port, flat and as connected tiles, to " + dir);
     }
 
     private enum State {
@@ -154,6 +175,7 @@ public final class GenerateTextures {
 
     private static void write(final File dir, final String name, final BufferedImage image)
         throws IOException {
+        dir.mkdirs();
         ImageIO.write(image, "PNG", new File(dir, name));
     }
 }

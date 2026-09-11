@@ -1,16 +1,16 @@
 {
   "variants": {
-    "facing=north,state=unformed": { "model": "rsmbac:block/controller" },
-    "facing=east,state=unformed": { "model": "rsmbac:block/controller", "y": 90 },
-    "facing=south,state=unformed": { "model": "rsmbac:block/controller", "y": 180 },
-    "facing=west,state=unformed": { "model": "rsmbac:block/controller", "y": 270 },
-    "facing=north,state=inactive": { "model": "rsmbac:block/controller_inactive" },
-    "facing=east,state=inactive": { "model": "rsmbac:block/controller_inactive", "y": 90 },
-    "facing=south,state=inactive": { "model": "rsmbac:block/controller_inactive", "y": 180 },
-    "facing=west,state=inactive": { "model": "rsmbac:block/controller_inactive", "y": 270 },
-    "facing=north,state=active": { "model": "rsmbac:block/controller_active" },
-    "facing=east,state=active": { "model": "rsmbac:block/controller_active", "y": 90 },
-    "facing=south,state=active": { "model": "rsmbac:block/controller_active", "y": 180 },
-    "facing=west,state=active": { "model": "rsmbac:block/controller_active", "y": 270 }
+    "facing=north,state=unformed": { "model": "rsmbac:block/controller_unformed_north" },
+    "facing=east,state=unformed": { "model": "rsmbac:block/controller_unformed_east" },
+    "facing=south,state=unformed": { "model": "rsmbac:block/controller_unformed_south" },
+    "facing=west,state=unformed": { "model": "rsmbac:block/controller_unformed_west" },
+    "facing=north,state=inactive": { "model": "rsmbac:block/controller_inactive_north" },
+    "facing=east,state=inactive": { "model": "rsmbac:block/controller_inactive_east" },
+    "facing=south,state=inactive": { "model": "rsmbac:block/controller_inactive_south" },
+    "facing=west,state=inactive": { "model": "rsmbac:block/controller_inactive_west" },
+    "facing=north,state=active": { "model": "rsmbac:block/controller_active_north" },
+    "facing=east,state=active": { "model": "rsmbac:block/controller_active_east" },
+    "facing=south,state=active": { "model": "rsmbac:block/controller_active_south" },
+    "facing=west,state=active": { "model": "rsmbac:block/controller_active_west" }
   }
 }

@@ -1,0 +1,11 @@
+{
+  "athena:loader": "athena:ctm",
+  "ctm_textures": {
+    "particle":   "rsmbac:block/ctm/casing/particle",
+    "empty":      "rsmbac:block/ctm/casing/empty",
+    "center":     "rsmbac:block/ctm/casing/center",
+    "vertical":   "rsmbac:block/ctm/casing/vertical",
+    "horizontal": "rsmbac:block/ctm/casing/horizontal"
+  },
+  "connect_to": { "type": "tag", "tag": "rsmbac:shell" }
+}

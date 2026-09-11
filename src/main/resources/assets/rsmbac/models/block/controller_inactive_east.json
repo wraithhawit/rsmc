@@ -1,0 +1,31 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "rsmbac:block/casing",
+    "north":    "rsmbac:block/casing",
+    "east":     "rsmbac:block/controller_front_inactive",
+    "south":    "rsmbac:block/casing",
+    "west":     "rsmbac:block/casing",
+    "up":       "rsmbac:block/casing",
+    "down":     "rsmbac:block/casing"
+  },
+  "loader": { "id": "athena:athena", "optional": true },
+  "athena:loader": "athena:ctm",
+  "ctm_textures": {
+    "east": {
+      "particle":   "rsmbac:block/ctm/controller_front_inactive/particle",
+      "empty":      "rsmbac:block/ctm/controller_front_inactive/empty",
+      "center":     "rsmbac:block/ctm/controller_front_inactive/center",
+      "vertical":   "rsmbac:block/ctm/controller_front_inactive/vertical",
+      "horizontal": "rsmbac:block/ctm/controller_front_inactive/horizontal"
+    },
+    "default": {
+      "particle":   "rsmbac:block/ctm/casing/particle",
+      "empty":      "rsmbac:block/ctm/casing/empty",
+      "center":     "rsmbac:block/ctm/casing/center",
+      "vertical":   "rsmbac:block/ctm/casing/vertical",
+      "horizontal": "rsmbac:block/ctm/casing/horizontal"
+    }
+  },
+  "connect_to": { "type": "tag", "tag": "rsmbac:shell" }
+}

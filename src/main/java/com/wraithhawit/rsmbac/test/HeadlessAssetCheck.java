@@ -66,9 +66,18 @@ public final class HeadlessAssetCheck {
             exists("controller " + state + " face",
                 RESOURCES.resolve("assets/rsmbac/textures/block/controller_front_" + state + ".png"));
         }
-        for (final String model : new String[] {"controller", "controller_inactive", "controller_active"}) {
-            exists("controller model " + model,
-                RESOURCES.resolve("assets/rsmbac/models/block/" + model + ".json"));
+        controllerFacings();
+        texturesResolve("assets/rsmbac/models/block");
+        texturesResolve("assets/rsmbac/athena");
+
+        // Athena's per-block definition replaces EVERY variant of the block with one connected
+        // cube: on the Controller that is the screen, the facing and the state, all gone. The
+        // Controller connects through its models' optional loader instead (see controllerFacings).
+        checks++;
+        if (Files.exists(RESOURCES.resolve("assets/rsmbac/athena/controller.json"))) {
+            failures++;
+            System.out.println("FAILED athena/controller.json exists: it would replace all twelve"
+                + " Controller variants with a plain cube");
         }
 
         System.out.println("asset checks: " + checks + " (" + BlockNames.all().size() + " blocks)");
@@ -77,6 +86,78 @@ public final class HeadlessAssetCheck {
             System.exit(1);
         }
         System.out.println("PASS");
+    }
+
+    /**
+     * One Controller model per facing and state, each with its screen on its own face.
+     *
+     * <p>Athena's baked model never reads the {@code ModelState}, so a blockstate {@code "y": 90}
+     * is silently dropped whenever Athena is installed and every Controller would face north. The
+     * rotation therefore lives in the models, and the blockstate must carry none -- a {@code "y"}
+     * there would double-rotate the vanilla fallback without anyone on ATM10 ever seeing it.
+     *
+     * <p>The loader must be the {@code optional} object form. A bare {@code "loader": "athena:athena"}
+     * is a hard model-load failure for anyone without Athena, which is the whole reason tterrag's CTM
+     * was ruled out for a standalone addon.
+     */
+    private static void controllerFacings() {
+        final Path blockstate = RESOURCES.resolve("assets/rsmbac/blockstates/controller.json");
+        absent("controller blockstate carries no rotation", blockstate, "\"y\"");
+        for (final String state : new String[] {"unformed", "inactive", "active"}) {
+            for (final String facing : new String[] {"north", "east", "south", "west"}) {
+                final String name = "controller_" + state + "_" + facing;
+                final Path model = RESOURCES.resolve("assets/rsmbac/models/block/" + name + ".json");
+                contains(name + " is the blockstate's model for its variant", blockstate,
+                    "\"facing=" + facing + ",state=" + state + "\": { \"model\": \"rsmbac:block/" + name + "\" }");
+                contains(name + " puts the flat screen on its facing", model,
+                    "\"" + facing + "\":" + " ".repeat(9 - facing.length())
+                        + "\"rsmbac:block/controller_front_" + state + "\"");
+                contains(name + " puts the connected screen on its facing", model,
+                    "\"" + facing + "\": {\n      \"particle\":   \"rsmbac:block/ctm/controller_front_" + state + "/");
+                contains(name + " loads Athena optionally", model,
+                    "\"loader\": { \"id\": \"athena:athena\", \"optional\": true }");
+            }
+        }
+    }
+
+    private static final java.util.regex.Pattern TEXTURE_REF =
+        java.util.regex.Pattern.compile("\"rsmbac:(block/[a-z0-9_/]+)\"");
+
+    /**
+     * Every {@code rsmbac:block/...} a model or an Athena definition names must be a real texture.
+     *
+     * <p>This is the check that makes it safe to ship connected textures at all. Athena renders
+     * whatever its JSON points at, so a definition that lands before its tiles is a wall of
+     * missing-texture blocks for every player with Athena -- on ATM10, all of them -- and nothing
+     * short of looking at one in game notices.
+     */
+    private static void texturesResolve(final String folder) throws IOException {
+        final Path dir = RESOURCES.resolve(folder);
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (var files = Files.list(dir)) {
+            for (final Path json : files.filter(p -> p.toString().endsWith(".json")).toList()) {
+                final var matcher = TEXTURE_REF.matcher(Files.readString(json, StandardCharsets.UTF_8));
+                while (matcher.find()) {
+                    exists(json.getFileName() + " -> " + matcher.group(1),
+                        RESOURCES.resolve("assets/rsmbac/textures/" + matcher.group(1) + ".png"));
+                }
+            }
+        }
+    }
+
+    private static void absent(final String what, final Path path, final String needle) {
+        checks++;
+        try {
+            if (!Files.exists(path) || Files.readString(path, StandardCharsets.UTF_8).contains(needle)) {
+                failures++;
+                System.out.println("FAILED " + what + ": " + path + " contains " + needle);
+            }
+        } catch (final IOException e) {
+            failures++;
+            System.out.println("FAILED " + what + ": could not read " + path + " -- " + e);
+        }
     }
 
     private static String readLang() throws IOException {

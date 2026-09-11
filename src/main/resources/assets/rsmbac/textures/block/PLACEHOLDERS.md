@@ -126,17 +126,47 @@ answer. Two things follow:
    *neighbours* drop their borders; having an `athena/<block>.json` is what makes *that block* draw
    connected tiles. They are independent, and only the first is needed to be part of a surface.
 
-Point 2 is what saves the Controller. It is `minecraft:block/orientable` with a live front panel in
-three states across four facings — twelve blockstate variants — and Athena's loader **replaces the
-whole block model**, so a `athena/controller.json` would throw the screen, the facing and the state
-away. Instead the Controller is a *member* of `rsmbac:shell` with **no definition of its own**:
-Casing and Port flow seamlessly into it, and it keeps its panel.
+A `athena/controller.json` would still be wrong: the Controller has a front panel in three states
+across four facings, and Athena's per-block definition **replaces every variant** with one connected
+cube. Being a tag member with no definition (0.9.3) was not enough either — the Controller then kept
+its own full border, so the wall was seamless up to it and bordered around it.
 
-So it is **seven definitions, not nine** — `casing`, `port`, and the five interior blocks. The
-Controller and the Frame have none.
+### What shipped in 0.10.0: the shell connects, Controller included
 
-The Port is `cube_all` and can take CTM normally, but its opening is interior detail, so the opening
-has to be present in all five of its tiles (which the identical-interiors rule requires anyway).
+| block | how | tiles |
+|---|---|---|
+| `casing` | `athena/casing.json` | `ctm/casing/` — **drawn art, replace these** |
+| `port` | `athena/port.json` | `ctm/port/` — generated |
+| `controller` | twelve models, `controller_<state>_<facing>.json` | `ctm/controller_front_<state>/` — generated, plus `ctm/casing/` on the other five faces |
+
+The Controller uses a second entrance Athena has: a NeoForge **geometry loader**, `athena:athena`,
+written inside a block model. Two facts about it decide the layout:
+
+1. **It is loaded optionally.** `"loader": { "id": "athena:athena", "optional": true }` — NeoForge
+   21.1 skips an optional loader that is not installed and builds the model from `parent` and
+   `textures` like any vanilla model. So there is still no dependency.
+2. **It ignores blockstate rotation.** Athena's baked model never reads the `ModelState`, so
+   `"y": 90` does nothing. Each facing therefore has its own model with the screen written on that
+   face (`ctm_textures` accepts `north`/`east`/…/`up`/`down` entries plus a `default` set), and the
+   blockstate has no rotation at all. `assetCheck` pins both.
+
+The Port and the Controller screens are **generated** by `tools/GenerateTextures.java`: it insets the
+panel into each of the five casing tiles. The panel sits well inside the edge, so the five results
+still differ only at the edge, as the format requires. So when new casing tiles land, re-run the
+generator and the Port and all three screens follow. If a screen is hand-drawn instead, it needs
+five tiles per state — fifteen — or a transparent panel overlay the generator can inset.
+
+The `ctm/casing/` tiles in the repo are derived from the placeholder `casing.png`, so the "connected"
+look is barely visible until real tiles replace them.
+
+**A resource pack with its own `athena/casing.json` overrides the mod's.** The 0.9.x test pack
+shipped one with `sameBlock`, which connects Casing only to Casing — delete it from the pack.
+
+### Pattern Storage has a top texture of its own (0.10.0)
+
+`pattern_storage_top.png`, via `cube_bottom_top`; the bottom and sides stay `pattern_storage.png`.
+It is a copy of the side until the art lands. If the interior gets connected textures, the top is an
+`"up"` entry in `ctm_textures` with its own five tiles, beside a `"default"` set for the sides.
 
 The Frame is in neither tag on purpose: it is the edge of the box, and a border around the shell is
 what makes the structure read as a framed unit rather than a blob. Say so if that should change.
@@ -145,7 +175,8 @@ what makes the structure read as a framed unit rather than a blob. Say so if tha
 
 `controller_front_unformed.png`, `controller_front_inactive.png`, `controller_front_active.png` and
 `port.png` are generated from `casing.png` by `tools/GenerateTextures.java` — run
-`java tools/GenerateTextures.java` from the repo root.
+`java tools/GenerateTextures.java` from the repo root. Since 0.10.0 it also writes their connected
+tiles from `ctm/casing/`; see above.
 
 The first attempt used Refined Storage's actual `grid/front.png`, which made an rsmbac Controller look
 enough like a Grid to be mistaken for one: a bug report about a crafter screen staying lit turned

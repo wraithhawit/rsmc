@@ -6,6 +6,71 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.10.0
+
+**The shell actually connects now — Casing, Pattern Port and the Controller — and Pattern Storage
+gets a top texture of its own.**
+
+Reported against 0.9.3: Casing, Port and Controller did not join. Nothing was broken; nothing had
+been shipped. 0.9.3 added the `rsmbac:shell` tag and no Athena definitions, and the only definitions
+anyone had were from the test pack sent to the artist, which gave Casing a `sameBlock` condition —
+Casing joined Casing and nothing else, and the Port and Controller drew full borders.
+
+### Casing and Port
+
+`athena/casing.json` and `athena/port.json`, both connecting to `rsmbac:shell`. The per-block
+definition is the right tool here and not for the Controller, for a reason besides the Controller's
+variants: Athena's per-block route skips the `inventory` variant, so the items keep their vanilla
+models. A connected model used as an item renders with flat GUI lighting.
+
+### The Controller, through a door Athena does not document
+
+0.9.3 put the Controller in the tag with no definition, on the reasoning that Athena's condition
+only tests the neighbour, so Casing would flow into it. It did — up to the Controller's own border,
+which it still drew on all four sides. A seamless wall with a framed block in it.
+
+Athena 4.0.6 also registers a NeoForge geometry loader, `athena:athena`, usable inside a block model,
+and its `ctm_textures` accepts a set per direction (`north` … `down`) plus a `default`. So each
+Controller model now carries the screen's five tiles on its front face and the Casing's on the other
+five. Two things had to be settled before that was safe to ship:
+
+- **No dependency.** NeoForge 21.1's `ExtendedBlockModelDeserializer` accepts
+  `"loader": { "id": ..., "optional": true }` and returns no geometry when that loader is missing,
+  so the model builds from its `parent` and `textures` like any vanilla model. Read out of the
+  21.1.234 bytecode; ATM10 runs 21.1.249.
+- **No rotation.** `AthenaUnbakedModel.bake` never reads the `ModelState`, so a blockstate `"y": 90`
+  is dropped and every Controller would face north. There are now twelve models,
+  `controller_<state>_<facing>.json`, each with the screen written on its own face over
+  `minecraft:block/cube`, and the blockstate has no rotation. `controller_inactive.json` and
+  `controller_active.json` are gone; `controller.json` stays, orientable, as the item model.
+
+All fourteen files were fed through Athena's own `ConnectedBlockModel.FACTORY` headlessly: all parse,
+and each Controller model resolves its screen set on its facing and the casing set everywhere else.
+**How the connection looks in game is not yet verified.**
+
+### Tiles
+
+`ctm/casing/` holds the five Casing tiles — derived from the placeholder `casing.png`, so the joined
+look is subtle until real ones replace them. `tools/GenerateTextures.java` now insets the Port
+opening and the three screens into each of those five, writing `ctm/port/` and
+`ctm/controller_front_<state>/`. The panel never reaches the edge pixels, so the generated sets keep
+the identical-interiors rule automatically. New casing art: replace five files, re-run the generator.
+
+### Pattern Storage
+
+`pattern_storage.json` is `cube_bottom_top`; the top is `pattern_storage_top.png`, a copy of the
+side until the art lands.
+
+### assetCheck, 79 -> 353
+
+Every `rsmbac:block/...` named by a model or an Athena definition must be a real texture — the
+check that makes it safe to ship connected textures, since a definition ahead of its tiles is a
+missing-texture wall for everyone on ATM10. Plus, per Controller model: it is the blockstate's model
+for its variant, its screen (flat and connected) is on its facing, and its loader is optional; the
+blockstate has no `"y"`; `athena/controller.json` does not exist. Each was broken on purpose and
+failed before this shipped: a deleted Port tile, a `"y": 90`, `"optional": false`, and a screen set
+moved to the wrong face.
+
 ## 0.9.3
 
 **`rsmbac:shell` — Casing, Controller and Pattern Port — so the outside connects the way the inside

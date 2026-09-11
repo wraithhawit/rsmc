@@ -1,6 +1,8 @@
 {
-  "parent": "minecraft:block/cube_all",
+  "parent": "minecraft:block/cube_bottom_top",
   "textures": {
-    "all": "rsmbac:block/pattern_storage"
+    "top": "rsmbac:block/pattern_storage_top",
+    "bottom": "rsmbac:block/pattern_storage",
+    "side": "rsmbac:block/pattern_storage"
   }
 }

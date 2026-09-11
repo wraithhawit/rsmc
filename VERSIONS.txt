@@ -8,6 +8,16 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.10.0
+------
+  THE SHELL CONNECTS - Casing, Pattern Port and Controller. 0.9.3 shipped the tag but no Athena
+  definitions, so nothing joined. Casing and Port get athena/*.json. The Controller cannot (a
+  per-block definition replaces all twelve variants), so it uses Athena's geometry loader inside
+  twelve per-facing models, loaded OPTIONALLY so there is still no dependency - one model per facing
+  because Athena ignores blockstate rotation. Port and screen tiles are generated from the five
+  casing tiles. Pattern Storage gets pattern_storage_top.png. assetCheck 79 -> 353, now proving
+  every texture a model or definition names exists. Parsed by Athena headlessly; not seen in game.
+
 0.9.3
 -----
   THE SHELL GETS A TAG TOO, rsmbac:shell - Casing, Controller and Pattern Port - so the outside of
