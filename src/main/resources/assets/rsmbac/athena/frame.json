@@ -1,0 +1,11 @@
+{
+  "athena:loader": "athena:ctm",
+  "ctm_textures": {
+    "particle":   "rsmbac:block/ctm/frame/particle",
+    "empty":      "rsmbac:block/ctm/frame/empty",
+    "center":     "rsmbac:block/ctm/frame/center",
+    "vertical":   "rsmbac:block/ctm/frame/vertical",
+    "horizontal": "rsmbac:block/ctm/frame/horizontal"
+  },
+  "connect_to": { "type": "sameBlock" }
+}

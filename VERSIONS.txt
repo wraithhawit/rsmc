@@ -8,6 +8,12 @@ gets an entry in each.
 The rule is adopted from rstweaks, where it was learned the hard way: versions 0.2.18
 through 0.2.46 of that mod were never written down and the detail is unrecoverable.
 
+0.10.2
+------
+  FRAMES CONNECT TO EACH OTHER - athena/frame.json, sameBlock, five placeholder-derived tiles in
+  ctm/frame/. Each edge of the box reads as one beam; Frame and Casing still keep their borders
+  against each other, so the walls stay framed.
+
 0.10.1
 ------
   THE INTERIOR DOES NOT CONNECT - the artist's call. rsmbac:interior removed; nothing ever used it,

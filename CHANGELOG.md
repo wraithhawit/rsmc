@@ -6,6 +6,22 @@ exact build.
 `VERSIONS.txt` is the short form of this file — one or two lines per version. Both are maintained;
 this one carries the reasoning, that one is the index.
 
+## 0.10.2
+
+**Frames connect to each other.**
+
+`athena/frame.json`, `"connect_to": { "type": "sameBlock" }`, with five tiles in `ctm/frame/`.
+Wraith's call once the artist turned out to be drawing frame tiles. Each edge of the box now reads
+as one continuous beam. The Frame is still in no tag, so Frame and Casing keep their borders where
+they meet and the walls stay framed.
+
+`sameBlock` rather than the shell tag on purpose: connecting Frame to Casing would dissolve the
+outline that tells a player where the box's edges are.
+
+The tiles are the placeholder-derived set the artist's test pack has used since the first zip, so
+the effect is subtle until real ones land. `assetCheck` covers the new definition's five
+references, and the definition parses through Athena 4.0.6's own factory.
+
 ## 0.10.1
 
 **The interior does not connect, and a hand-drawn Controller or Port panel is one file.**

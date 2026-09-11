@@ -110,6 +110,7 @@ its own full border, so the wall was seamless up to it and bordered around it.
 | block | how | tiles |
 |---|---|---|
 | `casing` | `athena/casing.json` | `ctm/casing/` — **drawn art, replace these** |
+| `frame` | `athena/frame.json`, `sameBlock` (0.10.2) | `ctm/frame/` — **drawn art, replace these** |
 | `port` | `athena/port.json` | `ctm/port/` — generated |
 | `controller` | twelve models, `controller_<state>_<facing>.json` | `ctm/controller_front_<state>/` — generated, plus `ctm/casing/` on the other five faces |
 
@@ -147,8 +148,13 @@ shipped one with `sameBlock`, which connects Casing only to Casing — delete it
 `pattern_storage_top.png`, via `cube_bottom_top`; the bottom and sides stay `pattern_storage.png`.
 It is a copy of the side until the art lands.
 
-The Frame is in neither tag on purpose: it is the edge of the box, and a border around the shell is
-what makes the structure read as a framed unit rather than a blob. Say so if that should change.
+### The Frame connects to Frames only (0.10.2)
+
+`athena/frame.json` with `"connect_to": { "type": "sameBlock" }` and five tiles in `ctm/frame/` —
+decided by Wraith, with the artist drawing the tiles. Each edge of the box reads as one continuous
+beam, and because the Frame is in no tag, Frame and Casing keep their borders against each other:
+the walls stay visibly framed rather than melting into one blob. The `ctm/frame/` tiles in the repo
+are derived from the placeholder `frame.png` until real ones replace them.
 
 ## The Controller faces and the Pattern Port are no longer anybody else's
 
